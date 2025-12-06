@@ -57,8 +57,8 @@ class Agent(Base):
     id = Column(String, primary_key=True, default=generate_uuid)
     name = Column(String, index=True)
     description = Column(String)
-    system_prompt = Column(Text, default="You are a helpful AI assistant.")
-    first_message = Column(Text, default="Hello! How can I help you today?")
+    system_prompt = Column(Text, nullable=True, default="You are a helpful AI assistant.")
+    first_message = Column(Text, nullable=True, default="Hello! How can I help you today?")
     owner_id = Column(String, ForeignKey("users.id"))
     
     # Linked Resources
@@ -159,3 +159,32 @@ class Message(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     session = relationship("ChatSession", back_populates="messages")
+
+class Analytics(Base):
+    __tablename__ = "analytics"
+    
+    id = Column(String, primary_key=True, default=generate_uuid)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
+    agent_id = Column(String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=True)
+    event_type = Column(String, nullable=False)  # chat, kb_upload, kb_query, etc.
+    event_data = Column(JSON, default={})
+    meta_data = Column(JSON, default={})
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    user = relationship("User")
+    agent = relationship("Agent")
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+    
+    id = Column(String, primary_key=True, default=generate_uuid)
+    user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    action = Column(String, nullable=False)  # create, update, delete, access
+    resource_type = Column(String, nullable=False)  # agent, kb, llm_config, etc.
+    resource_id = Column(String, nullable=True)
+    details = Column(JSON, default={})
+    ip_address = Column(String, nullable=True)
+    user_agent = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    user = relationship("User")

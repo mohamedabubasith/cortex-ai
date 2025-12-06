@@ -1,0 +1,139 @@
+"""Knowledge Base Router"""
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from typing import List, Optional
+import os
+import uuid
+
+from app.core.database import get_db
+from app.models import models
+from app.schemas import schemas
+from app.repositories.kb_repository import KBRepository
+from app.services.kb_service import KBService
+from app.services.auth_service import get_current_active_user
+
+router = APIRouter()
+
+def get_kb_service(db: AsyncSession = Depends(get_db)) -> KBService:
+    """Dependency injection for KB service"""
+    return KBService(KBRepository(db))
+
+@router.post("/upload", response_model=schemas.KnowledgeBase)
+async def upload_kb_file(
+    file: UploadFile = File(...),
+    llm_config_id: Optional[str] = Form(None),
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user),
+    kb_service: KBService = Depends(get_kb_service)
+):
+    """Upload knowledge base file"""
+    allowed_extensions = ['.pdf', '.docx', '.txt', '.md', '.doc']
+    file_ext = os.path.splitext(file.filename)[1].lower()
+    
+    if file_ext not in allowed_extensions:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File type {file_ext} not allowed. Allowed: {', '.join(allowed_extensions)}"
+        )
+    
+    try:
+        user_upload_dir = f"uploads/{current_user.id}"
+        os.makedirs(user_upload_dir, exist_ok=True)
+        
+        file_path = os.path.join(user_upload_dir, f"{uuid.uuid4()}_{file.filename}")
+        
+        with open(file_path, "wb") as f:
+            content = await file.read()
+            f.write(content)
+        
+        file_size = os.path.getsize(file_path)
+        
+        llm_config = None
+        if llm_config_id:
+            result = await db.execute(
+                select(models.LLMConfiguration).where(
+                    models.LLMConfiguration.id == llm_config_id,
+                    models.LLMConfiguration.user_id == current_user.id
+                )
+            )
+            llm_config = result.scalars().first()
+        
+        kb = await kb_service.upload_and_index(
+            user_id=current_user.id,
+            filename=file.filename,
+            file_path=file_path,
+            file_type=file_ext,
+            file_size=file_size,
+            llm_config=llm_config
+        )
+        
+        return kb
+        
+    except Exception as e:
+        if 'file_path' in locals() and os.path.exists(file_path):
+            os.remove(file_path)
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+
+@router.get("/{kb_id}/status")
+async def get_kb_status(
+    kb_id: str,
+    current_user: models.User = Depends(get_current_active_user),
+    kb_service: KBService = Depends(get_kb_service)
+):
+    """Get Cognee processing status"""
+    status = await kb_service.get_status(kb_id, current_user.id)
+    
+    if not status:
+        raise HTTPException(status_code=404, detail="Not found")
+    
+    return status
+
+@router.get("/", response_model=List[schemas.KnowledgeBase])
+async def get_kb_files(
+    current_user: models.User = Depends(get_current_active_user),
+    kb_service: KBService = Depends(get_kb_service)
+):
+    """Get all KB files"""
+    return await kb_service.get_all(current_user.id)
+
+@router.post("/{kb_id}/query")
+async def query_kb(
+    kb_id: str,
+    query_request: schemas.KBQueryRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user),
+    kb_service: KBService = Depends(get_kb_service)
+):
+    """Query KB"""
+    result = await db.execute(
+        select(models.LLMConfiguration).where(
+            models.LLMConfiguration.id == query_request.llm_config_id,
+            models.LLMConfiguration.user_id == current_user.id
+        )
+    )
+    llm_config = result.scalars().first()
+    
+    if not llm_config:
+        raise HTTPException(status_code=404, detail="LLM config not found")
+    
+    result = await kb_service.query(kb_id, current_user.id, query_request.query, llm_config)
+    
+    if not result["success"]:
+        raise HTTPException(status_code=400, detail=result["message"])
+    
+    return result
+
+@router.delete("/{kb_id}")
+async def delete_kb(
+    kb_id: str,
+    current_user: models.User = Depends(get_current_active_user),
+    kb_service: KBService = Depends(get_kb_service)
+):
+    """Delete KB"""
+    result = await kb_service.delete(kb_id, current_user.id)
+    
+    if not result["success"]:
+        raise HTTPException(status_code=404, detail=result["message"])
+    
+    return result

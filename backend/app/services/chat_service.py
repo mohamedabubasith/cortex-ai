@@ -5,6 +5,7 @@ import uuid
 from app.models import models
 from app.repositories.chat_repository import ChatRepository
 from app.repositories.agent_repository import AgentRepository
+from app.repositories.analytics_repository import AnalyticsRepository
 from app.services.llm_service import llm_service
 from app.services.cognee_service import cognee_service
 
@@ -12,6 +13,7 @@ class ChatService:
     def __init__(self, db: AsyncSession):
         self.chat_repo = ChatRepository(models.ChatSession, db)
         self.agent_repo = AgentRepository(models.Agent, db)
+        self.analytics_repo = AnalyticsRepository(db)
         self.db = db
 
     async def get_public_agent(self, share_token: str) -> models.Agent:
@@ -43,14 +45,22 @@ class ChatService:
                 return
 
             # 1. Manage Session
+            # 1. Manage Session
+            new_session_created = False
             if not session_id:
                 session_id = str(uuid.uuid4())
                 await self.chat_repo.create_session(session_id, agent.id)
+                new_session_created = True
             else:
                 session = await self.chat_repo.get_session(session_id)
                 if not session:
                     session_id = str(uuid.uuid4())
                     await self.chat_repo.create_session(session_id, agent.id)
+                    new_session_created = True
+            
+            # Add first message to history if it's a new session
+            if new_session_created and agent.first_message:
+                await self.chat_repo.add_message(session_id, "assistant", agent.first_message)
 
             # 2. Save User Message
             await self.chat_repo.add_message(session_id, "user", message)
@@ -83,6 +93,24 @@ class ChatService:
 
             # 6. Save Assistant Message
             await self.chat_repo.add_message(session_id, "assistant", full_response)
+            
+            # 7. Log analytics with token usage
+            token_usage = llm_service.get_last_token_usage()
+            await self.analytics_repo.create_event(
+                event_type="chat",
+                user_id=agent.owner_id,
+                agent_id=agent.id,
+                event_data={
+                    "session_id": session_id,
+                    "message_length": len(message),
+                    "response_length": len(full_response),
+                    "tokens": token_usage
+                },
+                meta_data={
+                    "model": agent.llm_config.model,
+                    "has_kb": len(agent.knowledge_bases) > 0 if agent.knowledge_bases else False
+                }
+            )
             
         except Exception as e:
             print(f"Error in process_chat: {e}")
