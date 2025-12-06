@@ -1,0 +1,33 @@
+# Docker ignore file
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+*.egg-info/
+.eggs/
+.pytest_cache/
+.coverage
+htmlcov/
+.env
+.env.local
+*.log
+uploads/
+test_*.db
+*.sqlite
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+test_document.txt
+test_kb_document.txt
