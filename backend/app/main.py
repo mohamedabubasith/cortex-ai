@@ -65,5 +65,13 @@ app.include_router(analytics.router, prefix=f"{settings.API_V1_STR}/analytics", 
 @app.on_event("startup")
 async def startup_event():
     from app.services.cognee_service import cognee_service
+    from app.core.database import engine, Base
+    # Import models to ensure they are registered with Base
+    from app.models import models
+    
+    # Create tables automatically (User's request)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+        
     # Initialize Cognee (creates tables if needed)
     await cognee_service.initialize()
