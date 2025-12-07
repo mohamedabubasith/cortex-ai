@@ -102,9 +102,9 @@ class CogneeService:
             
             if llm_config.model:
                 model = llm_config.model
-                # Fix for litellm: if using custom endpoint with non-standard model name,
+                # Fix for litellm: if using custom endpoint (like NVIDIA, Groq, etc.),
                 # prefix with openai/ to force OpenAI protocol.
-                if "/" in model and not model.startswith("openai/"):
+                if llm_config.base_url and not model.startswith("openai/"):
                     model = f"openai/{model}"
                 cognee.config.set_llm_model(model)
 

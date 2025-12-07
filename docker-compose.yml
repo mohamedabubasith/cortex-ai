@@ -49,8 +49,11 @@ services:
       # Cognee Vector DB
       VECTOR_DB_PROVIDER: pgvector
       VECTOR_DB_URL: postgresql://postgres:password@db:5432/cognee_db
+      VECTOR_DB_URL: postgresql://postgres:password@db:5432/cognee_db
       ENABLE_BACKEND_ACCESS_CONTROL: "true"
       LOG_LEVEL: DEBUG
+    env_file:
+      - .env
     ports:
       - "8000:8000"
     depends_on:
