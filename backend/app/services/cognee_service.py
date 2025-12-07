@@ -17,6 +17,20 @@ if os.getenv("EMBEDDING_MODEL"):
 if os.getenv("EMBEDDING_DIMENSIONS"):
     os.environ["EMBEDDING_DIMENSIONS"] = os.getenv("EMBEDDING_DIMENSIONS")
 
+# Set persistent data path for Cognee (LanceDB)
+# This ensures data survives server restarts
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+DATA_DIR = os.path.join(ROOT_DIR, "data")
+LANCEDB_PATH = os.path.join(DATA_DIR, "lancedb")
+
+if not os.path.exists(DATA_DIR):
+    os.makedirs(DATA_DIR)
+
+os.environ["COGNEE_VECTOR_DB_PATH"] = LANCEDB_PATH
+os.environ["COGNEE_LANCEDB_URL"] = LANCEDB_PATH
+# Also set a specialized path for Cognee's internal storage if needed
+os.environ["COGNEE_ROOT_DIR"] = DATA_DIR
+
 import cognee
 from sqlalchemy import text
 from cognee.api.v1.search import SearchType
