@@ -225,7 +225,14 @@ export default function KnowledgeBasePage() {
             });
 
             if (res.data.success && Array.isArray(res.data.data)) {
-                setQueryResults(res.data.data);
+                // Handle Cognee structure where results are nested in search_result
+                const results = res.data.data.flatMap((item: any) => {
+                    if (item.search_result && Array.isArray(item.search_result)) {
+                        return item.search_result;
+                    }
+                    return item;
+                });
+                setQueryResults(results);
             } else if (res.data.answer) {
                 // Fallback
                 setQueryResults([{ text: res.data.answer }]);
@@ -584,7 +591,7 @@ export default function KnowledgeBasePage() {
                                     queryResults.map((chunk, i) => (
                                         <div key={i} className="bg-white/5 rounded-xl border border-white/10 overflow-hidden group hover:border-nvidia-green/30 transition-all">
                                             <div className="p-4">
-                                                <p className="text-gray-300 leading-relaxed whitespace-pre-wrap">{chunk.text}</p>
+                                                <p className="text-sm md:text-base text-gray-300 leading-relaxed whitespace-pre-wrap">{chunk.text}</p>
                                             </div>
                                             {chunk.metadata && Object.keys(chunk.metadata).length > 0 && (
                                                 <div className="bg-black/20 px-4 py-3 border-t border-white/5 flex flex-wrap gap-2">
