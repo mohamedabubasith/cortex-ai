@@ -40,9 +40,6 @@ export default function PublicChatPage() {
             if (params.shareId) {
                 // Check if user was on a specific session (from localStorage)
                 const savedSessionId = localStorage.getItem(`currentSession_${params.shareId}`);
-                if (savedSessionId) {
-                    setIsFirstVisit(false);
-                }
 
                 // IMPORTANT: Fetch agent info FIRST to get first_message
                 await fetchAgentInfo();
@@ -107,7 +104,7 @@ export default function PublicChatPage() {
                     setCurrentSessionId(restoredSessionId);
                     setSessionId(restoredSessionId);
                     await loadSessionMessages(restoredSessionId);
-                } else if (backendSessions.length > 0 && !isFirstVisit) {
+                } else if (backendSessions.length > 0) {
                     // User has sessions but no saved session - load most recent
                     const latest = backendSessions[0];
                     setCurrentSessionId(latest.id);
