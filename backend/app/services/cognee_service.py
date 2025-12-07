@@ -75,9 +75,6 @@ class CogneeService:
 
     def _configure_embeddings(self):
         """Configure embedding settings based on environment"""
-        from dotenv import load_dotenv
-        load_dotenv()
-        
         embed_config = get_embedding_config()
         
         provider_env = os.getenv("EMBEDDING_PROVIDER")
