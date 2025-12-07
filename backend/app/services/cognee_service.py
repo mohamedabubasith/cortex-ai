@@ -29,8 +29,8 @@ class CogneeService:
         If so, use Cognee's native prune functionality to reset the system.
         """
         try:
-            engine = get_relational_engine()
-            async with engine.begin() as conn:
+            adapter = get_relational_engine()
+            async with adapter.engine.begin() as conn:
                 # Check if pipeline_runs exists and has run_id
                 result = await conn.execute(text(
                     "SELECT column_name FROM information_schema.columns "
