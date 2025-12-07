@@ -71,17 +71,18 @@ async def startup_event():
     
     # Create tables automatically (User's request)
     # Create tables automatically (User's request)
+    # Create tables automatically (User's request)
     # Handle race conditions gracefully by ignoring errors if tables already exist
     try:
-        logging.info("Starting automatic table creation...")
+        print("DEBUG: Starting automatic table creation...", flush=True)
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-        logging.info("Automatic table creation completed.")
+        print("DEBUG: Automatic table creation completed.", flush=True)
     except Exception as e:
         # If multiple workers try to create tables at once, some might fail.
         # This is expected and safe to ignore if the tables end up existing.
-        logging.warning(f"Database table creation warning (likely race condition, safe to ignore): {e}")
+        print(f"DEBUG: Database table creation warning (likely race condition, safe to ignore): {e}", flush=True)
         
     # Initialize Cognee (creates tables if needed)
-    logging.info("Calling cognee_service.initialize()...")
+    print("DEBUG: Calling cognee_service.initialize()...", flush=True)
     await cognee_service.initialize()
