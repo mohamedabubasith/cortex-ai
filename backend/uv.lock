@@ -377,7 +377,7 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.17.2" },
     { name = "asyncpg", specifier = ">=0.31.0" },
     { name = "bcrypt", specifier = ">=4.1.2" },
-    { name = "cognee", specifier = ">=0.4.1" },
+    { name = "cognee", specifier = "==0.3.6" },
     { name = "ecdsa", specifier = ">=0.19.0" },
     { name = "fastapi", specifier = ">=0.115.14,<0.120.0" },
     { name = "fastembed", specifier = ">=0.3.0" },
@@ -657,7 +657,7 @@ wheels = [
 
 [[package]]
 name = "cognee"
-version = "0.4.1"
+version = "0.3.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiofiles" },
@@ -672,11 +672,9 @@ dependencies = [
     { name = "instructor" },
     { name = "jinja2" },
     { name = "kuzu" },
-    { name = "lance-namespace" },
     { name = "lancedb" },
     { name = "limits" },
     { name = "litellm" },
-    { name = "mistralai" },
     { name = "nbformat" },
     { name = "networkx", version = "3.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "networkx", version = "3.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
@@ -695,15 +693,14 @@ dependencies = [
     { name = "rdflib" },
     { name = "sqlalchemy" },
     { name = "structlog" },
-    { name = "tenacity" },
     { name = "tiktoken" },
     { name = "typing-extensions" },
     { name = "uvicorn" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f7/ff/2ea73b35602c499564788c4f1e18c5c8811b25feb2948c16570ab696889e/cognee-0.4.1.tar.gz", hash = "sha256:b952b9840834da1e7d1e48e33ed32c9a86b21cb7067894afaadc08d9f1f70607", size = 14269706, upload_time = "2025-11-27T18:51:28.381Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1b/ec/45d7ae5c78680d1d7fc04eb596bd5b8c55e874d1ec70d632d8805e2e997b/cognee-0.3.6.tar.gz", hash = "sha256:201270ab89681dfa74feaf810cd3a11c34f80adb0be6f89205b5dfb467e079c1", size = 14159474, upload_time = "2025-10-14T11:30:53.171Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/35/65/e7abaedcb87d8144bc2b511e3fa86a1ae5a114cb34765a898ca80097ef84/cognee-0.4.1-py3-none-any.whl", hash = "sha256:94b228ff69bede84a9047bfee2812385e009e4355fe50fa9bf4973fce12845bb", size = 1286996, upload_time = "2025-11-27T18:51:17.482Z" },
+    { url = "https://files.pythonhosted.org/packages/c7/14/c2cad3939ce3089d2f0bb905d3f0ef88f4b98f717e41f2aa5038fdcd4f32/cognee-0.3.6-py3-none-any.whl", hash = "sha256:ac37bf962268d71cd5268c71250352acb3ccafb339b6c8860bd52b998c5216dd", size = 1242186, upload_time = "2025-10-14T11:30:50.159Z" },
 ]
 
 [[package]]
@@ -949,15 +946,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/85/23/faab91ba691ddcff25db67c2835cbe65b0fbb0177cbbc532c6230b826d12/email_validator-2.1.2.tar.gz", hash = "sha256:14c0f3d343c4beda37400421b39fa411bbe33a75df20825df73ad53e06a9f04c", size = 45112, upload_time = "2024-06-17T01:29:58.198Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a3/05/8b171626b850e870fc4433225cd6d5bec5a9916b1c39b3d7c67a60492aeb/email_validator-2.1.2-py3-none-any.whl", hash = "sha256:d89f6324e13b1e39889eab7f9ca2f91dc9aebb6fa50a6d8bd4329ab50f251115", size = 30739, upload_time = "2024-06-17T01:29:56.974Z" },
-]
-
-[[package]]
-name = "eval-type-backport"
-version = "0.3.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/fb/a3/cafafb4558fd638aadfe4121dc6cefb8d743368c085acb2f521df0f3d9d7/eval_type_backport-0.3.1.tar.gz", hash = "sha256:57e993f7b5b69d271e37482e62f74e76a0276c82490cf8e4f0dffeb6b332d5ed", size = 9445, upload_time = "2025-12-02T11:51:42.987Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/cf/22/fdc2e30d43ff853720042fa15baa3e6122722be1a7950a98233ebb55cd71/eval_type_backport-0.3.1-py3-none-any.whl", hash = "sha256:279ab641905e9f11129f56a8a78f493518515b83402b860f6f06dd7c011fdfa8", size = 6063, upload_time = "2025-12-02T11:51:41.665Z" },
 ]
 
 [[package]]
@@ -1579,15 +1567,6 @@ wheels = [
 ]
 
 [[package]]
-name = "invoke"
-version = "2.2.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/de/bd/b461d3424a24c80490313fd77feeb666ca4f6a28c7e72713e3d9095719b4/invoke-2.2.1.tar.gz", hash = "sha256:515bf49b4a48932b79b024590348da22f39c4942dff991ad1fb8b8baea1be707", size = 304762, upload_time = "2025-10-11T00:36:35.172Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/32/4b/b99e37f88336009971405cbb7630610322ed6fbfa31e1d7ab3fbf3049a2d/invoke-2.2.1-py3-none-any.whl", hash = "sha256:2413bc441b376e5cd3f55bb5d364f973ad8bdd7bf87e53c79de3c11bf3feecc8", size = 160287, upload_time = "2025-10-11T00:36:33.703Z" },
-]
-
-[[package]]
 name = "isodate"
 version = "0.7.2"
 source = { registry = "https://pypi.org/simple" }
@@ -2134,24 +2113,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/d6/54/cfe61301667036ec958cb99bd3efefba235e65cdeb9c84d24a8293ba1d90/mdurl-0.1.2.tar.gz", hash = "sha256:bb413d29f5eea38f31dd4754dd7377d4465116fb207585f97bf925588687c1ba", size = 8729, upload_time = "2022-08-14T12:40:10.846Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b3/38/89ba8ad64ae25be8de66a6d463314cf1eb366222074cfda9ee839c56a4b4/mdurl-0.1.2-py3-none-any.whl", hash = "sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8", size = 9979, upload_time = "2022-08-14T12:40:09.779Z" },
-]
-
-[[package]]
-name = "mistralai"
-version = "1.9.11"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "eval-type-backport" },
-    { name = "httpx" },
-    { name = "invoke" },
-    { name = "pydantic" },
-    { name = "python-dateutil" },
-    { name = "pyyaml" },
-    { name = "typing-inspection" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/5a/8d/d8b7af67a966b6f227024e1cb7287fc19901a434f87a5a391dcfe635d338/mistralai-1.9.11.tar.gz", hash = "sha256:3df9e403c31a756ec79e78df25ee73cea3eb15f86693773e16b16adaf59c9b8a", size = 208051, upload_time = "2025-10-02T15:53:40.473Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/fe/76/4ce12563aea5a76016f8643eff30ab731e6656c845e9e4d090ef10c7b925/mistralai-1.9.11-py3-none-any.whl", hash = "sha256:7a3dc2b8ef3fceaa3582220234261b5c4e3e03a972563b07afa150e44a25a6d3", size = 442796, upload_time = "2025-10-02T15:53:39.134Z" },
 ]
 
 [[package]]
