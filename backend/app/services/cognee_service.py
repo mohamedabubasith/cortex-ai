@@ -7,6 +7,16 @@ import logging
 import os
 import asyncio
 from typing import Dict, Any, List, Optional
+
+# CRITICAL: Set embedding provider BEFORE importing cognee
+# This ensures Cognee reads the correct configuration during module initialization
+if os.getenv("EMBEDDING_PROVIDER"):
+    os.environ["EMBEDDING_PROVIDER"] = os.getenv("EMBEDDING_PROVIDER")
+if os.getenv("EMBEDDING_MODEL"):
+    os.environ["EMBEDDING_MODEL"] = os.getenv("EMBEDDING_MODEL")
+if os.getenv("EMBEDDING_DIMENSIONS"):
+    os.environ["EMBEDDING_DIMENSIONS"] = os.getenv("EMBEDDING_DIMENSIONS")
+
 import cognee
 from sqlalchemy import text
 from cognee.api.v1.search import SearchType
