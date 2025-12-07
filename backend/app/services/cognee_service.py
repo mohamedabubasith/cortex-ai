@@ -28,53 +28,6 @@ import tiktoken
 from app.core.config import settings
 from cognee.infrastructure.databases.vector.embeddings.config import get_embedding_config
 
-# Monkey-patch to force FastEmbed usage if configured
-if os.getenv("EMBEDDING_PROVIDER") == "fastembed":
-    print("DEBUG: Applying FastEmbed monkey-patch to Cognee...", flush=True)
-    try:
-        from fastembed import TextEmbedding
-        
-        # Create a wrapper that mimics Cognee's embedding engine interface
-        class FastEmbedWrapper:
-            def __init__(self, model: str, dimensions: int):
-                self.model = model
-                self.dimensions = dimensions
-                self._engine = TextEmbedding(model_name=model)
-            
-            async def embed_text(self, texts: list[str]) -> list[list[float]]:
-                """Embed texts using FastEmbed"""
-                if isinstance(texts, str):
-                    texts = [texts]
-                # FastEmbed returns generator, convert to list
-                embeddings = list(self._engine.embed(texts))
-                return embeddings
-        
-        # Patch the get_embedding_engine factory
-        original_get_engine = None
-        try:
-            from cognee.infrastructure.databases.vector.embeddings import get_embedding_engine
-            original_get_engine = get_embedding_engine
-        except ImportError:
-            pass
-        
-        def patched_get_embedding_engine():
-            """Return FastEmbed engine instead of default"""
-            model = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
-            dimensions = int(os.getenv("EMBEDDING_DIMENSIONS", "384"))
-            print(f"DEBUG: Using patched FastEmbed engine with model={model}, dimensions={dimensions}", flush=True)
-            return FastEmbedWrapper(model, dimensions)
-        
-        # Apply the patch
-        import cognee.infrastructure.databases.vector.embeddings
-        cognee.infrastructure.databases.vector.embeddings.get_embedding_engine = patched_get_embedding_engine
-        print("DEBUG: FastEmbed monkey-patch applied successfully!", flush=True)
-        
-    except Exception as e:
-        print(f"DEBUG: FastEmbed monkey-patch failed: {e}", flush=True)
-        import traceback
-        traceback.print_exc()
-
-
 # Monkeypatch tiktoken to support non-OpenAI models (e.g. fastembed)
 # Cognee uses tiktoken for chunking but fails on unknown model names.
 original_encoding_for_model = tiktoken.encoding_for_model
@@ -116,7 +69,6 @@ class CogneeService:
         Cognee version: 0.2.0+
         """
         try:
-            print("DEBUG: Running Cognee setup...", flush=True)
             # Try importing from new location first, fallback to old if needed
             try:
                 from cognee.modules.engine.operations.setup import setup
@@ -124,10 +76,10 @@ class CogneeService:
                 from cognee.infrastructure.databases.relational.create_db_and_tables import create_db_and_tables as setup
             
             await setup()
-            print("DEBUG: Cognee setup completed successfully", flush=True)
+            logger.info("Cognee setup completed successfully")
             return {"success": True, "message": "Setup complete"}
         except Exception as e:
-            print(f"DEBUG: Failed to setup Cognee: {e}", flush=True)
+            logger.error(f"Failed to setup Cognee: {e}")
             raise e
 
     def _configure_embeddings(self):
@@ -135,53 +87,20 @@ class CogneeService:
         embed_config = get_embedding_config()
         
         provider_env = os.getenv("EMBEDDING_PROVIDER")
-        print(f"DEBUG: os.getenv('EMBEDDING_PROVIDER') = {provider_env}", flush=True)
-        print(f"DEBUG: Initial embed_config: {embed_config}", flush=True)
-        
         current_provider = provider_env if provider_env else "openai"
         
         if current_provider == "fastembed":
-            # Explicitly configure fastembed
-            print("DEBUG: Configuring for FastEmbed...", flush=True)
+            # Configure fastembed
             embed_config.embedding_provider = "fastembed"
             embed_config.embedding_model = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
             embed_config.embedding_dimensions = int(os.getenv("EMBEDDING_DIMENSIONS", "384"))
             embed_config.embedding_endpoint = None
             embed_config.embedding_api_key = None
-            
-            # Try to set global config if available
-            try:
-                import cognee.config as cognee_config
-                print(f"DEBUG: cognee.config module: {dir(cognee_config)}", flush=True)
-                
-                # Try known methods or attributes
-                if hasattr(cognee_config, "set_embedding_provider"):
-                    cognee_config.set_embedding_provider("fastembed")
-                    print("DEBUG: Called cognee.config.set_embedding_provider('fastembed')", flush=True)
-                
-                if hasattr(cognee_config, "set_embedding_model"):
-                    cognee_config.set_embedding_model(os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"))
-                    print("DEBUG: Called cognee.config.set_embedding_model", flush=True)
-                    
-                if hasattr(cognee_config, "set_embedding_dimensions"):
-                    cognee_config.set_embedding_dimensions(int(os.getenv("EMBEDDING_DIMENSIONS", "384")))
-                    print("DEBUG: Called cognee.config.set_embedding_dimensions", flush=True)
-
-                # Also try to set on the Config singleton if exposed
-                if hasattr(cognee_config, "Config"):
-                    cognee_config.Config().embedding_provider = "fastembed"
-                    print("DEBUG: Set cognee.config.Config().embedding_provider", flush=True)
-
-            except ImportError:
-                print("DEBUG: Could not import cognee.config", flush=True)
-            except Exception as e:
-                print(f"DEBUG: Failed to set global config via cognee.config: {e}", flush=True)
-        
-        print(f"DEBUG: Final embed_config: {embed_config}", flush=True)
+            logger.info(f"Configured FastEmbed with model: {embed_config.embedding_model}")
 
     async def initialize(self):
         """Initialize Cognee (create tables, etc.)"""
-        print("DEBUG: Initializing CogneeService...", flush=True)
+        logger.info("Initializing CogneeService...")
         
         # Configure embeddings early
         self._configure_embeddings()
@@ -190,7 +109,7 @@ class CogneeService:
             # Try setup first
             await self.setup_cognee()
         except Exception as e:
-            print(f"DEBUG: Initial setup failed ({e}). Attempting to purge and retry...", flush=True)
+            logger.warning(f"Initial setup failed ({e}). Attempting to purge and retry...")
             # If setup fails (e.g. schema mismatch), purge and retry
             await self.purge_cognee_database()
             await self.setup_cognee()

@@ -38,28 +38,34 @@ class ChatService:
         """Delete a chat session"""
         return await self.chat_repo.delete_session(session_id)
 
-    async def process_chat(self, agent: models.Agent, message: str, session_id: str = None) -> AsyncGenerator[str, None]:
+    async def create_new_session(self, agent_id: str) -> str:
+        """Create a new chat session and return its ID"""
+        session_id = str(uuid.uuid4())
+        await self.chat_repo.create_session(session_id, agent_id)
+        return session_id
+
+    async def get_session(self, session_id: str) -> models.ChatSession:
+        """Get a chat session by ID"""
+        return await self.chat_repo.get_session(session_id)
+
+    async def process_chat(self, agent: models.Agent, message: str, session_id: str) -> AsyncGenerator[str, None]:
         try:
             # 0. Validate Agent Config
             if not agent.llm_config:
                 yield "Error: This agent has no LLM configuration linked. Please configure an LLM for this agent."
                 return
 
-            # 1. Manage Session
-            new_session_created = False
+            # 1. Manage Session - Session ID must be provided by caller
             if not session_id:
-                session_id = str(uuid.uuid4())
-                await self.chat_repo.create_session(session_id, agent.id)
-                new_session_created = True
-            else:
-                session = await self.chat_repo.get_session(session_id)
-                if not session:
-                    session_id = str(uuid.uuid4())
-                    await self.chat_repo.create_session(session_id, agent.id)
-                    new_session_created = True
+                yield "Error: Session ID is required."
+                return
+            
+            # Check if it's a new session (no messages yet) to add first message
+            history = await self.chat_repo.get_history(session_id)
+            is_new_session = len(history) == 0
             
             # Add first message to history if it's a new session
-            if new_session_created and agent.first_message:
+            if is_new_session and agent.first_message:
                 await self.chat_repo.add_message(session_id, "assistant", agent.first_message)
 
             # 2. Save User Message

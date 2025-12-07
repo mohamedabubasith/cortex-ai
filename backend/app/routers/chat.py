@@ -40,9 +40,22 @@ async def public_chat(
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found or invalid token")
         
+    # Handle session creation/retrieval
+    session_id = request.session_id
+    if session_id:
+        # Verify session exists
+        session = await service.get_session(session_id)
+        if not session:
+            # Session ID provided but not found - create new
+            session_id = await service.create_new_session(agent.id)
+    else:
+        # No session ID provided - create new
+        session_id = await service.create_new_session(agent.id)
+        
     return StreamingResponse(
-        service.process_chat(agent, request.message, request.session_id),
-        media_type="text/event-stream"
+        service.process_chat(agent, request.message, session_id),
+        media_type="text/event-stream",
+        headers={"x-session-id": session_id}
     )
 
 # Get all sessions for a public agent
@@ -101,7 +114,20 @@ async def test_chat(
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
         
+    # Handle session creation/retrieval
+    session_id = request.session_id
+    if session_id:
+        # Verify session exists
+        session = await service.get_session(session_id)
+        if not session:
+            # Session ID provided but not found - create new
+            session_id = await service.create_new_session(agent.id)
+    else:
+        # No session ID provided - create new
+        session_id = await service.create_new_session(agent.id)
+
     return StreamingResponse(
-        service.process_chat(agent, request.message, request.session_id),
-        media_type="text/event-stream"
+        service.process_chat(agent, request.message, session_id),
+        media_type="text/event-stream",
+        headers={"x-session-id": session_id}
     )

@@ -33,7 +33,7 @@ export default function PublicChatPage() {
     const [sessions, setSessions] = useState<ChatSession[]>([]);
     const [currentSessionId, setCurrentSessionId] = useState<string>("");
     const [loading, setLoading] = useState(true);
-    const [isFirstVisit, setIsFirstVisit] = useState(true);
+    // Removed isFirstVisit flag for persistent session handling
 
     useEffect(() => {
         const initChat = async () => {
@@ -290,6 +290,16 @@ export default function PublicChatPage() {
                 setCurrentSessionId(newSessionId || '');
                 if (newSessionId) {
                     localStorage.setItem(`currentSession_${params.shareId}`, newSessionId);
+
+                    // Add to sessions list immediately
+                    setSessions(prev => [
+                        {
+                            id: newSessionId,
+                            title: message.substring(0, 50) || "New chat",
+                            timestamp: Date.now()
+                        },
+                        ...prev
+                    ]);
                 }
             }
 
