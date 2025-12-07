@@ -19,10 +19,11 @@ echo "Using: $DOCKER_COMPOSE_CMD"
 
 echo "Starting deployment..."
 
-# 1. Pull the latest code and checkout the specific tag
+# 1. Pull the latest code (preserving local changes)
 echo "Pulling code..."
-git fetch origin --tags --force
-git checkout tags/v0.0.2
+git stash
+git pull --rebase origin main
+git stash pop || echo "No local changes to restore or conflict occurred."
 
 # 2. Check for .env file
 if [ ! -f .env ]; then
