@@ -12,6 +12,7 @@ export default function RegisterPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+    const [success, setSuccess] = useState(false);
     const [formData, setFormData] = useState({
         full_name: "",
         email: "",
@@ -37,12 +38,13 @@ export default function RegisterPage() {
                 full_name: formData.full_name
             });
 
-            // Auto login or redirect to login
-            router.push("/");
+            setSuccess(true);
+            setTimeout(() => {
+                router.push("/");
+            }, 2000);
         } catch (err: any) {
             console.error(err);
             setError(err.response?.data?.detail || "Registration failed. Please try again.");
-        } finally {
             setLoading(false);
         }
     };
@@ -63,6 +65,12 @@ export default function RegisterPage() {
                     {error && (
                         <div className="mb-6 p-4 bg-red-900/20 border border-red-500/50 text-red-200 rounded-lg text-sm flex items-center">
                             <span className="mr-2">⚠️</span> {error}
+                        </div>
+                    )}
+
+                    {success && (
+                        <div className="mb-6 p-4 bg-green-900/20 border border-green-500/50 text-green-200 rounded-lg text-sm flex items-center">
+                            <span className="mr-2">✅</span> Account created! Redirecting to login...
                         </div>
                     )}
 

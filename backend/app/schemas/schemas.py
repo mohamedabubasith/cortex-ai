@@ -203,3 +203,6 @@ class PublicAgentInfo(BaseModel):
     name: str
     description: Optional[str] = None
     first_message: Optional[str] = None
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr

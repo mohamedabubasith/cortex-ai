@@ -41,7 +41,7 @@ async def register_user(
 
 @router.post("/forgot-password")
 async def forgot_password(
-    email: str,
+    request: schemas.ForgotPasswordRequest,
     service: AuthService = Depends(get_auth_service)
 ):
     # Placeholder for actual email sending logic
