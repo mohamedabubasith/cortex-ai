@@ -273,7 +273,7 @@ export default function KnowledgeBasePage() {
             </div>
 
             {/* Tabs */}
-            <div className="flex space-x-6 border-b border-white/10">
+            <div className="flex space-x-6 border-b border-white/10 overflow-x-auto whitespace-nowrap pb-1">
                 <button
                     onClick={() => setActiveTab('documents')}
                     className={`pb-4 text-sm font-bold transition-colors relative ${activeTab === 'documents' ? 'text-nvidia-green' : 'text-gray-400 hover:text-white'}`}
