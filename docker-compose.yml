@@ -50,6 +50,7 @@ services:
       VECTOR_DB_PROVIDER: pgvector
       VECTOR_DB_URL: postgresql://postgres:password@db:5432/cognee_db
       ENABLE_BACKEND_ACCESS_CONTROL: "true"
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1 --proxy-headers
     ports:
       - "8000:8000"
     depends_on:

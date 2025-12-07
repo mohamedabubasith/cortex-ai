@@ -55,6 +55,7 @@ class CogneeService:
 
     async def initialize(self):
         """Initialize Cognee (create tables, etc.)"""
+        logger.info("Initializing CogneeService...")
         try:
             from cognee.infrastructure.databases.relational.create_db_and_tables import create_db_and_tables as setup
             
