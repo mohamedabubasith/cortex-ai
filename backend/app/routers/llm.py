@@ -16,7 +16,7 @@ def get_llm_service(db: AsyncSession = Depends(get_db)) -> LLMConfigService:
     """Dependency injection for LLM service"""
     return LLMConfigService(LLMRepository(db))
 
-@router.post("/", response_model=schemas.LLMConfiguration)
+@router.post("", response_model=schemas.LLMConfiguration)
 async def create_llm_config(
     config: schemas.LLMConfigurationCreate,
     current_user: models.User = Depends(get_current_active_user),
@@ -31,7 +31,7 @@ async def create_llm_config(
         base_url=config.base_url
     )
 
-@router.get("/", response_model=List[schemas.LLMConfiguration])
+@router.get("", response_model=List[schemas.LLMConfiguration])
 async def get_llm_configs(
     current_user: models.User = Depends(get_current_active_user),
     llm_service: LLMConfigService = Depends(get_llm_service)

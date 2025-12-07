@@ -21,8 +21,8 @@ export default function DashboardPage() {
         const fetchStats = async () => {
             try {
                 const [agentsRes, llmRes, analyticsRes, liveEvents] = await Promise.all([
-                    api.get("/agents/"),
-                    api.get("/llm/"),
+                    api.get("/agents"),
+                    api.get("/llm"),
                     api.get("/analytics/stats/overview?hours=24"),
                     api.get("/analytics/analytics/live?limit=50")
                 ]);

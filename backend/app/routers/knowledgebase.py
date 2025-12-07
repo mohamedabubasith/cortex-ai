@@ -117,7 +117,7 @@ async def get_kb_status(
     
     return status
 
-@router.get("/", response_model=List[schemas.KnowledgeBase])
+@router.get("", response_model=List[schemas.KnowledgeBase])
 async def get_kb_files(
     current_user: models.User = Depends(get_current_active_user),
     kb_service: KBService = Depends(get_kb_service)

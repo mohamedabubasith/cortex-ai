@@ -13,7 +13,7 @@ router = APIRouter()
 def get_agent_service(db: AsyncSession = Depends(get_db)) -> AgentService:
     return AgentService(db)
 
-@router.post("/", response_model=schemas.Agent)
+@router.post("", response_model=schemas.Agent)
 async def create_agent(
     agent: schemas.AgentCreate,
     service: AgentService = Depends(get_agent_service),
@@ -21,7 +21,7 @@ async def create_agent(
 ):
     return await service.create_agent(agent, current_user.id)
 
-@router.get("/", response_model=List[schemas.Agent])
+@router.get("", response_model=List[schemas.Agent])
 async def read_agents(
     skip: int = 0,
     limit: int = 100,

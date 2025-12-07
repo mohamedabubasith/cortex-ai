@@ -118,7 +118,7 @@ export default function KnowledgeBasePage() {
 
     const fetchLLMs = async () => {
         try {
-            const res = await api.get("/llm/");
+            const res = await api.get("/llm");
             setLlmConfigs(res.data);
             if (res.data.length > 0) setSelectedLlmId(res.data[0].id);
         } catch (error) {
@@ -130,8 +130,8 @@ export default function KnowledgeBasePage() {
         setLoading(true);
         try {
             const [kbRes, dbRes] = await Promise.all([
-                api.get("/kb/"),
-                api.get("/resources/databases/")
+                api.get("/kb"),
+                api.get("/resources/databases")
             ]);
             setKbFiles(kbRes.data);
             setDbConnections(dbRes.data);
