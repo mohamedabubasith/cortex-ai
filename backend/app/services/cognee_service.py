@@ -14,6 +14,7 @@ from cognee.modules.users.methods import get_default_user
 from cognee.infrastructure.databases.relational import get_relational_engine
 from cognee.infrastructure.databases.relational.ModelBase import Base as CogneeBase
 from app.core.config import settings
+from cognee.infrastructure.databases.vector.embeddings.config import get_embedding_config
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +91,18 @@ class CogneeService:
                 if "/" in model and not model.startswith("openai/"):
                     model = f"openai/{model}"
                 cognee.config.set_llm_model(model)
+
+            # Configure Embeddings
+            embed_config = get_embedding_config()
+            if llm_config.base_url:
+                embed_config.embedding_endpoint = llm_config.base_url
+                embed_config.embedding_api_key = llm_config.api_key
+                
+                # Heuristic for NVIDIA
+                if "nvidia" in llm_config.base_url.lower():
+                    # NVIDIA usually uses nv-embed-v1
+                    embed_config.embedding_model = "openai/nvidia/nv-embed-v1"
+                    embed_config.embedding_provider = "openai"
 
     async def _get_dataset_by_name(self, dataset_name: str) -> Optional[dict]:
         """Check if dataset exists"""
