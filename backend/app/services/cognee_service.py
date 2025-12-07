@@ -111,11 +111,19 @@ class CogneeService:
             # Configure Embeddings
             embed_config = get_embedding_config()
             
-            # Only override if using default openai provider. 
-            # If user configured 'fastembed' or others via env vars, respect that.
-            # Only override if llm_config.base_url is provided AND provider is openai.
             current_provider = os.getenv("EMBEDDING_PROVIDER", "openai")
-            if llm_config.base_url and current_provider == "openai":
+            
+            if current_provider == "fastembed":
+                # Explicitly configure fastembed to ensure correct engine is used
+                embed_config.embedding_provider = "fastembed"
+                embed_config.embedding_model = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+                embed_config.embedding_dimensions = int(os.getenv("EMBEDDING_DIMENSIONS", "384"))
+                embed_config.embedding_endpoint = None
+                embed_config.embedding_api_key = None
+            elif llm_config.base_url and current_provider == "openai":
+                # Only override if using default openai provider. 
+                # If user configured 'fastembed' or others via env vars, respect that.
+                # Only override if llm_config.base_url is provided AND provider is openai.
                 embed_config.embedding_endpoint = llm_config.base_url
                 embed_config.embedding_api_key = llm_config.api_key
                 
