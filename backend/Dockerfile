@@ -9,6 +9,7 @@ ENV PYTHONUNBUFFERED=1 \
 
 # Set work directory
 WORKDIR /app
+ENV PATH="/app/.venv/bin:$PATH"
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -16,12 +17,11 @@ RUN apt-get update && apt-get install -y \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
-COPY requirements.txt .
+# Copy project definition
+COPY pyproject.toml uv.lock ./
 
-# Install Python dependencies
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install dependencies using uv
+RUN pip install uv && uv sync --frozen --no-install-project
 
 # Copy application code
 COPY . .
