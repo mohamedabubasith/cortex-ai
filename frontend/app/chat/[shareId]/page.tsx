@@ -198,7 +198,8 @@ export default function PublicChatPage() {
 
         // Add user message optimistically
         const userMessage = { role: "user" as const, content: message };
-        setMessages((prev) => [...prev, userMessage]);
+        // Create placeholder for assistant message immediately to show typing indicator
+        setMessages((prev) => [...prev, userMessage, { role: "assistant", content: "" }]);
 
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 180000); // 3 min timeout
@@ -225,8 +226,7 @@ export default function PublicChatPage() {
             }
             if (!response.body) throw new Error("No response body");
 
-            // Create placeholder for assistant message
-            setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+            // Assistant message is already in the list (last item)
 
             const reader = response.body.getReader();
             const decoder = new TextDecoder();

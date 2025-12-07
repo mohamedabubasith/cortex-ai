@@ -111,7 +111,7 @@ class CogneeService:
         except Exception as e:
             logger.warning(f"Initial setup failed ({e}). Attempting to purge and retry...")
             # If setup fails (e.g. schema mismatch), purge and retry
-            await self.purge_cognee_database()
+            # await self.purge_cognee_database()
             await self.setup_cognee()
 
     def _configure_llm(self, llm_config):

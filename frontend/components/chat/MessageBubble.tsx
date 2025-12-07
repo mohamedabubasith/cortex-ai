@@ -24,8 +24,8 @@ interface MessageBubbleProps {
 export default function MessageBubble({ message, isStreaming = false, theme = "dark", onRetry }: MessageBubbleProps) {
     const [copied, setCopied] = useState(false);
 
-    // Don't render empty assistant messages (typing indicator will show instead)
-    if (message.role === "assistant" && !message.content) {
+    // Don't render empty assistant messages unless streaming (typing indicator)
+    if (message.role === "assistant" && !message.content && !isStreaming) {
         return null;
     }
 
@@ -109,73 +109,96 @@ export default function MessageBubble({ message, isStreaming = false, theme = "d
                             {message.content}
                         </p>
                     ) : (
-                        <div className={cn(
-                            "prose prose-sm max-w-none",
-                            theme === 'dark'
-                                ? "prose-invert prose-headings:text-gray-100 prose-p:text-gray-100 prose-strong:text-gray-100 prose-code:text-[#76B900]"
-                                : "prose-headings:text-gray-900 prose-p:text-gray-800 prose-strong:text-gray-900 prose-code:text-blue-600 prose-a:text-blue-600"
-                        )}>
-                            <ReactMarkdown
-                                remarkPlugins={[remarkGfm]}
-                                components={{
-                                    code({ node, inline, className, children, ...props }: any) {
-                                        const match = /language-(\w+)/.exec(className || "");
-                                        const codeString = String(children).replace(/\n$/, "");
+                        message.content ? (
+                            <div className={cn(
+                                "prose prose-sm max-w-none",
+                                theme === 'dark'
+                                    ? "prose-invert prose-headings:text-gray-100 prose-p:text-gray-100 prose-strong:text-gray-100 prose-code:text-[#76B900]"
+                                    : "prose-headings:text-gray-900 prose-p:text-gray-800 prose-strong:text-gray-900 prose-code:text-blue-600 prose-a:text-blue-600"
+                            )}>
+                                <ReactMarkdown
+                                    remarkPlugins={[remarkGfm]}
+                                    components={{
+                                        code({ node, inline, className, children, ...props }: any) {
+                                            const match = /language-(\w+)/.exec(className || "");
+                                            const codeString = String(children).replace(/\n$/, "");
 
-                                        return !inline && match ? (
-                                            <div className="relative group/code">
-                                                <button
-                                                    onClick={() => handleCopy(codeString)}
+                                            return !inline && match ? (
+                                                <div className="relative group/code">
+                                                    <button
+                                                        onClick={() => handleCopy(codeString)}
+                                                        className={cn(
+                                                            "absolute right-2 top-2 p-1.5 rounded opacity-0 group-hover/code:opacity-100 transition-opacity",
+                                                            theme === 'dark'
+                                                                ? "bg-gray-700 hover:bg-gray-600"
+                                                                : "bg-gray-200 hover:bg-gray-300"
+                                                        )}
+                                                    >
+                                                        {copied ? (
+                                                            <Check className="w-3.5 h-3.5 text-green-500" />
+                                                        ) : (
+                                                            <Copy className="w-3.5 h-3.5" />
+                                                        )}
+                                                    </button>
+                                                    <SyntaxHighlighter
+                                                        style={theme === 'dark' ? oneDark : oneLight}
+                                                        language={match[1]}
+                                                        PreTag="div"
+                                                        {...props}
+                                                    >
+                                                        {codeString}
+                                                    </SyntaxHighlighter>
+                                                </div>
+                                            ) : (
+                                                <code
                                                     className={cn(
-                                                        "absolute right-2 top-2 p-1.5 rounded opacity-0 group-hover/code:opacity-100 transition-opacity",
+                                                        "px-1.5 py-0.5 rounded text-sm font-mono",
                                                         theme === 'dark'
-                                                            ? "bg-gray-700 hover:bg-gray-600"
-                                                            : "bg-gray-200 hover:bg-gray-300"
+                                                            ? "bg-gray-800 text-[#76B900]"
+                                                            : "bg-gray-200 text-gray-900 border border-gray-300"
                                                     )}
-                                                >
-                                                    {copied ? (
-                                                        <Check className="w-3.5 h-3.5 text-green-500" />
-                                                    ) : (
-                                                        <Copy className="w-3.5 h-3.5" />
-                                                    )}
-                                                </button>
-                                                <SyntaxHighlighter
-                                                    style={theme === 'dark' ? oneDark : oneLight}
-                                                    language={match[1]}
-                                                    PreTag="div"
                                                     {...props}
                                                 >
-                                                    {codeString}
-                                                </SyntaxHighlighter>
-                                            </div>
-                                        ) : (
-                                            <code
-                                                className={cn(
-                                                    "px-1.5 py-0.5 rounded text-sm font-mono",
-                                                    theme === 'dark'
-                                                        ? "bg-gray-800 text-[#76B900]"
-                                                        : "bg-gray-200 text-gray-900 border border-gray-300"
-                                                )}
-                                                {...props}
-                                            >
-                                                {children}
-                                            </code>
-                                        );
-                                    },
-                                }}
-                            >
-                                {message.content}
-                            </ReactMarkdown>
-                            {/* Streaming cursor */}
-                            {isStreaming && (
-                                <motion.span
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: [0, 1, 0] }}
-                                    transition={{ duration: 0.8, repeat: Infinity }}
-                                    className="inline-block w-1 h-4 ml-1 bg-[#76B900]"
+                                                    {children}
+                                                </code>
+                                            );
+                                        },
+                                    }}
+                                >
+                                    {message.content}
+                                </ReactMarkdown>
+                                {/* Streaming cursor */}
+                                {isStreaming && (
+                                    <motion.span
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: [0, 1, 0] }}
+                                        transition={{ duration: 0.8, repeat: Infinity }}
+                                        className="inline-block w-1 h-4 ml-1 bg-[#76B900]"
+                                    />
+                                )}
+                            </div>
+                        ) : (
+                            <div className="flex items-center space-x-1 h-6">
+                                <motion.div
+                                    initial={{ opacity: 0.3, scale: 0.8 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    transition={{ duration: 0.6, repeat: Infinity, repeatType: "reverse", delay: 0 }}
+                                    className={cn("w-2 h-2 rounded-full", theme === 'dark' ? "bg-gray-400" : "bg-gray-500")}
                                 />
-                            )}
-                        </div>
+                                <motion.div
+                                    initial={{ opacity: 0.3, scale: 0.8 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    transition={{ duration: 0.6, repeat: Infinity, repeatType: "reverse", delay: 0.2 }}
+                                    className={cn("w-2 h-2 rounded-full", theme === 'dark' ? "bg-gray-400" : "bg-gray-500")}
+                                />
+                                <motion.div
+                                    initial={{ opacity: 0.3, scale: 0.8 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    transition={{ duration: 0.6, repeat: Infinity, repeatType: "reverse", delay: 0.4 }}
+                                    className={cn("w-2 h-2 rounded-full", theme === 'dark' ? "bg-gray-400" : "bg-gray-500")}
+                                />
+                            </div>
+                        )
                     )}
 
                     {/* Copy button for text messages */}
