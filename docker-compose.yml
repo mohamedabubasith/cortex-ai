@@ -61,6 +61,8 @@ services:
     volumes:
       # Persist uploads
       - ./backend/uploads:/app/uploads
+      # Persist vector data (LanceDB)
+      - ./backend/data:/app/data
 
   # Frontend Service (Next.js)
   frontend:
