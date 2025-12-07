@@ -41,6 +41,17 @@ services:
       EMBEDDING_PROVIDER: fastembed
       EMBEDDING_MODEL: sentence-transformers/all-MiniLM-L6-v2
       EMBEDDING_DIMENSIONS: 384
+      # Cognee Relational DB
+      DB_PROVIDER: postgres
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: cognee_db
+      DB_USERNAME: postgres
+      DB_PASSWORD: password
+      # Cognee Vector DB
+      VECTOR_DB_PROVIDER: pgvector
+      VECTOR_DB_URL: postgresql://postgres:password@db:5432/cognee_db
+      ENABLE_BACKEND_ACCESS_CONTROL: "true"
     ports:
       - "8000:8000"
     depends_on:

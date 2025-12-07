@@ -20,48 +20,11 @@ logger = logging.getLogger(__name__)
 
 class CogneeService:
     def __init__(self):
-        self._configure_db()
-
-    def _configure_db(self):
-        """Configure Cognee to use the main Postgres DB"""
-        try:
-            # Enable Access Control globally for Cognee
-            os.environ["ENABLE_BACKEND_ACCESS_CONTROL"] = "true"
-            
-            db_url = settings.DATABASE_URL.replace("+asyncpg", "")
-            
-            from urllib.parse import urlparse
-            parsed = urlparse(db_url)
-            
-            # Reconstruct URL for Cognee DB
-            cognee_db_url = f"postgresql://{parsed.username}:{parsed.password}@{parsed.hostname}:{parsed.port}/cognee_db"
-            
-            # Configure Relational DB (Postgres)
-            cognee.config.set_relational_db_config({
-                "db_provider": "postgres",
-                "db_name": "cognee_db",
-                "db_host": parsed.hostname,
-                "db_port": str(parsed.port),
-                "db_username": parsed.username,
-                "db_password": parsed.password
-            })
-            
-            # Configure Vector DB (PGVector)
-            cognee.config.set_vector_db_provider("pgvector")
-            cognee.config.set_vector_db_url(cognee_db_url)
-            cognee.config.set_vector_db_config({
-                "vector_db_provider": "pgvector",
-                "vector_db_url": cognee_db_url
-            })
-            
-            logger.info(f"Configured Cognee with PGVector at {cognee_db_url}")
-        except Exception as e:
-            logger.error(f"Failed to configure Cognee DB: {e}")
+        pass
 
     async def initialize(self):
         """Initialize Cognee (create tables, etc.)"""
         try:
-            self._configure_db()
             from cognee.infrastructure.databases.relational.create_db_and_tables import create_db_and_tables as setup
             logger.info("Running Cognee setup...")
             await setup()

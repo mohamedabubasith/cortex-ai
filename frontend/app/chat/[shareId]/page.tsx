@@ -288,6 +288,9 @@ export default function PublicChatPage() {
                 const newSessionId = response.headers.get('x-session-id');
                 setSessionId(newSessionId);
                 setCurrentSessionId(newSessionId || '');
+                if (newSessionId) {
+                    localStorage.setItem(`currentSession_${params.shareId}`, newSessionId);
+                }
             }
 
         } catch (error: any) {
