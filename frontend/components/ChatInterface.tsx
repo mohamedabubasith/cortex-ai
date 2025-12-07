@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import Sidebar from "./chat/Sidebar";
 import ChatWindow from "./chat/ChatWindow";
@@ -40,6 +40,24 @@ export default function ChatInterface({
 }: ChatInterfaceProps) {
     const [theme, setTheme] = useState<"dark" | "light">("dark");
     const [sidebarOpen, setSidebarOpen] = useState(true);
+
+    // Initialize sidebar state based on screen size
+    useEffect(() => {
+        const handleResize = () => {
+            if (window.innerWidth < 768) {
+                setSidebarOpen(false);
+            } else {
+                setSidebarOpen(true);
+            }
+        };
+
+        // Set initial state
+        handleResize();
+
+        // Add event listener
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     const toggleTheme = () => {
         setTheme(prev => prev === "dark" ? "light" : "dark");
