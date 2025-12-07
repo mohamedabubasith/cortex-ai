@@ -47,22 +47,6 @@ class CogneeService:
     def __init__(self):
         pass
 
-    async def purge_cognee_database(self):
-        """
-        Purge/reset entire Cognee database
-        Cognee version: 0.2.0+
-        """
-        try:
-            logger.info("Purging Cognee database...")
-            # Import locally to avoid startup errors if structure changed
-            from cognee.api.v1.prune import prune
-            await prune.prune_system(metadata=True)
-            logger.info("Cognee database purged successfully")
-            return {"success": True, "message": "Database purged"}
-        except Exception as e:
-            logger.error(f"Failed to purge database: {e}")
-            return {"success": False, "message": str(e)}
-
     async def setup_cognee(self):
         """
         Initialize/setup Cognee (create tables, etc.)
@@ -87,7 +71,8 @@ class CogneeService:
         embed_config = get_embedding_config()
         
         provider_env = os.getenv("EMBEDDING_PROVIDER")
-        current_provider = provider_env if provider_env else "openai"
+        # Default to fastembed if not specified, for robust local support
+        current_provider = provider_env if provider_env else "fastembed"
         
         if current_provider == "fastembed":
             # Configure fastembed
@@ -109,9 +94,7 @@ class CogneeService:
             # Try setup first
             await self.setup_cognee()
         except Exception as e:
-            logger.warning(f"Initial setup failed ({e}). Attempting to purge and retry...")
-            # If setup fails (e.g. schema mismatch), purge and retry
-            # await self.purge_cognee_database()
+            logger.warning(f"Initial setup failed ({e}). Retrying setup...")
             await self.setup_cognee()
 
     def _configure_llm(self, llm_config):
@@ -142,12 +125,11 @@ class CogneeService:
             self._configure_embeddings()
             
             embed_config = get_embedding_config()
-            current_provider = os.getenv("EMBEDDING_PROVIDER", "openai")
+            # Check configured provider (defaults to fastembed now)
+            current_provider = embed_config.embedding_provider
             
-            if llm_config.base_url and current_provider == "openai":
-                # Only override if using default openai provider. 
-                # If user configured 'fastembed' or others via env vars, respect that.
-                # Only override if llm_config.base_url is provided AND provider is openai.
+            # Only override embedding endpoint if we are NOT using fastembed
+            if current_provider != "fastembed" and llm_config.base_url:
                 embed_config.embedding_endpoint = llm_config.base_url
                 embed_config.embedding_api_key = llm_config.api_key
                 
