@@ -30,6 +30,8 @@ services:
       dockerfile: Dockerfile
     container_name: chatbot_backend
     restart: always
+    env_file:
+      - .env
     environment:
       # Connection to internal DB service
       DATABASE_URL: postgresql+asyncpg://postgres:password@db:5432/chatbot

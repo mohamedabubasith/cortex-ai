@@ -94,7 +94,10 @@ class CogneeService:
 
             # Configure Embeddings
             embed_config = get_embedding_config()
-            if llm_config.base_url:
+            
+            # Only override if using default openai provider. 
+            # If user configured 'fastembed' or others via env vars, respect that.
+            if embed_config.embedding_provider == "openai" and llm_config.base_url:
                 embed_config.embedding_endpoint = llm_config.base_url
                 embed_config.embedding_api_key = llm_config.api_key
                 
