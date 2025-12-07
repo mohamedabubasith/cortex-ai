@@ -59,7 +59,7 @@ class CogneeService:
         Cognee version: 0.2.0+
         """
         try:
-            logger.info("Running Cognee setup...")
+            print("DEBUG: Running Cognee setup...", flush=True)
             # Try importing from new location first, fallback to old if needed
             try:
                 from cognee.modules.engine.operations.setup import setup
@@ -67,20 +67,20 @@ class CogneeService:
                 from cognee.infrastructure.databases.relational.create_db_and_tables import create_db_and_tables as setup
             
             await setup()
-            logger.info("Cognee setup completed successfully")
+            print("DEBUG: Cognee setup completed successfully", flush=True)
             return {"success": True, "message": "Setup complete"}
         except Exception as e:
-            logger.error(f"Failed to setup Cognee: {e}")
+            print(f"DEBUG: Failed to setup Cognee: {e}", flush=True)
             raise e
 
     async def initialize(self):
         """Initialize Cognee (create tables, etc.)"""
-        logger.info("Initializing CogneeService...")
+        print("DEBUG: Initializing CogneeService...", flush=True)
         try:
             # Try setup first
             await self.setup_cognee()
         except Exception as e:
-            logger.warning(f"Initial setup failed ({e}). Attempting to purge and retry...")
+            print(f"DEBUG: Initial setup failed ({e}). Attempting to purge and retry...", flush=True)
             # If setup fails (e.g. schema mismatch), purge and retry
             await self.purge_cognee_database()
             await self.setup_cognee()
