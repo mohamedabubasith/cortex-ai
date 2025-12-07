@@ -9,7 +9,7 @@ import asyncio
 from typing import Dict, Any, List, Optional
 import cognee
 from cognee.api.v1.search import SearchType
-from cognee.api.v1.search.search import search as cognee_search
+from cognee.api.v1.search import search as cognee_search
 from cognee.modules.users.methods import get_default_user
 from cognee.infrastructure.databases.relational import get_relational_engine
 from cognee.infrastructure.databases.relational.ModelBase import Base as CogneeBase
