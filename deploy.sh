@@ -9,7 +9,7 @@ echo "Starting deployment..."
 
 # 1. Pull the latest code and checkout the specific tag
 echo "Pulling code..."
-git fetch --all --tags
+git fetch origin --tags --force
 git checkout tags/v0.0.2
 
 # 2. (Optional) Check for .env file if needed

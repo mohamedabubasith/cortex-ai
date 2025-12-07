@@ -15,3 +15,4 @@ pypdf
 python-docx
 protego
 playwright
+pgvector
