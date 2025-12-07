@@ -14,8 +14,22 @@ from cognee.api.v1.search import search as cognee_search
 from cognee.modules.users.methods import get_default_user
 from cognee.infrastructure.databases.relational import get_relational_engine
 from cognee.infrastructure.databases.relational.ModelBase import Base as CogneeBase
+import tiktoken
 from app.core.config import settings
 from cognee.infrastructure.databases.vector.embeddings.config import get_embedding_config
+
+# Monkeypatch tiktoken to support non-OpenAI models (e.g. fastembed)
+# Cognee uses tiktoken for chunking but fails on unknown model names.
+original_encoding_for_model = tiktoken.encoding_for_model
+
+def patched_encoding_for_model(model_name):
+    try:
+        return original_encoding_for_model(model_name)
+    except KeyError:
+        # Fallback to cl100k_base for unknown models
+        return tiktoken.get_encoding("cl100k_base")
+
+tiktoken.encoding_for_model = patched_encoding_for_model
 
 logger = logging.getLogger(__name__)
 
