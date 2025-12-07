@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Mail, ArrowLeft, Loader2, CheckCircle } from "lucide-react";
+import { motion } from "framer-motion";
+import { Mail, ArrowRight, Loader2, ArrowLeft, CheckCircle } from "lucide-react";
 import api from "@/lib/api";
 import TubesBackground from "@/components/TubesBackground";
 import Logo from "@/components/Logo";
@@ -34,89 +36,101 @@ export default function ForgotPasswordPage() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-0 md:p-4 relative overflow-hidden">
-            <TubesBackground />
-            <div className="bg-nvidia-dark/80 backdrop-blur-md border-0 md:border border-white/10 rounded-none md:rounded-2xl shadow-none md:shadow-2xl w-full max-w-md h-full md:h-auto overflow-hidden relative z-10">
-                <div className="p-6 md:p-8 flex flex-col justify-center h-full md:block">
-                    <div className="text-center mb-8">
-                        <div className="inline-flex items-center justify-center mb-6">
-                            <Logo size="xl" />
-                        </div>
-                        <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight mb-2">Reset Password</h1>
-                        <p className="text-gray-400">
-                            Enter your email to receive reset instructions
-                        </p>
-                    </div>
+        <div className="min-h-screen bg-black flex items-center justify-center p-4 relative overflow-hidden">
+            {/* Background Effects */}
+            <div className="absolute inset-0 z-0">
+                <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-[#76B900]/10 rounded-full blur-[120px] animate-pulse" />
+                <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-[#76B900]/5 rounded-full blur-[100px] animate-pulse delay-1000" />
+            </div>
 
-                    {submitted ? (
-                        <div className="text-center">
-                            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-nvidia-green/20 mb-6 border border-nvidia-green/50">
-                                <CheckCircle className="h-8 w-8 text-nvidia-green" />
+            <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5 }}
+                className="w-full max-w-md relative z-10"
+            >
+                <div className="bg-nvidia-dark/80 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
+                    <div className="p-8">
+                        <div className="text-center mb-8">
+                            <div className="inline-flex items-center justify-center mb-6">
+                                <Logo size="xl" />
                             </div>
-                            <h3 className="text-xl font-bold text-white mb-2">Check your email</h3>
-                            <p className="text-gray-400 mb-8">
-                                We have sent a password reset link to <br />
-                                <strong className="text-white">{email}</strong>
+                            <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight mb-2">Reset Password</h1>
+                            <p className="text-gray-400">
+                                Enter your email to receive reset instructions
                             </p>
-                            <div>
-                                <Link
-                                    href="/"
-                                    className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-sm font-bold rounded-lg text-black bg-nvidia-green hover:bg-[#8CD600] transition-all transform hover:scale-[1.02]"
-                                >
-                                    <ArrowLeft className="w-4 h-4 mr-2" />
-                                    Back to Login
-                                </Link>
-                            </div>
                         </div>
-                    ) : (
-                        <form onSubmit={handleSubmit} className="space-y-6">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-1">
-                                    Email Address
-                                </label>
-                                <div className="relative">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <Mail className="h-5 w-5 text-gray-500" />
-                                    </div>
-                                    <input
-                                        type="email"
-                                        required
-                                        className="block w-full pl-10 pr-3 py-3 md:py-2.5 bg-black/50 border border-gray-700 rounded-lg focus:ring-2 focus:ring-nvidia-green focus:border-transparent text-white placeholder-gray-500 transition-all"
-                                        placeholder="you@example.com"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                    />
+
+                        {submitted ? (
+                            <div className="text-center">
+                                <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-nvidia-green/20 mb-6 border border-nvidia-green/50">
+                                    <CheckCircle className="h-8 w-8 text-nvidia-green" />
+                                </div>
+                                <h3 className="text-xl font-bold text-white mb-2">Check your email</h3>
+                                <p className="text-gray-400 mb-8">
+                                    We have sent a password reset link to <br />
+                                    <strong className="text-white">{email}</strong>
+                                </p>
+                                <div>
+                                    <Link
+                                        href="/"
+                                        className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-sm font-bold rounded-lg text-black bg-nvidia-green hover:bg-[#8CD600] transition-all transform hover:scale-[1.02]"
+                                    >
+                                        <ArrowLeft className="w-4 h-4 mr-2" />
+                                        Back to Login
+                                    </Link>
                                 </div>
                             </div>
+                        ) : (
+                            <form onSubmit={handleSubmit} className="space-y-6">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-1">
+                                        Email Address
+                                    </label>
+                                    <div className="relative">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <Mail className="h-5 w-5 text-gray-500" />
+                                        </div>
+                                        <input
+                                            type="email"
+                                            required
+                                            className="block w-full pl-10 pr-3 py-3 md:py-2.5 bg-black/50 border border-gray-700 rounded-lg focus:ring-2 focus:ring-nvidia-green focus:border-transparent text-white placeholder-gray-500 transition-all"
+                                            placeholder="you@example.com"
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value)}
+                                        />
+                                    </div>
+                                </div>
 
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="w-full flex items-center justify-center py-3 px-4 border border-transparent rounded-lg shadow-lg text-sm font-bold text-black bg-nvidia-green hover:bg-[#8CD600] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-nvidia-green disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02]"
-                            >
-                                {loading ? (
-                                    <>
-                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                        Sending link...
-                                    </>
-                                ) : (
-                                    "Send Reset Link"
-                                )}
-                            </button>
-
-                            <div className="text-center">
-                                <Link
-                                    href="/"
-                                    className="inline-flex items-center text-sm font-medium text-gray-400 hover:text-white transition-colors"
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="w-full flex items-center justify-center py-3 px-4 border border-transparent rounded-lg shadow-lg text-sm font-bold text-black bg-nvidia-green hover:bg-[#8CD600] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-nvidia-green disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02]"
                                 >
-                                    <ArrowLeft className="w-4 h-4 mr-2" />
-                                    Back to Login
-                                </Link>
-                            </div>
-                        </form>
-                    )}
+                                    {loading ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                            Sending link...
+                                        </>
+                                    ) : (
+                                        "Send Reset Link"
+                                    )}
+                                </button>
+
+                                <div className="text-center">
+                                    <Link
+                                        href="/"
+                                        className="inline-flex items-center text-sm font-medium text-gray-400 hover:text-white transition-colors"
+                                    >
+                                        <ArrowLeft className="w-4 h-4 mr-2" />
+                                        Back to Login
+                                    </Link>
+                                </div>
+                            </form>
+                        )}
+                    </div>
                 </div>
-            </div>
+            </motion.div>
         </div>
     );
 }
