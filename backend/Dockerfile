@@ -20,8 +20,11 @@ RUN apt-get update && apt-get install -y \
 # Copy project definition
 COPY pyproject.toml uv.lock ./
 
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
 # Install dependencies using uv
-RUN pip install uv && uv sync --frozen --no-install-project
+RUN uv sync --frozen --no-install-project
 
 # Copy application code
 COPY . .
