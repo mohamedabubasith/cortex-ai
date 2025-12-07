@@ -94,14 +94,31 @@ class CogneeService:
             
             # Try to set global config if available
             try:
-                from cognee.shared.config import Config
-                Config().embedding_provider = "fastembed"
-                Config().embedding_model = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
-                print("DEBUG: Set global Cognee Config().embedding_provider to 'fastembed'", flush=True)
+                import cognee.config as cognee_config
+                print(f"DEBUG: cognee.config module: {dir(cognee_config)}", flush=True)
+                
+                # Try known methods or attributes
+                if hasattr(cognee_config, "set_embedding_provider"):
+                    cognee_config.set_embedding_provider("fastembed")
+                    print("DEBUG: Called cognee.config.set_embedding_provider('fastembed')", flush=True)
+                
+                if hasattr(cognee_config, "set_embedding_model"):
+                    cognee_config.set_embedding_model(os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"))
+                    print("DEBUG: Called cognee.config.set_embedding_model", flush=True)
+                    
+                if hasattr(cognee_config, "set_embedding_dimensions"):
+                    cognee_config.set_embedding_dimensions(int(os.getenv("EMBEDDING_DIMENSIONS", "384")))
+                    print("DEBUG: Called cognee.config.set_embedding_dimensions", flush=True)
+
+                # Also try to set on the Config singleton if exposed
+                if hasattr(cognee_config, "Config"):
+                    cognee_config.Config().embedding_provider = "fastembed"
+                    print("DEBUG: Set cognee.config.Config().embedding_provider", flush=True)
+
             except ImportError:
-                print("DEBUG: Could not import cognee.shared.config.Config", flush=True)
+                print("DEBUG: Could not import cognee.config", flush=True)
             except Exception as e:
-                print(f"DEBUG: Failed to set global config: {e}", flush=True)
+                print(f"DEBUG: Failed to set global config via cognee.config: {e}", flush=True)
         
         print(f"DEBUG: Final embed_config: {embed_config}", flush=True)
 
