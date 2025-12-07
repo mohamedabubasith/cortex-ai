@@ -6,9 +6,9 @@
 set -e
 
 # Detect Docker Compose command
-if command -v docker-compose &> /dev/null; then
+if command -v docker-compose > /dev/null 2>&1; then
     DOCKER_COMPOSE_CMD="docker-compose"
-elif docker compose version &> /dev/null; then
+elif docker compose version > /dev/null 2>&1; then
     DOCKER_COMPOSE_CMD="docker compose"
 else
     echo "Error: Docker Compose not found. Please install it."
