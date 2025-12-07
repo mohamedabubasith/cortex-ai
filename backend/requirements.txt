@@ -6,6 +6,7 @@ pydantic-settings
 python-jose[cryptography]
 passlib[bcrypt]
 bcrypt==3.2.2
+ecdsa>=0.19.0
 httpx
 python-multipart
 alembic
