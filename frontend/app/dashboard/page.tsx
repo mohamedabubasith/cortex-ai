@@ -20,17 +20,18 @@ export default function DashboardPage() {
     useEffect(() => {
         const fetchStats = async () => {
             try {
-                const [agentsRes, llmRes, analyticsRes, liveEvents] = await Promise.all([
+                const [agentsRes, llmRes, analyticsRes, liveEvents, kbRes] = await Promise.all([
                     api.get("/agents"),
                     api.get("/llm"),
                     api.get("/analytics/stats/overview?hours=24"),
-                    api.get("/analytics/analytics/live?limit=50")
+                    api.get("/analytics/analytics/live?limit=50"),
+                    api.get("/kb")
                 ]);
 
                 setStats({
                     agents: agentsRes.data.length,
                     llms: llmRes.data.length,
-                    kbs: 0,
+                    kbs: kbRes.data.length,
                     apiCalls: analyticsRes.data.api_hits?.total_hits || 0
                 });
 

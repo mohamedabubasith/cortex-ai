@@ -76,7 +76,7 @@ class AnalyticsRepository:
                 func.count(func.distinct(models.Analytics.user_id)).label('unique_users')
             )
             .where(
-                models.Analytics.event_type == 'api_hit',
+                models.Analytics.event_type.in_(['api_hit', 'chat']),
                 models.Analytics.created_at >= since
             )
         )
