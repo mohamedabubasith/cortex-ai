@@ -24,20 +24,10 @@ echo "Pulling code..."
 git fetch origin --tags --force
 git checkout tags/v0.0.2
 
-# 2. Check for .env and NEXT_PUBLIC_API_URL
+# 2. Check for .env file
 if [ ! -f .env ]; then
     echo "Creating .env file..."
     touch .env
-fi
-
-if ! grep -q "NEXT_PUBLIC_API_URL" .env; then
-    echo "----------------------------------------------------------------"
-    echo "IMPORTANT: Frontend needs to know the Backend API URL."
-    echo "Enter your server IP or Domain (e.g., http://35.209.123.37:8000)"
-    echo "----------------------------------------------------------------"
-    read -p "API URL: " api_url
-    echo "NEXT_PUBLIC_API_URL=$api_url" >> .env
-    echo "Updated .env with API URL."
 fi
 
 # 3. Stop existing containers
