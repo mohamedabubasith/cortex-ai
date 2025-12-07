@@ -242,22 +242,22 @@ export default function KnowledgeBasePage() {
 
     return (
         <div className="space-y-8 relative">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-white tracking-tight mb-2">Knowledge Base</h1>
                     <p className="text-gray-400">Manage documents and database connections.</p>
                 </div>
-                <div className="flex space-x-3">
+                <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3 w-full md:w-auto">
                     <button
                         onClick={() => setIsUploadOpen(true)}
-                        className="flex items-center px-4 py-2 bg-nvidia-green text-black font-bold rounded-lg hover:bg-[#8CD600] transition-all"
+                        className="flex items-center justify-center px-4 py-2 bg-nvidia-green text-black font-bold rounded-lg hover:bg-[#8CD600] transition-all"
                     >
                         <Upload className="w-5 h-5 mr-2" />
                         Upload Document
                     </button>
                     <button
                         onClick={() => setIsDbOpen(true)}
-                        className="flex items-center px-4 py-2 bg-white/10 text-white font-bold rounded-lg hover:bg-white/20 transition-all"
+                        className="flex items-center justify-center px-4 py-2 bg-white/10 text-white font-bold rounded-lg hover:bg-white/20 transition-all"
                     >
                         <Database className="w-5 h-5 mr-2" />
                         Add Database

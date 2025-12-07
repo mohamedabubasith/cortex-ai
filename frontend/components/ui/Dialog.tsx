@@ -61,7 +61,7 @@ export default function Dialog({
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
                         transition={{ type: "spring", duration: 0.3 }}
                         className={cn(
-                            "relative z-10 w-full max-w-md rounded-2xl shadow-2xl border overflow-hidden",
+                            "relative z-10 w-full max-w-md rounded-2xl shadow-2xl border flex flex-col max-h-[85vh] mx-4",
                             theme === 'dark'
                                 ? "bg-[#0a0a0a] border-[#76B900]/20 shadow-[#76B900]/5"
                                 : "bg-white border-gray-200 shadow-xl"
@@ -69,7 +69,7 @@ export default function Dialog({
                     >
                         {/* Header */}
                         <div className={cn(
-                            "px-6 py-4 border-b flex items-center justify-between",
+                            "px-6 py-4 border-b flex items-center justify-between shrink-0",
                             theme === 'dark' ? "border-gray-800 bg-gray-900/30" : "border-gray-100 bg-gray-50"
                         )}>
                             <h3 className={cn("text-lg font-bold", theme === 'dark' ? "text-white" : "text-gray-900")}>
@@ -87,7 +87,7 @@ export default function Dialog({
                         </div>
 
                         {/* Content */}
-                        <div className="px-6 py-6">
+                        <div className="px-6 py-6 overflow-y-auto">
                             {description && (
                                 <p className={cn("mb-4 text-sm", theme === 'dark' ? "text-gray-400" : "text-gray-600")}>
                                     {description}
@@ -99,7 +99,7 @@ export default function Dialog({
                         {/* Footer / Buttons */}
                         {(buttons.length > 0) && (
                             <div className={cn(
-                                "px-6 py-4 flex justify-end space-x-3",
+                                "px-6 py-4 flex justify-end space-x-3 shrink-0",
                                 theme === 'dark' ? "bg-gray-900/30" : "bg-gray-50"
                             )}>
                                 {buttons.map((btn, idx) => (
