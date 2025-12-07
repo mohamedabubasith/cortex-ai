@@ -30,8 +30,6 @@ services:
       dockerfile: Dockerfile
     container_name: chatbot_backend
     restart: always
-    env_file:
-      - .env
     environment:
       # Connection to internal DB service
       DATABASE_URL: postgresql+asyncpg://postgres:password@db:5432/chatbot
@@ -39,6 +37,10 @@ services:
       ENABLE_BACKEND_ACCESS_CONTROL: "true"
       # Environment
       ENVIRONMENT: production
+      # Embedding Configuration
+      EMBEDDING_PROVIDER: fastembed
+      EMBEDDING_MODEL: sentence-transformers/all-MiniLM-L6-v2
+      EMBEDDING_DIMENSIONS: 384
     ports:
       - "8000:8000"
     depends_on:
