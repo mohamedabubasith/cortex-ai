@@ -28,6 +28,53 @@ import tiktoken
 from app.core.config import settings
 from cognee.infrastructure.databases.vector.embeddings.config import get_embedding_config
 
+# Monkey-patch to force FastEmbed usage if configured
+if os.getenv("EMBEDDING_PROVIDER") == "fastembed":
+    print("DEBUG: Applying FastEmbed monkey-patch to Cognee...", flush=True)
+    try:
+        from fastembed import TextEmbedding
+        
+        # Create a wrapper that mimics Cognee's embedding engine interface
+        class FastEmbedWrapper:
+            def __init__(self, model: str, dimensions: int):
+                self.model = model
+                self.dimensions = dimensions
+                self._engine = TextEmbedding(model_name=model)
+            
+            async def embed_text(self, texts: list[str]) -> list[list[float]]:
+                """Embed texts using FastEmbed"""
+                if isinstance(texts, str):
+                    texts = [texts]
+                # FastEmbed returns generator, convert to list
+                embeddings = list(self._engine.embed(texts))
+                return embeddings
+        
+        # Patch the get_embedding_engine factory
+        original_get_engine = None
+        try:
+            from cognee.infrastructure.databases.vector.embeddings import get_embedding_engine
+            original_get_engine = get_embedding_engine
+        except ImportError:
+            pass
+        
+        def patched_get_embedding_engine():
+            """Return FastEmbed engine instead of default"""
+            model = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+            dimensions = int(os.getenv("EMBEDDING_DIMENSIONS", "384"))
+            print(f"DEBUG: Using patched FastEmbed engine with model={model}, dimensions={dimensions}", flush=True)
+            return FastEmbedWrapper(model, dimensions)
+        
+        # Apply the patch
+        import cognee.infrastructure.databases.vector.embeddings
+        cognee.infrastructure.databases.vector.embeddings.get_embedding_engine = patched_get_embedding_engine
+        print("DEBUG: FastEmbed monkey-patch applied successfully!", flush=True)
+        
+    except Exception as e:
+        print(f"DEBUG: FastEmbed monkey-patch failed: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
+
+
 # Monkeypatch tiktoken to support non-OpenAI models (e.g. fastembed)
 # Cognee uses tiktoken for chunking but fails on unknown model names.
 original_encoding_for_model = tiktoken.encoding_for_model
