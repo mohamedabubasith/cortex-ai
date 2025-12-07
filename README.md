@@ -6,7 +6,6 @@ Production-ready AI chatbot with chat interface, knowledge base, and LLM integra
 
 ### Prerequisites
 - Docker & Docker Compose
-- OpenAI API Key
 
 ### 1. Clone & Configure
 
@@ -81,58 +80,39 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 
 ## 🌐 Production Deployment
 
-### Option 1: Docker Compose (Recommended)
+### Option 1: Quick Start Script (Recommended)
+
+We provide a `deploy.sh` script that handles pulling the code, stopping existing containers, and starting the new version.
 
 ```bash
-# With Nginx reverse proxy
-docker-compose --profile production up -d
+# 1. Download the script (if not already present)
+curl -O https://raw.githubusercontent.com/mohamedabubasith/cortex-ai/main/deploy.sh
+chmod +x deploy.sh
 
-# SSL Setup
-# 1. Place SSL certificates in nginx/ssl/
-# 2. Update nginx.conf with your domain
-# 3. Uncomment HTTPS server block
-# 4. Restart nginx
-docker-compose restart nginx
+# 2. Run deployment
+./deploy.sh
 ```
 
-### Option 2: Cloud Platforms
+### Option 2: Docker Compose Manual
 
-#### AWS (EC2)
 ```bash
-# Install Docker
-sudo yum update -y
-sudo yum install docker -y
-sudo service docker start
-sudo usermod -a -G docker ec2-user
+# 1. Pull latest code
+git pull
 
-# Install Docker Compose
-sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-sudo chmod +x /usr/local/bin/docker-compose
-
-# Deploy
-git clone <repo>
-cd chatbot
-cp .env.example .env
-# Edit .env
-docker-compose up -d
+# 2. Start services
+docker-compose up --build -d
 ```
 
-#### Google Cloud (Cloud Run)
-```bash
-# Build & Push images
-gcloud builds submit --tag gcr.io/PROJECT_ID/chatbot-backend ./backend
-gcloud builds submit --tag gcr.io/PROJECT_ID/chatbot-frontend ./frontend
+### Database Note
+The setup uses `pgvector/pgvector:pg16` to support vector embeddings required by the Cognee knowledge graph. It runs on port `5433` by default to avoid conflicts with local Postgres instances.
 
-# Deploy
-gcloud run deploy chatbot-backend --image gcr.io/PROJECT_ID/chatbot-backend --platform managed
-gcloud run deploy chatbot-frontend --image gcr.io/PROJECT_ID/chatbot-frontend --platform managed
-```
+### Cloud Platforms
 
-#### Digital Ocean
-```bash
-# Use App Platform with docker-compose.yml
-# Or deploy to Droplet following AWS EC2 steps
-```
+#### AWS (EC2) / Digital Ocean / Google Cloud
+1.  Provision a server with Docker and Docker Compose installed.
+2.  Clone the repository or copy `deploy.sh`.
+3.  Run `./deploy.sh`.
+
 
 ---
 
