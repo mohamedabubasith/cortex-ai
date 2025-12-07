@@ -1,0 +1,89 @@
+"use client";
+
+import { useState } from "react";
+import { cn } from "@/lib/utils";
+import Sidebar from "./chat/Sidebar";
+import ChatWindow from "./chat/ChatWindow";
+import { ChatSession } from "./chat/ChatList";
+
+interface Message {
+    role: "user" | "assistant";
+    content: string;
+}
+
+interface ChatInterfaceProps {
+    initialMessages?: Message[];
+    onSendMessage: (message: string) => Promise<void>;
+    isStreaming?: boolean;
+    className?: string;
+    agentName?: string;
+    sessions?: ChatSession[];
+    currentSessionId?: string;
+    onNewChat?: () => void;
+    onSelectSession?: (sessionId: string) => void;
+    onDeleteSession?: (sessionId: string) => void;
+    onRetryMessage?: (messageIndex: number) => void;
+}
+
+export default function ChatInterface({
+    initialMessages = [],
+    onSendMessage,
+    isStreaming = false,
+    className,
+    agentName = "Cortex AI",
+    sessions = [],
+    currentSessionId,
+    onNewChat,
+    onSelectSession,
+    onDeleteSession,
+    onRetryMessage,
+}: ChatInterfaceProps) {
+    const [theme, setTheme] = useState<"dark" | "light">("dark");
+    const [sidebarOpen, setSidebarOpen] = useState(true);
+
+    const toggleTheme = () => {
+        setTheme(prev => prev === "dark" ? "light" : "dark");
+    };
+
+    const toggleSidebar = () => {
+        setSidebarOpen(prev => !prev);
+    };
+
+    const handleSendMessage = async (message: string) => {
+        // Don't add optimistic update here - parent already does it
+        await onSendMessage(message);
+    };
+
+    return (
+        <div className={cn(
+            "flex h-screen font-sans overflow-hidden relative transition-colors duration-300",
+            theme === 'dark' ? "bg-black text-white" : "bg-gray-50 text-gray-900",
+            className
+        )}>
+            <Sidebar
+                isOpen={sidebarOpen}
+                sessions={sessions}
+                currentSessionId={currentSessionId}
+                onToggle={toggleSidebar}
+                onNewChat={onNewChat || (() => { })}
+                onSelectSession={onSelectSession || (() => { })}
+                onDeleteSession={onDeleteSession}
+                theme={theme}
+            />
+
+            <ChatWindow
+                messages={initialMessages}
+                onSendMessage={handleSendMessage}
+                isStreaming={isStreaming}
+                agentName={agentName}
+                theme={theme}
+                onToggleTheme={toggleTheme}
+                onToggleSidebar={toggleSidebar}
+                sidebarOpen={sidebarOpen}
+                onRetryMessage={onRetryMessage}
+            />
+        </div>
+    );
+}
+
+export type { Message, ChatSession };

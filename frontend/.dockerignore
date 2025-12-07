@@ -1,0 +1,12 @@
+# Docker ignore file
+node_modules/
+.next/
+out/
+.env*.local
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+coverage/
+.turbo

@@ -1,0 +1,169 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { User, Mail, Lock, ArrowRight, Loader2 } from "lucide-react";
+import api from "@/lib/api";
+import TubesBackground from "@/components/TubesBackground";
+import Logo from "@/components/Logo";
+
+export default function RegisterPage() {
+    const router = useRouter();
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
+    const [formData, setFormData] = useState({
+        full_name: "",
+        email: "",
+        password: "",
+        confirmPassword: ""
+    });
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError("");
+
+        if (formData.password !== formData.confirmPassword) {
+            setError("Passwords do not match");
+            return;
+        }
+
+        setLoading(true);
+
+        try {
+            await api.post("/auth/register", {
+                email: formData.email,
+                password: formData.password,
+                full_name: formData.full_name
+            });
+
+            // Auto login or redirect to login
+            router.push("/");
+        } catch (err: any) {
+            console.error(err);
+            setError(err.response?.data?.detail || "Registration failed. Please try again.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+            <TubesBackground />
+            <div className="bg-nvidia-dark/80 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden relative z-10">
+                <div className="p-8">
+                    <div className="text-center mb-8">
+                        <div className="inline-flex items-center justify-center mb-6">
+                            <Logo size="xl" />
+                        </div>
+                        <h1 className="text-3xl font-bold text-white tracking-tight mb-2">Create Account</h1>
+                        <p className="text-gray-400">Join Cortex AI today</p>
+                    </div>
+
+                    {error && (
+                        <div className="mb-6 p-4 bg-red-900/20 border border-red-500/50 text-red-200 rounded-lg text-sm flex items-center">
+                            <span className="mr-2">⚠️</span> {error}
+                        </div>
+                    )}
+
+                    <form onSubmit={handleSubmit} className="space-y-5">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-1">Full Name</label>
+                            <div className="relative">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <User className="h-5 w-5 text-gray-500" />
+                                </div>
+                                <input
+                                    type="text"
+                                    required
+                                    className="block w-full pl-10 pr-3 py-2.5 bg-black/50 border border-gray-700 rounded-lg focus:ring-2 focus:ring-nvidia-green focus:border-transparent text-white placeholder-gray-500 transition-all"
+                                    placeholder="John Doe"
+                                    value={formData.full_name}
+                                    onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-1">Email Address</label>
+                            <div className="relative">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <Mail className="h-5 w-5 text-gray-500" />
+                                </div>
+                                <input
+                                    type="email"
+                                    required
+                                    className="block w-full pl-10 pr-3 py-2.5 bg-black/50 border border-gray-700 rounded-lg focus:ring-2 focus:ring-nvidia-green focus:border-transparent text-white placeholder-gray-500 transition-all"
+                                    placeholder="you@example.com"
+                                    value={formData.email}
+                                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-1">Password</label>
+                            <div className="relative">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <Lock className="h-5 w-5 text-gray-500" />
+                                </div>
+                                <input
+                                    type="password"
+                                    required
+                                    className="block w-full pl-10 pr-3 py-2.5 bg-black/50 border border-gray-700 rounded-lg focus:ring-2 focus:ring-nvidia-green focus:border-transparent text-white placeholder-gray-500 transition-all"
+                                    placeholder="••••••••"
+                                    value={formData.password}
+                                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-1">Confirm Password</label>
+                            <div className="relative">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <Lock className="h-5 w-5 text-gray-500" />
+                                </div>
+                                <input
+                                    type="password"
+                                    required
+                                    className="block w-full pl-10 pr-3 py-2.5 bg-black/50 border border-gray-700 rounded-lg focus:ring-2 focus:ring-nvidia-green focus:border-transparent text-white placeholder-gray-500 transition-all"
+                                    placeholder="••••••••"
+                                    value={formData.confirmPassword}
+                                    onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                                />
+                            </div>
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full flex items-center justify-center py-3 px-4 border border-transparent rounded-lg shadow-lg text-sm font-bold text-black bg-nvidia-green hover:bg-[#8CD600] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-nvidia-green disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02]"
+                        >
+                            {loading ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Creating account...
+                                </>
+                            ) : (
+                                <>
+                                    Create Account
+                                    <ArrowRight className="w-4 h-4 ml-2" />
+                                </>
+                            )}
+                        </button>
+                    </form>
+
+                    <div className="mt-8 text-center">
+                        <p className="text-sm text-gray-400">
+                            Already have an account?{" "}
+                            <Link href="/" className="font-medium text-nvidia-green hover:text-green-400 transition-colors">
+                                Sign in
+                            </Link>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}

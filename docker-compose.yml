@@ -33,8 +33,6 @@ services:
     environment:
       # Connection to internal DB service
       DATABASE_URL: postgresql+asyncpg://postgres:password@db:5432/chatbot
-      # OpenAI Key must be provided in .env file or environment
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
       # Enable Access Control for Cognee
       ENABLE_BACKEND_ACCESS_CONTROL: "true"
       # Environment

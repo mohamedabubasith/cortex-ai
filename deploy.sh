@@ -1,62 +1,33 @@
 #!/bin/bash
 
-# Production Deployment Script
-# Run this on your cloud server
+# Deployment Script for Cortex AI (v0.0.2)
 
+# Stop on error
 set -e
 
-echo "=========================================="
-echo "🚀 Chatbot Production Deployment"
-echo "=========================================="
+echo "Starting deployment..."
 
-# Check if Docker is installed
-if ! command -v docker &> /dev/null; then
-    echo "❌ Docker not found. Installing..."
-    curl -fsSL https://get.docker.com -o get-docker.sh
-    sh get-docker.sh
-    rm get-docker.sh
-fi
+# 1. Pull the latest code and checkout the specific tag
+echo "Pulling code..."
+git fetch --all --tags
+git checkout tags/v0.0.2
 
-# Check if Docker Compose is installed
-if ! command -v docker-compose &> /dev/null; then
-    echo "❌ Docker Compose not found. Installing..."
-    sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-    sudo chmod +x /usr/local/bin/docker-compose
-fi
+# 2. (Optional) Check for .env file if needed
+# if [ ! -f .env ]; then
+#     echo "Warning: .env file not found. Ensure required env vars are set."
+# fi
 
-# Check if .env exists
-if [ ! -f .env ]; then
-    echo "⚠️  .env file not found. Copying from .env.example..."
-    cp .env.example .env
-    echo "📝 Please edit .env with your configuration:"
-    echo "   - POSTGRES_PASSWORD"
-    echo "   - SECRET_KEY"
-    echo "   - OPENAI_API_KEY"
-    echo "   - CORS_ORIGINS"
-    read -p "Press Enter after editing .env..."
-fi
+# 3. Stop existing containers
+echo "Stopping existing containers..."
+docker-compose down
 
-# Build and start services
-echo "📦 Building Docker images..."
-docker-compose build
+# 4. Build and start new containers
+echo "Building and starting containers..."
+docker-compose up --build -d
 
-echo "🚀 Starting services..."
-docker-compose up -d
+# 5. Check status
+echo "Checking status..."
+sleep 5
+docker-compose ps
 
-echo ""
-echo "=========================================="
-echo "✅ Deployment Complete!"
-echo "=========================================="
-echo ""
-echo "Services:"
-echo "  Frontend: http://localhost:3000"
-echo "  Backend:  http://localhost:8000"
-echo "  API Docs: http://localhost:8000/docs"
-echo ""
-echo "Check status:"
-echo "  docker-compose ps"
-echo ""
-echo "View logs:"
-echo "  docker-compose logs -f"
-echo ""
-echo "=========================================="
+echo "Deployment complete! Access the application at http://localhost:3000 (or your server IP)."
