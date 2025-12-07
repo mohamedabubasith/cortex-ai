@@ -37,50 +37,53 @@ class CogneeService:
     def __init__(self):
         pass
 
-    async def _ensure_clean_state(self):
+    async def purge_cognee_database(self):
         """
-        Check if Cognee DB schema is outdated (missing run_id).
-        If so, use Cognee's native prune functionality to reset the system.
+        Purge/reset entire Cognee database
+        Cognee version: 0.2.0+
         """
         try:
-            adapter = get_relational_engine()
-            async with adapter.engine.begin() as conn:
-                # Check if pipeline_runs exists and has run_id
-                result = await conn.execute(text(
-                    "SELECT column_name FROM information_schema.columns "
-                    "WHERE table_name='pipeline_runs' AND column_name='run_id'"
-                ))
-                has_column = result.scalar() is not None
-                
-                # Check if table exists at all
-                result = await conn.execute(text(
-                    "SELECT to_regclass('public.pipeline_runs')"
-                ))
-                table_exists = result.scalar() is not None
-
-                if table_exists and not has_column:
-                    logger.warning("Detected outdated Cognee schema (missing run_id). Pruning Cognee system...")
-                    from cognee.api.v1.prune import prune
-                    await prune.prune_system(metadata=True)
-                    logger.info("Cognee system pruned successfully.")
-                    
+            logger.info("Purging Cognee database...")
+            # Import locally to avoid startup errors if structure changed
+            from cognee.api.v1.prune import prune
+            await prune.prune_system(metadata=True)
+            logger.info("Cognee database purged successfully")
+            return {"success": True, "message": "Database purged"}
         except Exception as e:
-            logger.warning(f"Clean state check failed: {e}")
+            logger.error(f"Failed to purge database: {e}")
+            return {"success": False, "message": str(e)}
+
+    async def setup_cognee(self):
+        """
+        Initialize/setup Cognee (create tables, etc.)
+        Cognee version: 0.2.0+
+        """
+        try:
+            logger.info("Running Cognee setup...")
+            # Try importing from new location first, fallback to old if needed
+            try:
+                from cognee.modules.engine.operations.setup import setup
+            except ImportError:
+                from cognee.infrastructure.databases.relational.create_db_and_tables import create_db_and_tables as setup
+            
+            await setup()
+            logger.info("Cognee setup completed successfully")
+            return {"success": True, "message": "Setup complete"}
+        except Exception as e:
+            logger.error(f"Failed to setup Cognee: {e}")
+            raise e
 
     async def initialize(self):
         """Initialize Cognee (create tables, etc.)"""
         logger.info("Initializing CogneeService...")
         try:
-            from cognee.infrastructure.databases.relational.create_db_and_tables import create_db_and_tables as setup
-            
-            # Ensure clean state BEFORE setup
-            await self._ensure_clean_state()
-            
-            logger.info("Running Cognee setup...")
-            await setup()
-            logger.info("Cognee setup complete.")
+            # Try setup first
+            await self.setup_cognee()
         except Exception as e:
-            logger.error(f"Cognee setup failed: {e}")
+            logger.warning(f"Initial setup failed ({e}). Attempting to purge and retry...")
+            # If setup fails (e.g. schema mismatch), purge and retry
+            await self.purge_cognee_database()
+            await self.setup_cognee()
 
     def _configure_llm(self, llm_config):
         """Configure LLM settings for Cognee"""
