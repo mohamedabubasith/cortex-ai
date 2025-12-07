@@ -33,9 +33,5 @@ COPY --from=builder /app/public ./public
 # Expose port
 EXPOSE 3000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://127.0.0.1:3000/api/health || exit 1
-
 # Run the application
 CMD ["node", "server.js"]
