@@ -16,6 +16,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from fastapi import Request
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    print(f"Validation Error: {exc.errors()}")
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors()},
+    )
+
 @app.get("/")
 def root():
     return {"message": "Welcome to Chatbot Admin Dashboard API"}
@@ -32,3 +44,9 @@ app.include_router(llm.router, prefix=f"{settings.API_V1_STR}/llm", tags=["llm-c
 app.include_router(analytics.router, prefix=f"{settings.API_V1_STR}/analytics", tags=["analytics"])
 # from app.routers import databases
 # app.include_router(databases.router, prefix=f"{settings.API_V1_STR}/projects/{{project_id}}/databases", tags=["databases"])
+
+@app.on_event("startup")
+async def startup_event():
+    from app.services.cognee_service import cognee_service
+    # Initialize Cognee (creates tables if needed)
+    await cognee_service.initialize()

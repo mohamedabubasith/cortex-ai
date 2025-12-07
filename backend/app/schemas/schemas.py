@@ -66,6 +66,7 @@ class KnowledgeBase(KnowledgeBaseBase):
 class KBQueryRequest(BaseModel):
     query: str
     llm_config_id: str
+    dataset_names: Optional[List[str]] = []
 
 # Database Schemas
 class DatabaseConnectionBase(BaseModel):

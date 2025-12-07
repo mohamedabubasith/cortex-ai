@@ -1,113 +1,68 @@
 version: '3.8'
 
 services:
-  # PostgreSQL Database
-  postgres:
-    image: postgres:15-alpine
-    container_name: chatbot-postgres
-    restart: unless-stopped
+  # Database Service
+  # Using pgvector image as Cognee requires pgvector extension for vector search.
+  # This serves as the "internal postgres db" with vector capabilities.
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: chatbot_db
+    restart: always
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-chatbot}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: chatbot
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "5433:5432" # Exposed on 5433 to avoid conflicts with local Postgres
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - chatbot-network
 
-  # Backend API
+  # Backend Service (FastAPI + Cognee)
   backend:
-    build:
+    build: 
       context: ./backend
       dockerfile: Dockerfile
-    container_name: chatbot-backend
-    restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
+    container_name: chatbot_backend
+    restart: always
     environment:
-      # Database
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-chatbot}
-      
-      # JWT & Security
-      SECRET_KEY: ${SECRET_KEY:-your-secret-key-change-in-production}
-      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}
-      
-      # OpenAI
+      # Connection to internal DB service
+      DATABASE_URL: postgresql+asyncpg://postgres:password@db:5432/chatbot
+      # OpenAI Key must be provided in .env file or environment
       OPENAI_API_KEY: ${OPENAI_API_KEY}
-      OPENAI_API_BASE: ${OPENAI_API_BASE:-}
-      
-      # CORS
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
-      
+      # Enable Access Control for Cognee
+      ENABLE_BACKEND_ACCESS_CONTROL: "true"
       # Environment
-      ENV: ${ENV:-production}
-    volumes:
-      - ./backend/uploads:/app/uploads
+      ENVIRONMENT: production
     ports:
-      - "${BACKEND_PORT:-8000}:8000"
-    networks:
-      - chatbot-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      # Persist uploads
+      - ./backend/uploads:/app/uploads
 
-  # Frontend
+  # Frontend Service (Next.js)
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: chatbot-frontend
-    restart: unless-stopped
-    depends_on:
-      - backend
+    container_name: chatbot_frontend
+    restart: always
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
-      NODE_ENV: production
+      # URL for the browser to access the backend
+      # Change localhost to your domain/IP when deploying to cloud
+      NEXT_PUBLIC_API_URL: http://localhost:8000
     ports:
-      - "${FRONTEND_PORT:-3000}:3000"
-    networks:
-      - chatbot-network
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
-  # Nginx Reverse Proxy (Optional - for production)
-  nginx:
-    image: nginx:alpine
-    container_name: chatbot-nginx
-    restart: unless-stopped
+      - "3000:3000"
     depends_on:
       - backend
-      - frontend
-    ports:
-      - "${NGINX_HTTP_PORT:-80}:80"
-      - "${NGINX_HTTPS_PORT:-443}:443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro
-    networks:
-      - chatbot-network
-    profiles:
-      - production
 
 volumes:
   postgres_data:
-    driver: local
-
-networks:
-  chatbot-network:
-    driver: bridge

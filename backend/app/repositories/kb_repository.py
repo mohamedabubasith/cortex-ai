@@ -15,17 +15,16 @@ class KBRepository:
         filename: str,
         file_path: str,
         file_type: str,
-        file_size: int,
         status: str = "pending"
     ) -> models.KnowledgeBase:
         """Create KB record"""
         kb = models.KnowledgeBase(
             id=str(uuid.uuid4()),
             user_id=user_id,
+            name=filename,
             filename=filename,
             file_path=file_path,
             file_type=file_type,
-            file_size=file_size,
             status=status
         )
         self.db.add(kb)

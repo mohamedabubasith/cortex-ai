@@ -1,5 +1,4 @@
-"""Knowledge Base Router"""
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List, Optional
@@ -21,6 +20,7 @@ def get_kb_service(db: AsyncSession = Depends(get_db)) -> KBService:
 
 @router.post("/upload", response_model=schemas.KnowledgeBase)
 async def upload_kb_file(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     llm_config_id: Optional[str] = Form(None),
     db: AsyncSession = Depends(get_db),
@@ -30,6 +30,7 @@ async def upload_kb_file(
     """Upload knowledge base file"""
     allowed_extensions = ['.pdf', '.docx', '.txt', '.md', '.doc']
     file_ext = os.path.splitext(file.filename)[1].lower()
+    print(f"DEBUG: Uploading file: {file.filename}, ext: {file_ext}")
     
     if file_ext not in allowed_extensions:
         raise HTTPException(
@@ -38,7 +39,7 @@ async def upload_kb_file(
         )
     
     try:
-        user_upload_dir = f"uploads/{current_user.id}"
+        user_upload_dir = os.path.abspath(f"uploads/{current_user.id}")
         os.makedirs(user_upload_dir, exist_ok=True)
         
         file_path = os.path.join(user_upload_dir, f"{uuid.uuid4()}_{file.filename}")
@@ -58,19 +59,46 @@ async def upload_kb_file(
                 )
             )
             llm_config = result.scalars().first()
+        else:
+            # Fallback: Use the first available LLM config
+            result = await db.execute(
+                select(models.LLMConfiguration).where(
+                    models.LLMConfiguration.user_id == current_user.id
+                )
+            )
+            llm_config = result.scalars().first()
         
-        kb = await kb_service.upload_and_index(
+        if llm_config:
+            print(f"DEBUG: Found LLM Config: {llm_config.name}")
+        else:
+            print("DEBUG: No LLM Config found! Indexing will be skipped.")
+            raise HTTPException(status_code=400, detail="No LLM Configuration found. Please add an LLM provider in Settings first.")
+
+        # Create KB record immediately
+        kb = await kb_service.create_kb_record(
             user_id=current_user.id,
             filename=file.filename,
             file_path=file_path,
             file_type=file_ext,
-            file_size=file_size,
-            llm_config=llm_config
+            file_size=file_size
         )
+        
+        # Process in background
+        if llm_config:
+            background_tasks.add_task(
+                kb_service.process_kb,
+                kb.id,
+                file_path,
+                llm_config,
+                current_user.email  # Pass user email for Cognee multi-tenancy
+            )
         
         return kb
         
     except Exception as e:
+        print(f"ERROR in upload_kb_file: {e}")
+        import traceback
+        traceback.print_exc()
         if 'file_path' in locals() and os.path.exists(file_path):
             os.remove(file_path)
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")

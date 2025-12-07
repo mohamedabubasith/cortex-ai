@@ -39,7 +39,8 @@ class AgentRepository(BaseRepository[Agent]):
             .options(
                 selectinload(self.model.llm_config),
                 selectinload(self.model.knowledge_bases),
-                selectinload(self.model.database_connections)
+                selectinload(self.model.database_connections),
+                selectinload(self.model.owner)  # Load owner for email access
             )
         )
         return result.scalars().first()

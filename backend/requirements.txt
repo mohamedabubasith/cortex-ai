@@ -13,7 +13,5 @@ cognee
 qdrant-client
 pypdf
 python-docx
-aiomysql
-motor
-cryptography
-aiosqlite
+protego
+playwright

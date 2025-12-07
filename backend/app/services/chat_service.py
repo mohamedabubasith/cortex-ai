@@ -7,7 +7,8 @@ from app.repositories.chat_repository import ChatRepository
 from app.repositories.agent_repository import AgentRepository
 from app.repositories.analytics_repository import AnalyticsRepository
 from app.services.llm_service import llm_service
-from app.services.cognee_service import cognee_service
+from app.services.kb_service import KBService
+from app.repositories.kb_repository import KBRepository
 
 class ChatService:
     def __init__(self, db: AsyncSession):
@@ -45,7 +46,6 @@ class ChatService:
                 return
 
             # 1. Manage Session
-            # 1. Manage Session
             new_session_created = False
             if not session_id:
                 session_id = str(uuid.uuid4())
@@ -71,13 +71,47 @@ class ChatService:
 
             # 4. RAG: Retrieve Context
             context_parts = []
-            if agent.knowledge_bases and agent.llm_config:
+            
+            # Debug: Log KB selection
+            print(f"DEBUG process_chat: Agent ID: {agent.id}, Agent Name: {agent.name}")
+            print(f"DEBUG process_chat: Number of linked KBs: {len(agent.knowledge_bases) if agent.knowledge_bases else 0}")
+            if agent.knowledge_bases:
                 for kb in agent.knowledge_bases:
-                    # Assuming dataset_name follows the convention doc_{kb.id}
-                    dataset_name = f"doc_{kb.id}"
-                    kb_context = await cognee_service.query(agent.llm_config, message, dataset_name)
-                    if kb_context:
-                        context_parts.append(kb_context)
+                    print(f"DEBUG process_chat: Linked KB: {kb.id} - {kb.name}")
+            
+            if agent.knowledge_bases and agent.llm_config:
+                dataset_names = [f"doc_{kb.id}" for kb in agent.knowledge_bases]
+                
+                print(f"DEBUG process_chat: Querying datasets: {dataset_names} for user: {agent.owner.email if agent.owner else None}")
+                
+                # Initialize KB Service (lightweight)
+                kb_repo = KBRepository(self.db)
+                kb_service = KBService(kb_repo)
+                
+                try:
+                    # Pass the agent owner's email for proper multi-tenant filtering
+                    search_result = await kb_service.query_datasets(
+                        dataset_names, 
+                        message, 
+                        agent.llm_config,
+                        user_email=agent.owner.email if agent.owner else None  # Use owner email
+                    )
+                    if search_result and search_result.get("success") and search_result.get("data"):
+                        print(f"DEBUG process_chat: Search returned {len(search_result['data'])} results")
+                        # Format results
+                        for result in search_result["data"]:
+                            # Assuming result is a string or dict with 'text'
+                            text = result.get("text", str(result)) if isinstance(result, dict) else str(result)
+                            context_parts.append(text)
+                    else:
+                        print(f"DEBUG process_chat: No search results returned")
+                except Exception as e:
+                    print(f"RAG Error: {e}")
+            else:
+                if not agent.knowledge_bases:
+                    print(f"DEBUG process_chat: No KBs linked to this agent, skipping RAG")
+                if not agent.llm_config:
+                    print(f"DEBUG process_chat: No LLM config for this agent")
             
             if context_parts:
                 full_context = "\n\n".join(context_parts)

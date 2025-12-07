@@ -56,7 +56,18 @@ class AuthService:
         password = user_data.pop("password")
         user_data["hashed_password"] = self.get_password_hash(password)
         
-        return await self.repo.create(user_data)
+        user = await self.repo.create(user_data)
+        
+        # Create user in Cognee as well
+        try:
+            from cognee.api.v1.users.create_user import create_user as create_cognee_user
+            # We use the original password here
+            await create_cognee_user(email=user_in.email, password=user_in.password)
+        except Exception as e:
+            # Log error but allow app registration to succeed
+            print(f"Failed to create Cognee user: {e}")
+            
+        return user
 
 async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)) -> models.User:
     credentials_exception = HTTPException(
