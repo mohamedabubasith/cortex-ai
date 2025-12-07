@@ -240,7 +240,7 @@ export default function ChatWindow({
                                 onKeyDown={handleKeyDown}
                                 placeholder="Message Cortex AI..."
                                 className={cn(
-                                    "w-full py-3 px-4 bg-transparent focus:outline-none focus:ring-0 border-none text-sm font-medium resize-none overflow-y-auto",
+                                    "w-full py-3 px-4 bg-transparent focus:outline-none focus:ring-0 border-none text-base md:text-sm font-medium resize-none overflow-y-auto",
                                     theme === 'dark' ? "text-white placeholder-gray-400" : "text-gray-900 placeholder-gray-500"
                                 )}
                                 disabled={isStreaming}
