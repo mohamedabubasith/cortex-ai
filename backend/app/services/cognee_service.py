@@ -62,7 +62,7 @@ class CogneeService:
         """Initialize Cognee (create tables, etc.)"""
         try:
             self._configure_db()
-            from cognee.modules.engine.operations.setup import setup
+            from cognee.infrastructure.databases.relational.create_db_and_tables import create_db_and_tables as setup
             logger.info("Running Cognee setup...")
             await setup()
             logger.info("Cognee setup complete.")
@@ -97,7 +97,8 @@ class CogneeService:
             
             # Only override if using default openai provider. 
             # If user configured 'fastembed' or others via env vars, respect that.
-            if embed_config.embedding_provider == "openai" and llm_config.base_url:
+            # Only override if llm_config.base_url is provided.
+            if llm_config.base_url:
                 embed_config.embedding_endpoint = llm_config.base_url
                 embed_config.embedding_api_key = llm_config.api_key
                 
@@ -105,7 +106,6 @@ class CogneeService:
                 if "nvidia" in llm_config.base_url.lower():
                     # NVIDIA usually uses nv-embed-v1
                     embed_config.embedding_model = "openai/nvidia/nv-embed-v1"
-                    embed_config.embedding_provider = "openai"
 
     async def _get_dataset_by_name(self, dataset_name: str) -> Optional[dict]:
         """Check if dataset exists"""
