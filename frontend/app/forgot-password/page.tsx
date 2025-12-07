@@ -34,15 +34,15 @@ export default function ForgotPasswordPage() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+        <div className="min-h-screen flex items-center justify-center p-0 md:p-4 relative overflow-hidden">
             <TubesBackground />
-            <div className="bg-nvidia-dark/80 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden relative z-10">
-                <div className="p-8">
+            <div className="bg-nvidia-dark/80 backdrop-blur-md border-0 md:border border-white/10 rounded-none md:rounded-2xl shadow-none md:shadow-2xl w-full max-w-md h-full md:h-auto overflow-hidden relative z-10">
+                <div className="p-6 md:p-8 flex flex-col justify-center h-full md:block">
                     <div className="text-center mb-8">
                         <div className="inline-flex items-center justify-center mb-6">
                             <Logo size="xl" />
                         </div>
-                        <h1 className="text-3xl font-bold text-white tracking-tight mb-2">Reset Password</h1>
+                        <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight mb-2">Reset Password</h1>
                         <p className="text-gray-400">
                             Enter your email to receive reset instructions
                         </p>
@@ -81,7 +81,7 @@ export default function ForgotPasswordPage() {
                                     <input
                                         type="email"
                                         required
-                                        className="block w-full pl-10 pr-3 py-2.5 bg-black/50 border border-gray-700 rounded-lg focus:ring-2 focus:ring-nvidia-green focus:border-transparent text-white placeholder-gray-500 transition-all"
+                                        className="block w-full pl-10 pr-3 py-3 md:py-2.5 bg-black/50 border border-gray-700 rounded-lg focus:ring-2 focus:ring-nvidia-green focus:border-transparent text-white placeholder-gray-500 transition-all"
                                         placeholder="you@example.com"
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
