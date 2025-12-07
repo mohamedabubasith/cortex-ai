@@ -48,7 +48,7 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="min-h-screen bg-black flex items-center justify-center p-4 relative">
+        <div className="min-h-screen bg-black flex items-center justify-center p-4 relative overflow-hidden">
             {/* Background Effects */}
             <div className="absolute inset-0 z-0">
                 <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-[#76B900]/10 rounded-full blur-[120px] animate-pulse" />
