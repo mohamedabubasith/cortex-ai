@@ -79,6 +79,9 @@ class CogneeService:
             
             if llm_config.base_url:
                 cognee.config.set_llm_endpoint(llm_config.base_url)
+                # Set env vars for LiteLLM to use the custom endpoint for all operations (including embeddings)
+                os.environ["OPENAI_API_BASE"] = llm_config.base_url
+                os.environ["LITELLM_API_BASE"] = llm_config.base_url
             
             if llm_config.model:
                 model = llm_config.model
