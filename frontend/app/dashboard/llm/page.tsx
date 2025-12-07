@@ -43,7 +43,7 @@ export default function LLMPage() {
     const fetchLLMs = async () => {
         setLoading(true);
         try {
-            const response = await api.get("/llm");
+            const response = await api.get("/llm/");
             setLlmConfigs(response.data);
         } catch (error) {
             console.error("Failed to fetch LLM configs", error);

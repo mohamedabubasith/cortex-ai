@@ -68,9 +68,9 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
         try {
             const [agentRes, llmRes, kbRes, dbRes] = await Promise.all([
                 api.get(`/agents/${params.id}`),
-                api.get("/llm"),
-                api.get("/kb"),
-                api.get("/resources/databases")
+                api.get("/llm/"),
+                api.get("/kb/"),
+                api.get("/resources/databases/")
             ]);
 
             setAgent(agentRes.data);
