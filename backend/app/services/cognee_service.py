@@ -93,21 +93,6 @@ class CogneeService:
         # Configure embeddings early
         self._configure_embeddings()
         
-        # Warmup/Download model if fastembed
-        if os.getenv("EMBEDDING_PROVIDER") == "fastembed":
-             try:
-                 print("DEBUG: Warming up FastEmbed model (downloading if needed)...", flush=True)
-                 # Trigger download by creating engine and embedding dummy text
-                 from cognee.infrastructure.databases.vector.embeddings.FastEmbedEmbeddingEngine import FastEmbedEmbeddingEngine
-                 engine = FastEmbedEmbeddingEngine(
-                     model=os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"),
-                     dimensions=int(os.getenv("EMBEDDING_DIMENSIONS", "384"))
-                 )
-                 await engine.embed_text(["warmup"])
-                 print("DEBUG: FastEmbed model ready.", flush=True)
-             except Exception as e:
-                 print(f"DEBUG: FastEmbed warmup failed: {e}", flush=True)
-
         try:
             # Try setup first
             await self.setup_cognee()
