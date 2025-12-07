@@ -41,8 +41,8 @@ export default function SidePanel({ isOpen, onClose, title, children, width = "5
             {/* Panel */}
             <div
                 ref={panelRef}
-                className="relative h-full bg-[#0a0a0a] border-l border-white/10 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300"
-                style={{ width: typeof width === 'number' ? `${width}px` : width }}
+                className="relative h-full bg-[#0a0a0a] border-l border-white/10 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300 w-full md:w-[var(--panel-width)]"
+                style={{ '--panel-width': typeof width === 'number' ? `${width}px` : width } as React.CSSProperties}
             >
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-[#0a0a0a]">

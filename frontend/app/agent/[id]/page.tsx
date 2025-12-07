@@ -199,56 +199,56 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
             theme === 'dark' ? "bg-black text-white" : "bg-white text-gray-900"
         )}>
             {/* Header */}
-            <header className="flex items-center justify-between px-8 py-4 border-b border-gray-200 dark:border-gray-800 bg-black/50 backdrop-blur-sm sticky top-0 z-10">
-                <div className="flex items-center space-x-4">
+            <header className="flex flex-col md:flex-row items-start md:items-center justify-between px-4 md:px-8 py-4 border-b border-gray-200 dark:border-gray-800 bg-black/50 backdrop-blur-sm sticky top-0 z-10 gap-4">
+                <div className="flex items-center space-x-4 w-full md:w-auto">
                     <Link href="/dashboard/agents" className="text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors">
                         <ArrowLeft className="w-5 h-5" />
                     </Link>
                     <div>
                         <div className="flex items-center space-x-2">
-                            <h1 className="text-xl font-bold">{agent.name}</h1>
-                            <span className="px-2 py-0.5 text-[10px] font-medium bg-gray-100 dark:bg-gray-800 text-gray-500 rounded-full">
+                            <h1 className="text-xl font-bold truncate max-w-[200px] md:max-w-none">{agent.name}</h1>
+                            <span className="px-2 py-0.5 text-[10px] font-medium bg-gray-100 dark:bg-gray-800 text-gray-500 rounded-full shrink-0">
                                 {agent.is_public ? "Public" : "Private"}
                             </span>
                         </div>
                         <p className="text-xs text-gray-500 font-mono mt-0.5">agent_{agent.id}</p>
                     </div>
                 </div>
-                <div className="flex items-center space-x-3">
+                <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
                     <button
                         onClick={handleSaveAgent}
                         disabled={saving}
-                        className="px-4 py-2 bg-[#76B900] text-black text-sm font-bold rounded-lg hover:bg-[#6aa600] transition-all flex items-center shadow-[0_0_15px_rgba(118,185,0,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex-1 md:flex-none justify-center px-4 py-2 bg-[#76B900] text-black text-sm font-bold rounded-lg hover:bg-[#6aa600] transition-all flex items-center shadow-[0_0_15px_rgba(118,185,0,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                         {saving ? "Saving..." : "Save Changes"}
                     </button>
-                    <div className="h-6 w-px bg-gray-800 mx-2"></div>
+                    <div className="hidden md:block h-6 w-px bg-gray-800 mx-2"></div>
                     <button
                         onClick={copyToClipboard}
-                        className="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors flex items-center"
+                        className="flex-1 md:flex-none justify-center px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors flex items-center"
                     >
                         <Copy className="w-4 h-4 mr-2" />
                         {copied ? "Copied" : "Copy link"}
                     </button>
                     <button
                         onClick={() => window.open(`/chat/${agent.share_token}`, '_blank')}
-                        className="px-4 py-1.5 bg-white/10 text-white text-sm font-bold rounded-lg hover:bg-white/20 transition-all flex items-center"
+                        className="flex-1 md:flex-none justify-center px-4 py-1.5 bg-white/10 text-white text-sm font-bold rounded-lg hover:bg-white/20 transition-all flex items-center"
                     >
-                        Preview Agent
+                        Preview
                     </button>
                 </div>
             </header>
 
             {/* Tabs */}
-            <div className="px-8 border-b border-gray-200 dark:border-gray-800">
-                <div className="flex space-x-6">
+            <div className="px-4 md:px-8 border-b border-gray-200 dark:border-gray-800 overflow-x-auto">
+                <div className="flex space-x-6 min-w-max">
                     {tabs.map((tab) => (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
                             className={cn(
-                                "py-3 text-sm font-medium border-b-2 transition-colors relative",
+                                "py-3 text-sm font-medium border-b-2 transition-colors relative whitespace-nowrap",
                                 activeTab === tab.id
                                     ? "border-[#76B900] text-[#76B900]"
                                     : "border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
@@ -261,7 +261,7 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto p-8 bg-gray-50 dark:bg-[#0A0A0A]">
+            <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-gray-50 dark:bg-[#0A0A0A]">
                 <div className="max-w-6xl mx-auto">
                     {activeTab === "agent" && (
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -341,11 +341,11 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
 
                     {activeTab === "knowledge" && (
                         <div className="space-y-8">
-                            <div className="flex items-center justify-between">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                                 <h2 className="text-lg font-bold text-gray-900 dark:text-white">Agent Knowledge Base</h2>
                                 <button
                                     onClick={handleAddKB}
-                                    className="px-4 py-2 bg-[#76B900] text-black text-sm font-bold rounded-lg hover:bg-[#6aa600] transition-colors flex items-center shadow-[0_0_15px_rgba(118,185,0,0.3)]"
+                                    className="w-full sm:w-auto px-4 py-2 bg-[#76B900] text-black text-sm font-bold rounded-lg hover:bg-[#6aa600] transition-colors flex items-center justify-center shadow-[0_0_15px_rgba(118,185,0,0.3)]"
                                 >
                                     <Plus className="w-4 h-4 mr-2" /> Add Knowledge Base
                                 </button>
@@ -404,11 +404,11 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
 
                             {/* Database Connections Section */}
                             <div className="mt-8">
-                                <div className="flex items-center justify-between mb-4">
+                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
                                     <h3 className="text-lg font-bold text-gray-900 dark:text-white">Database Connections</h3>
                                     <button
                                         onClick={handleAddDB}
-                                        className="px-4 py-2 bg-[#76B900] text-black text-sm font-bold rounded-lg hover:bg-[#6aa600] transition-colors flex items-center shadow-[0_0_15px_rgba(118,185,0,0.3)]"
+                                        className="w-full sm:w-auto px-4 py-2 bg-[#76B900] text-black text-sm font-bold rounded-lg hover:bg-[#6aa600] transition-colors flex items-center justify-center shadow-[0_0_15px_rgba(118,185,0,0.3)]"
                                     >
                                         <Plus className="w-4 h-4 mr-2" /> Add Database
                                     </button>
