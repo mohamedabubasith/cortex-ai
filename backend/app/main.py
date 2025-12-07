@@ -2,15 +2,18 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 import logging
+import os
 
 # Configure logging
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
-    level=logging.INFO,
+    level=getattr(logging, log_level),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
-# Enable verbose logs for Cognee and DLT
-logging.getLogger("cognee").setLevel(logging.DEBUG)
-logging.getLogger("dlt").setLevel(logging.DEBUG)
+# Enable verbose logs for Cognee and DLT if LOG_LEVEL is DEBUG
+if log_level == "DEBUG":
+    logging.getLogger("cognee").setLevel(logging.DEBUG)
+    logging.getLogger("dlt").setLevel(logging.DEBUG)
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
