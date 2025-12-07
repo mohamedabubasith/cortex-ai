@@ -76,15 +76,23 @@ class CogneeService:
     def _configure_embeddings(self):
         """Configure embedding settings based on environment"""
         embed_config = get_embedding_config()
-        current_provider = os.getenv("EMBEDDING_PROVIDER", "openai")
+        
+        provider_env = os.getenv("EMBEDDING_PROVIDER")
+        print(f"DEBUG: os.getenv('EMBEDDING_PROVIDER') = {provider_env}", flush=True)
+        print(f"DEBUG: Initial embed_config: {embed_config}", flush=True)
+        
+        current_provider = provider_env if provider_env else "openai"
         
         if current_provider == "fastembed":
             # Explicitly configure fastembed
+            print("DEBUG: Configuring for FastEmbed...", flush=True)
             embed_config.embedding_provider = "fastembed"
             embed_config.embedding_model = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
             embed_config.embedding_dimensions = int(os.getenv("EMBEDDING_DIMENSIONS", "384"))
             embed_config.embedding_endpoint = None
             embed_config.embedding_api_key = None
+        
+        print(f"DEBUG: Final embed_config: {embed_config}", flush=True)
 
     async def initialize(self):
         """Initialize Cognee (create tables, etc.)"""
