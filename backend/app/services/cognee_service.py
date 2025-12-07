@@ -73,9 +73,41 @@ class CogneeService:
             print(f"DEBUG: Failed to setup Cognee: {e}", flush=True)
             raise e
 
+    def _configure_embeddings(self):
+        """Configure embedding settings based on environment"""
+        embed_config = get_embedding_config()
+        current_provider = os.getenv("EMBEDDING_PROVIDER", "openai")
+        
+        if current_provider == "fastembed":
+            # Explicitly configure fastembed
+            embed_config.embedding_provider = "fastembed"
+            embed_config.embedding_model = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+            embed_config.embedding_dimensions = int(os.getenv("EMBEDDING_DIMENSIONS", "384"))
+            embed_config.embedding_endpoint = None
+            embed_config.embedding_api_key = None
+
     async def initialize(self):
         """Initialize Cognee (create tables, etc.)"""
         print("DEBUG: Initializing CogneeService...", flush=True)
+        
+        # Configure embeddings early
+        self._configure_embeddings()
+        
+        # Warmup/Download model if fastembed
+        if os.getenv("EMBEDDING_PROVIDER") == "fastembed":
+             try:
+                 print("DEBUG: Warming up FastEmbed model (downloading if needed)...", flush=True)
+                 # Trigger download by creating engine and embedding dummy text
+                 from cognee.infrastructure.databases.vector.embeddings.FastEmbedEmbeddingEngine import FastEmbedEmbeddingEngine
+                 engine = FastEmbedEmbeddingEngine(
+                     model=os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"),
+                     dimensions=int(os.getenv("EMBEDDING_DIMENSIONS", "384"))
+                 )
+                 await engine.embed_text(["warmup"])
+                 print("DEBUG: FastEmbed model ready.", flush=True)
+             except Exception as e:
+                 print(f"DEBUG: FastEmbed warmup failed: {e}", flush=True)
+
         try:
             # Try setup first
             await self.setup_cognee()
@@ -109,18 +141,13 @@ class CogneeService:
                 cognee.config.set_llm_model(model)
 
             # Configure Embeddings
-            embed_config = get_embedding_config()
+            # Ensure base config is set
+            self._configure_embeddings()
             
+            embed_config = get_embedding_config()
             current_provider = os.getenv("EMBEDDING_PROVIDER", "openai")
             
-            if current_provider == "fastembed":
-                # Explicitly configure fastembed to ensure correct engine is used
-                embed_config.embedding_provider = "fastembed"
-                embed_config.embedding_model = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
-                embed_config.embedding_dimensions = int(os.getenv("EMBEDDING_DIMENSIONS", "384"))
-                embed_config.embedding_endpoint = None
-                embed_config.embedding_api_key = None
-            elif llm_config.base_url and current_provider == "openai":
+            if llm_config.base_url and current_provider == "openai":
                 # Only override if using default openai provider. 
                 # If user configured 'fastembed' or others via env vars, respect that.
                 # Only override if llm_config.base_url is provided AND provider is openai.
