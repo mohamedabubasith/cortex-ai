@@ -60,7 +60,7 @@ export default function MessageBubble({ message, isStreaming = false, theme = "d
             )}
         >
             <div className={cn(
-                "flex items-start space-x-3 max-w-[80%]",
+                "flex items-start space-x-3 max-w-[90%] md:max-w-[80%]",
                 isUser && "flex-row-reverse space-x-reverse"
             )}>
                 {/* Avatar */}
