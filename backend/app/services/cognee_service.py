@@ -8,6 +8,7 @@ import os
 import asyncio
 from typing import Dict, Any, List, Optional
 import cognee
+from sqlalchemy import text
 from cognee.api.v1.search import SearchType
 from cognee.api.v1.search import search as cognee_search
 from cognee.modules.users.methods import get_default_user
@@ -22,10 +23,44 @@ class CogneeService:
     def __init__(self):
         pass
 
+    async def _ensure_clean_state(self):
+        """
+        Check if Cognee DB schema is outdated (missing run_id).
+        If so, use Cognee's native prune functionality to reset the system.
+        """
+        try:
+            engine = get_relational_engine()
+            async with engine.begin() as conn:
+                # Check if pipeline_runs exists and has run_id
+                result = await conn.execute(text(
+                    "SELECT column_name FROM information_schema.columns "
+                    "WHERE table_name='pipeline_runs' AND column_name='run_id'"
+                ))
+                has_column = result.scalar() is not None
+                
+                # Check if table exists at all
+                result = await conn.execute(text(
+                    "SELECT to_regclass('public.pipeline_runs')"
+                ))
+                table_exists = result.scalar() is not None
+
+                if table_exists and not has_column:
+                    logger.warning("Detected outdated Cognee schema (missing run_id). Pruning Cognee system...")
+                    from cognee.api.v1.prune import prune
+                    await prune.prune_system(metadata=True)
+                    logger.info("Cognee system pruned successfully.")
+                    
+        except Exception as e:
+            logger.warning(f"Clean state check failed: {e}")
+
     async def initialize(self):
         """Initialize Cognee (create tables, etc.)"""
         try:
             from cognee.infrastructure.databases.relational.create_db_and_tables import create_db_and_tables as setup
+            
+            # Ensure clean state BEFORE setup
+            await self._ensure_clean_state()
+            
             logger.info("Running Cognee setup...")
             await setup()
             logger.info("Cognee setup complete.")

@@ -1,6 +1,16 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+# Enable verbose logs for Cognee and DLT
+logging.getLogger("cognee").setLevel(logging.DEBUG)
+logging.getLogger("dlt").setLevel(logging.DEBUG)
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
