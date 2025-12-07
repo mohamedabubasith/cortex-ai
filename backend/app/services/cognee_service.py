@@ -91,6 +91,17 @@ class CogneeService:
             embed_config.embedding_dimensions = int(os.getenv("EMBEDDING_DIMENSIONS", "384"))
             embed_config.embedding_endpoint = None
             embed_config.embedding_api_key = None
+            
+            # Try to set global config if available
+            try:
+                from cognee.shared.config import Config
+                Config().embedding_provider = "fastembed"
+                Config().embedding_model = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+                print("DEBUG: Set global Cognee Config().embedding_provider to 'fastembed'", flush=True)
+            except ImportError:
+                print("DEBUG: Could not import cognee.shared.config.Config", flush=True)
+            except Exception as e:
+                print(f"DEBUG: Failed to set global config: {e}", flush=True)
         
         print(f"DEBUG: Final embed_config: {embed_config}", flush=True)
 

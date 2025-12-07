@@ -1,3 +1,0 @@
-CREATE DATABASE cognee_db;
-\c cognee_db
-CREATE EXTENSION IF NOT EXISTS vector;
