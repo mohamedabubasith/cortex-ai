@@ -33,8 +33,6 @@ services:
     environment:
       # Connection to internal DB service
       DATABASE_URL: postgresql+asyncpg://postgres:password@db:5432/chatbot
-      # Enable Access Control for Cognee
-      ENABLE_BACKEND_ACCESS_CONTROL: "true"
       # Environment
       ENVIRONMENT: production
       # Embedding Configuration
