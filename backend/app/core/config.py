@@ -68,12 +68,6 @@ class Settings(BaseSettings):
             return self.DATABASE_URL
         return f"postgresql+asyncpg://{self.APP_DB_USERNAME}:{self.APP_DB_PASSWORD}@{self.APP_DB_HOST}:{self.APP_DB_PORT}/{self.APP_DB_NAME}"
 
-    @property
-    def constructed_vector_db_url(self) -> str:
-        """Constructs the vector database URL for Cognee (using DB_ vars)."""
-        if self.VECTOR_DB_URL:
-            return self.VECTOR_DB_URL
-        return f"postgresql://{self.DB_USERNAME}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
 
     def validate_providers(self):
         if self.DB_PROVIDER != "postgres":

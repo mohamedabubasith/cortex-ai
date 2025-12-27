@@ -5,6 +5,10 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Module-level state for singletons
+_fastembed_instance = None
+_pgvector_instance = None
+
 def apply_cognee_patches():
     """
     Apply critical monkeypatches for Cognee integration.
@@ -27,7 +31,7 @@ def apply_cognee_patches():
             # Import our adapter
             from app.services.fastembed_adapter import FastEmbedAdapter
             
-            _fastembed_instance = None
+            # _fastembed_instance = None
             
             def patched_get_embedding_engine():
                 global _fastembed_instance
@@ -49,14 +53,18 @@ def apply_cognee_patches():
     if settings.VECTOR_DB_PROVIDER == "pgvector":
         try:
             import cognee.infrastructure.databases.vector as vector_module
-            from cognee.infrastructure.databases.vector.pgvector import PGVectorAdapter
+            # Import from the module file directly to get the class
+            from cognee.infrastructure.databases.vector.pgvector.PGVectorAdapter import PGVectorAdapter
             
-            _pgvector_instance = None
+            # _pgvector_instance = None
             
             def patched_get_vector_engine():
                 global _pgvector_instance
                 if _pgvector_instance is None:
-                    logger.info(f"Creating PGVectorAdapter with URL: {settings.constructed_vector_db_url}")
+                    # Construct URL manually as constructed_vector_db_url was removed
+                    db_url = f"postgresql://{settings.DB_USERNAME}:{settings.DB_PASSWORD}@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"
+                    
+                    logger.info(f"Creating PGVectorAdapter with URL: {db_url}")
                     
                     # Create embedding engine
                     from app.services.fastembed_adapter import FastEmbedAdapter
@@ -64,7 +72,7 @@ def apply_cognee_patches():
                     
                     # Instantiate PGVectorAdapter with correct signature
                     _pgvector_instance = PGVectorAdapter(
-                        connection_string=settings.constructed_vector_db_url,
+                        connection_string=db_url,
                         api_key=None,
                         embedding_engine=embedding_engine
                     )
