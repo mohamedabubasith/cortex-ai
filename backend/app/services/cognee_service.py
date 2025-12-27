@@ -15,6 +15,9 @@ os.environ["EMBEDDING_PROVIDER"] = settings.EMBEDDING_PROVIDER
 os.environ["EMBEDDING_MODEL"] = settings.EMBEDDING_MODEL
 os.environ["EMBEDDING_DIMENSIONS"] = str(settings.EMBEDDING_DIMENSIONS)
 os.environ["LLM_PROVIDER"] = "litellm"  # Required for Cognee to work properly
+# Force local embeddings (no remote API)
+os.environ["EMBEDDING_ENDPOINT"] = ""
+os.environ["EMBEDDING_API_KEY"] = ""
 
 # Set persistent data path for Cognee (LanceDB)
 # This ensures data survives server restarts
@@ -170,6 +173,13 @@ class CogneeService:
             embed_config.embedding_endpoint = None
             embed_config.embedding_api_key = None
             logger.info(f"Configured FastEmbed with model: {embed_config.embedding_model}")
+        elif current_provider == "openai":
+            # Configure OpenAI embeddings
+            embed_config.embedding_provider = "openai"
+            embed_config.embedding_model = settings.EMBEDDING_MODEL
+            embed_config.embedding_dimensions = settings.EMBEDDING_DIMENSIONS
+            embed_config.embedding_api_key = settings.OPENAI_API_KEY
+            logger.info(f"Configured OpenAI embeddings with model: {embed_config.embedding_model}")
 
     async def initialize(self):
         """Initialize Cognee (create tables, etc.)"""
