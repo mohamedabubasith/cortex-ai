@@ -1,286 +1,141 @@
-# Chatbot Application - AI Assistant with Knowledge Base
+# Cortex AI 🧠
 
-Production-ready AI chatbot with chat interface, knowledge base, and LLM integration.
+**Production-ready AI Assistant with Knowledge Base (RAG) & SQL Agent Capabilities**
 
-## 🚀 Quick Start (Docker)
+Cortex AI is a powerful, open-source AI platform that combines **RAG (Retrieval-Augmented Generation)** with **SQL Agent** capabilities. It allows users to chat with their documents (PDFs, text) AND their live databases (PostgreSQL, MySQL) in a single, unified interface.
+
+Built with **FastAPI**, **Next.js**, **Cognee**, and **pgvector**.
+
+---
+
+## ✨ Key Features
+
+- **📚 Knowledge Base (RAG)**: Upload and chat with PDF, DOCX, and TXT files. Powered by Cognee for advanced graph-based retrieval.
+- **🗄️ SQL Agent**: Connect to live databases (PostgreSQL, MySQL, etc.) and ask questions about your data ("Show me the latest users", "Count orders by month").
+- **🤖 Multi-LLM Support**: Compatible with OpenAI (GPT-4o, GPT-3.5) and any OpenAI-compatible API (LocalLLM, vLLM).
+- **⚡ Real-time Streaming**: Smooth, typewriter-style chat responses.
+- **🔐 Enterprise Security**: Role-based access control (RBAC), encrypted credentials, and secure session management.
+- **🐳 Production Ready**: Fully containerized with Docker Compose, ready for deployment on AWS, GCP, or DigitalOcean.
+
+---
+
+## 🛠️ Tech Stack
+
+- **Backend**: Python 3.10+, FastAPI, SQLAlchemy, AsyncPG
+- **Frontend**: Next.js 14 (App Router), TypeScript, TailwindCSS, Framer Motion
+- **AI/ML**: Cognee (Knowledge Graph + Vector Search), OpenAI API
+- **Database**: PostgreSQL 16 + pgvector (Vector Embeddings + Relational Data)
+- **Infrastructure**: Docker, Docker Compose, Nginx (Optional)
+
+---
+
+## 🚀 Quick Start
 
 ### Prerequisites
-- Docker & Docker Compose
+- Docker & Docker Compose installed
+- Git
 
-### 1. Clone & Configure
+### 1. Clone the Repository
+```bash
+git clone https://github.com/mohamedabubasith/cortex-ai.git
+cd cortex-ai
+```
+
+### 2. Configure Environment
+Create a `.env` file in the `backend` directory (or root, depending on setup):
 
 ```bash
-git clone <your-repo-url>
-cd chatbot
-
-# Copy environment template
 cp .env.example .env
-
-# Edit .env with your values
-nano .env
 ```
 
-### 2. Deploy
+**Minimal `.env` Configuration:**
+```ini
+# Database (Default provided in docker-compose)
+POSTGRES_PASSWORD=admin
 
-```bash
-# Start all services
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Check status
-docker-compose ps
-```
-
-### 3. Access
-
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:8000
-- **API Docs**: http://localhost:8000/docs
-
----
-
-## 📦 Services
-
-| Service | Port | Description |
-|---------|------|-------------|
-| Frontend | 3000 | Next.js UI |
-| Backend | 8000 | FastAPI Server |
-| PostgreSQL | 5432 | Database |
-| Nginx | 80/443 | Reverse Proxy (optional) |
-
----
-
-## 🔧 Configuration
-
-### Required Environment Variables
-
-```bash
-# Database
-POSTGRES_PASSWORD=your_secure_password
-
-# Security
-SECRET_KEY=your_random_secret_key
-
-# OpenAI
+# OpenAI API Key (Required for LLM features)
 OPENAI_API_KEY=sk-your-key-here
 
-# CORS (update with your domain)
-CORS_ORIGINS=https://yourdomain.com
+# Security
+SECRET_KEY=change_this_to_a_secure_random_string
 ```
 
-### Generate Secret Key
+### 3. Deploy with One Command
+We provide a production-ready deployment script:
 
 ```bash
-python -c "import secrets; print(secrets.token_urlsafe(32))"
-```
-
----
-
-## 🌐 Production Deployment
-
-### Option 1: Quick Start Script (Recommended)
-
-We provide a `deploy.sh` script that handles pulling the code, stopping existing containers, and starting the new version.
-
-```bash
-# 1. Download the script (if not already present)
-curl -O https://raw.githubusercontent.com/mohamedabubasith/cortex-ai/main/deploy.sh
 chmod +x deploy.sh
-
-# 2. Run deployment
 ./deploy.sh
 ```
 
-### Option 2: Docker Compose Manual
+This script will:
+1. Pull the latest code.
+2. Build the Docker containers (Frontend, Backend, Database).
+3. Start the services.
 
-```bash
-# 1. Pull latest code
-git pull
-
-# 2. Start services
-docker-compose up --build -d
-```
-
-### Database Note
-The setup uses `pgvector/pgvector:pg16` to support vector embeddings required by the Cognee knowledge graph. It runs on port `5433` by default to avoid conflicts with local Postgres instances.
-
-### Cloud Platforms
-
-#### AWS (EC2) / Digital Ocean / Google Cloud
-1.  Provision a server with Docker and Docker Compose installed.
-2.  Clone the repository or copy `deploy.sh`.
-3.  Run `./deploy.sh`.
-
+### 4. Access the App
+- **Frontend**: [http://localhost:3000](http://localhost:3000)
+- **Backend API**: [http://localhost:8000](http://localhost:8000)
+- **API Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
 
 ---
 
-## 🧪 Testing
+## 🌐 Production Deployment (Google Cloud / AWS)
 
-### Health Checks
+For deploying to a cloud server (e.g., Google Compute Engine, AWS EC2):
+
+1. **Provision a VM** (Ubuntu 22.04 recommended) with Docker installed.
+2. **Clone the repo** and set up your `.env` file.
+3. **Set Public URL**:
+   In your `.env`, set `NEXT_PUBLIC_API_URL` to your server's public IP or domain:
+   ```ini
+   NEXT_PUBLIC_API_URL=http://<YOUR_STATIC_IP>:8000
+   ```
+4. **Run Deployment**:
+   ```bash
+   ./deploy.sh
+   ```
+
+---
+
+## 🧪 Development
+
+To run the project locally for development (with hot-reloading):
+
+**Backend:**
 ```bash
-# Backend
-curl http://localhost:8000/health
-
-# Frontend  
-curl http://localhost:3000/api/health
-
-# Database
-docker-compose exec postgres pg_isready
-```
-
-### End-to-End Test
-```bash
-# Create test user
-curl -X POST http://localhost:8000/api/v1/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com","password":"test123","full_name":"Test User"}'
-
-# Run automated tests
 cd backend
-python test_kb_e2e.py
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+```
+
+**Frontend:**
+```bash
+cd frontend
+npm install
+npm run dev
 ```
 
 ---
 
-## 📊 Monitoring
+## 🤝 Contributing
 
-### View Logs
-```bash
-# All services
-docker-compose logs -f
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-# Specific service
-docker-compose logs -f backend
-docker-compose logs -f frontend
-docker-compose logs -f postgres
-```
-
-### Container Stats
-```bash
-docker stats
-```
-
-### Database Backup
-```bash
-docker-compose exec postgres pg_dump -U chatbot_user chatbot > backup.sql
-```
-
----
-
-## 🔒 Security Checklist
-
-- [ ] Change `SECRET_KEY` in production
-- [ ] Change `POSTGRES_PASSWORD`
-- [ ] Update `CORS_ORIGINS` with your domain
-- [ ] Enable HTTPS/SSL in nginx
-- [ ] Use strong database passwords
-- [ ] Enable firewall (ports 22, 80, 443 only)
-- [ ] Regular security updates
-- [ ] Implement rate limiting
-- [ ] Enable database backups
-
----
-
-## 🛠️ Maintenance
-
-### Update Application
-```bash
-git pull
-docker-compose build
-docker-compose up -d
-```
-
-### Database Migration
-```bash
-docker-compose exec backend alembic upgrade head
-```
-
-### Restart Services
-```bash
-docker-compose restart backend
-docker-compose restart frontend
-```
-
-### Clean Up
-```bash
-# Stop all services
-docker-compose down
-
-# Remove volumes (⚠️ deletes data)
-docker-compose down -v
-```
-
----
-
-## 📚 API Documentation
-
-- **Interactive Docs**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
-- **OpenAPI JSON**: http://localhost:8000/openapi.json
-
----
-
-## 🏗️ Architecture
-
-```
-┌─────────────┐
-│   Nginx     │  Port 80/443
-│  (Optional) │
-└──────┬──────┘
-       │
-   ┌───┴────────────────┐
-   │                    │
-┌──▼────────┐    ┌─────▼─────┐
-│ Frontend  │    │  Backend  │
-│ Next.js   │    │  FastAPI  │
-│ Port 3000 │    │ Port 8000 │
-└───────────┘    └─────┬─────┘
-                       │
-                ┌──────▼────────┐
-                │  PostgreSQL   │
-                │  Port 5432    │
-                └───────────────┘
-```
-
----
-
-## 🎯 Features
-
-✅ Chat Interface with streaming responses  
-✅ Knowledge Base (PDF, DOCX, TXT upload)  
-✅ LLM Integration (OpenAI, custom endpoints)  
-✅ User Authentication & Authorization  
-✅ Session Management  
-✅ Database Persistence (PostgreSQL)  
-✅ Production-ready Docker setup  
-✅ Health checks & monitoring  
-✅ Rate limiting & security headers  
-✅ SSL/HTTPS support  
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
 ---
 
 ## 📝 License
 
-[Your License]
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-## 🤝 Support
-
-For issues and questions:
-- Create an issue on GitHub
-- Email: support@yourdomain.com
-
----
-
-## 🚦 Status
-
-- **Backend**: ✅ Production Ready
-- **Frontend**: ✅ Production Ready  
-- **Database**: ✅ PostgreSQL
-- **Docker**: ✅ Configured
-- **Tests**: ✅ Automated Testing Available
-
-**Ready for Cloud Deployment!** 🚀
+**Built with ❤️ by [Mohamed Abu Basith](https://github.com/mohamedabubasith)**
