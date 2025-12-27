@@ -87,6 +87,7 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+        BACKEND_URL: http://chatbot_backend:8000
     container_name: chatbot_frontend
     restart: always
     ports:
