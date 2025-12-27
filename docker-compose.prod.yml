@@ -44,6 +44,8 @@ services:
       # But mostly we rely on .env now
       DB_HOST: db
       APP_DB_HOST: db
+      # Override DATABASE_URL to ensure it uses the internal docker hostname 'db' instead of localhost from .env
+      DATABASE_URL: postgresql+asyncpg://${APP_DB_USERNAME:-admin}:${APP_DB_PASSWORD:-admin}@db:5432/${APP_DB_NAME:-chat_db}
       
     volumes:
       - ./backend/uploads:/app/uploads
