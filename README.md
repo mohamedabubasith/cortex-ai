@@ -50,14 +50,22 @@ cp .env.example .env
 
 **Minimal `.env` Configuration:**
 ```ini
-# Database (Default provided in docker-compose)
+# --- Database ---
+POSTGRES_USER=admin
 POSTGRES_PASSWORD=admin
+POSTGRES_DB=cognee_db
 
-# OpenAI API Key (Required for LLM features)
+# --- AI / LLM ---
 OPENAI_API_KEY=sk-your-key-here
 
-# Security
+# --- Security ---
 SECRET_KEY=change_this_to_a_secure_random_string
+
+# --- Cognee & Vector DB ---
+DB_PROVIDER=postgres
+VECTOR_DB_PROVIDER=pgvector
+ENABLE_BACKEND_ACCESS_CONTROL=true
+REQUIRE_AUTHENTICATION=true
 ```
 
 ### 3. Deploy with One Command
