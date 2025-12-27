@@ -11,15 +11,15 @@ def generate_uuid():
 agent_knowledge_bases = Table(
     'agent_knowledge_bases',
     Base.metadata,
-    Column('agent_id', String, ForeignKey('projects.id')),
-    Column('kb_id', String, ForeignKey('knowledge_bases.id'))
+    Column('agent_id', String, ForeignKey('projects.id', ondelete="CASCADE")),
+    Column('kb_id', String, ForeignKey('knowledge_bases.id', ondelete="CASCADE"))
 )
 
 agent_database_connections = Table(
     'agent_database_connections',
     Base.metadata,
-    Column('agent_id', String, ForeignKey('projects.id')),
-    Column('db_connection_id', String, ForeignKey('database_connections.id'))
+    Column('agent_id', String, ForeignKey('projects.id', ondelete="CASCADE")),
+    Column('db_connection_id', String, ForeignKey('database_connections.id', ondelete="CASCADE"))
 )
 
 class User(Base):
@@ -82,14 +82,14 @@ class Agent(Base):
     knowledge_bases = relationship("KnowledgeBase", secondary=agent_knowledge_bases, back_populates="agents")
     database_connections = relationship("DatabaseConnection", secondary=agent_database_connections, back_populates="agents")
     
-    chat_sessions = relationship("ChatSession", back_populates="agent")
-    members = relationship("AgentMember", back_populates="agent")
+    chat_sessions = relationship("ChatSession", back_populates="agent", cascade="all, delete-orphan")
+    members = relationship("AgentMember", back_populates="agent", cascade="all, delete-orphan")
 
 class AgentMember(Base):
     __tablename__ = "project_members"
     
     id = Column(String, primary_key=True, default=generate_uuid)
-    agent_id = Column(String, ForeignKey("projects.id"))
+    agent_id = Column(String, ForeignKey("projects.id", ondelete="CASCADE"))
     user_id = Column(String, ForeignKey("users.id"))
     role = Column(String, default="viewer") # admin, editor, viewer
     
@@ -144,7 +144,7 @@ class ChatSession(Base):
     __tablename__ = "chat_sessions"
     
     id = Column(String, primary_key=True, default=generate_uuid)
-    agent_id = Column(String, ForeignKey("projects.id"))
+    agent_id = Column(String, ForeignKey("projects.id", ondelete="CASCADE"))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     agent = relationship("Agent", back_populates="chat_sessions")

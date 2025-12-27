@@ -181,17 +181,31 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
     };
 
 
-    if (loading) return (
-        <div className="flex h-screen items-center justify-center bg-white dark:bg-black text-[#76B900]">
-            <Loader2 className="w-8 h-8 animate-spin" />
-        </div>
-    );
-
-    const tabs = [
-        { id: "agent", label: "Agent" },
-        { id: "knowledge", label: "Knowledge Base" },
-        { id: "advanced", label: "Advanced" },
-    ];
+    const handleDeleteAgent = async () => {
+        showDialog(
+            "Delete Agent",
+            "Are you sure you want to delete this agent? This action cannot be undone.",
+            [
+                { label: "Cancel", onClick: closeDialog, variant: "outline" },
+                {
+                    label: "Delete",
+                    onClick: async () => {
+                        try {
+                            await api.delete(`/agents/${params.id}`);
+                            toast("Agent deleted successfully", "success");
+                            router.push("/dashboard/agents");
+                        } catch (error) {
+                            console.error("Delete failed", error);
+                            toast("Failed to delete agent", "error");
+                        } finally {
+                            closeDialog();
+                        }
+                    },
+                    variant: "danger"
+                }
+            ]
+        );
+    };
 
     return (
         <div className={cn(
@@ -475,7 +489,10 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
                                 <p className="text-sm text-red-600 dark:text-red-300 mb-4">
                                     Deleting this agent will permanently remove it and all associated chat history. This action cannot be undone.
                                 </p>
-                                <button className="px-4 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition-colors">
+                                <button
+                                    onClick={handleDeleteAgent}
+                                    className="px-4 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition-colors"
+                                >
                                     Delete Agent
                                 </button>
                             </div>
