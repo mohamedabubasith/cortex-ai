@@ -1,5 +1,8 @@
 "use client";
 
+// Disable static generation for authenticated pages
+export const dynamic = 'force-dynamic';
+
 import { useEffect, useState } from "react";
 import { Cpu, Trash2, Loader2, Plus, Save, X, Edit2 } from "lucide-react";
 import api from "@/lib/api";

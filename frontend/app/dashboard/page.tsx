@@ -1,5 +1,8 @@
 "use client";
 
+// Disable static generation for authenticated pages
+export const dynamic = 'force-dynamic';
+
 import { useEffect, useState, memo } from "react";
 import { Users, Database, Cpu, Activity, ArrowUpRight, TrendingUp, MessageSquare } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart } from "recharts";
