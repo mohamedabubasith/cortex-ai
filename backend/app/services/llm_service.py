@@ -61,7 +61,6 @@ class LLMService:
             from app.services.database_service import database_service
             tools_service.set_agent_context(db_connections, database_service)
             
-            # Loop for handling tool calls (max depth 5)
             # Loop for handling tool calls (max depth 3 to prevent infinite loops)
             for loop_index in range(3):
                 logger.info(f"Sending request to {agent.llm_config.model} (Loop {loop_index})")

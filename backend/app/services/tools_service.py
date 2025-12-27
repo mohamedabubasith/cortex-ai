@@ -163,7 +163,6 @@ class ToolsService:
                     return json.dumps(results)
                 
                 # Format results nicely
-                # Format results nicely
                 # Truncate if too many rows to prevent context overflow
                 MAX_ROWS = 50
                 MAX_CHARS = 8000
