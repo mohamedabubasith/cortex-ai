@@ -3,14 +3,15 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Cpu, Database, Bot, LogOut, Menu, X, Sun, Moon } from "lucide-react";
+import { LayoutDashboard, Cpu, Database, Bot, LogOut, Menu, X } from "lucide-react";
 import Logo from "@/components/Logo";
-import { useTheme } from "@/contexts/ThemeContext";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-    const { theme, toggleTheme } = useTheme();
+
+    // Dashboard always uses dark theme for production reliability
+    const isDark = true;
 
     const navigation = [
         { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -88,34 +89,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         <Logo size="sm" />
                         <span className={`text-lg font-bold ${isDark ? "text-white" : "text-gray-900"}`}>Cortex AI</span>
                     </div>
-                    <div className="flex items-center space-x-2">
-                        {/* Theme Toggle */}
-                        <button
-                            onClick={toggleTheme}
-                            className={`p-2 rounded-lg transition-colors ${isDark ? "text-gray-400 hover:text-white hover:bg-white/5" : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"}`}
-                            title={`Switch to ${isDark ? "light" : "dark"} mode`}
-                        >
-                            {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                        </button>
-                        <button
-                            onClick={() => setIsMobileMenuOpen(true)}
-                            className={`p-2 ${isDark ? "text-gray-400 hover:text-white" : "text-gray-600 hover:text-gray-900"}`}
-                        >
-                            <Menu className="w-6 h-6" />
-                        </button>
-                    </div>
-                </div>
-
-                {/* Desktop Theme Toggle */}
-                <div className={`hidden md:flex items-center justify-end px-8 py-4 border-b ${isDark ? "border-white/10" : "border-gray-200"}`}>
                     <button
-                        onClick={toggleTheme}
-                        className={`p-2 rounded-lg transition-all duration-200 ${isDark ? "text-gray-400 hover:text-white hover:bg-white/5" : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"}`}
-                        title={`Switch to ${isDark ? "light" : "dark"} mode`}
+                        onClick={() => setIsMobileMenuOpen(true)}
+                        className={`p-2 ${isDark ? "text-gray-400 hover:text-white" : "text-gray-600 hover:text-gray-900"}`}
                     >
-                        {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                        <Menu className="w-6 h-6" />
                     </button>
                 </div>
+
+
 
                 {/* Background Pattern */}
                 <div className={`absolute inset-0 z-0 opacity-20 pointer-events-none ${isDark ? "" : "opacity-10"}`} style={{ backgroundImage: "radial-gradient(circle at 50% 50%, #1a1a1a 1px, transparent 1px)", backgroundSize: "24px 24px" }}></div>
