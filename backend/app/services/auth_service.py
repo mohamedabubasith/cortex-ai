@@ -114,7 +114,7 @@ class AuthService:
             raise HTTPException(status_code=404, detail="User not found")
             
         hashed_password = self.get_password_hash(new_password)
-        await self.repo.update(user.id, {"hashed_password": hashed_password})
+        await self.repo.update(user, {"hashed_password": hashed_password})
 
 async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)) -> models.User:
     credentials_exception = HTTPException(
