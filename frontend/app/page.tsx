@@ -9,8 +9,12 @@ import api from "@/lib/api";
 import TubesBackground from "@/components/TubesBackground";
 import Logo from "@/components/Logo";
 import { isValidEmail } from "@/lib/validation";
+import { useTheme } from "@/contexts/ThemeContext";
 
 export default function LoginPage() {
+    const { theme } = useTheme();
+    // Login page always uses dark theme for now
+    const isDark = true;
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [formErrors, setFormErrors] = useState({ email: "", password: "", global: "" });

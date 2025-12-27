@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, memo } from "react";
 import { Users, Database, Cpu, Activity, ArrowUpRight, TrendingUp, MessageSquare } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart } from "recharts";
 import api from "@/lib/api";
@@ -99,8 +99,8 @@ export default function DashboardPage() {
         return () => clearInterval(interval);
     }, []);
 
-    const StatCard = ({ title, value, icon: Icon, trend }: any) => (
-        <div className={`backdrop-blur-sm border rounded-2xl p-6 transition-all duration-300 group ${isDark ? "bg-nvidia-dark/50 border-white/10 hover:border-nvidia-green/30" : "bg-white border-gray-200 hover:border-nvidia-green shadow-sm"}`}>
+    const StatCard = memo(({ title, value, icon: Icon, trend, isDark }: any) => (
+        <div className={`backdrop-blur-sm border rounded-2xl p-6 transition-all duration-200 group ${isDark ? "bg-nvidia-dark/50 border-white/10 hover:border-nvidia-green/30" : "bg-white border-gray-200 hover:border-nvidia-green shadow-sm"}`}>
             <div className="flex justify-between items-start mb-4">
                 <div className={`p-3 rounded-xl transition-colors ${isDark ? "bg-white/5 group-hover:bg-nvidia-green/10" : "bg-gray-100 group-hover:bg-nvidia-green/10"}`}>
                     <Icon className={`w-6 h-6 transition-colors ${isDark ? "text-gray-400 group-hover:text-nvidia-green" : "text-gray-600 group-hover:text-nvidia-green"}`} />
@@ -115,9 +115,10 @@ export default function DashboardPage() {
             <h3 className={`text-sm font-medium mb-1 ${isDark ? "text-gray-400" : "text-gray-600"}`}>{title}</h3>
             <p className={`text-3xl font-bold tracking-tight ${isDark ? "text-white" : "text-gray-900"}`}>{value}</p>
         </div>
-    );
+    ));
+    StatCard.displayName = "StatCard";
 
-    const CustomTooltip = ({ active, payload, label }: any) => {
+    const CustomTooltip = memo(({ active, payload, label, isDark }: any) => {
         if (active && payload && payload.length) {
             return (
                 <div className={`border rounded-lg p-3 backdrop-blur-sm ${isDark ? "bg-nvidia-dark/95 border-nvidia-green/30" : "bg-white border-gray-200 shadow-lg"}`}>
@@ -131,7 +132,8 @@ export default function DashboardPage() {
             );
         }
         return null;
-    };
+    });
+    CustomTooltip.displayName = "CustomTooltip";
 
     return (
         <div className="space-y-8">
@@ -141,10 +143,10 @@ export default function DashboardPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard title="Active Agents" value={stats.agents} icon={Users} />
-                <StatCard title="Knowledge Bases" value={stats.kbs} icon={Database} />
-                <StatCard title="LLM Models" value={stats.llms} icon={Cpu} />
-                <StatCard title="API Calls (24h)" value={stats.apiCalls.toLocaleString()} icon={Activity} />
+                <StatCard title="Active Agents" value={stats.agents} icon={Users} isDark={isDark} />
+                <StatCard title="Knowledge Bases" value={stats.kbs} icon={Database} isDark={isDark} />
+                <StatCard title="LLM Models" value={stats.llms} icon={Cpu} isDark={isDark} />
+                <StatCard title="API Calls (24h)" value={stats.apiCalls.toLocaleString()} icon={Activity} isDark={isDark} />
             </div>
 
             {/* Token Usage Stats */}
@@ -201,7 +203,7 @@ export default function DashboardPage() {
                                 <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#333" : "#e5e7eb"} />
                                 <XAxis dataKey="time" stroke={isDark ? "#888" : "#6b7280"} />
                                 <YAxis stroke={isDark ? "#888" : "#6b7280"} />
-                                <Tooltip content={<CustomTooltip />} />
+                                <Tooltip content={<CustomTooltip isDark={isDark} />} />
                                 <Legend />
                                 <Area type="monotone" dataKey="chats" stroke="#76b900" fillOpacity={1} fill="url(#colorChats)" name="Chats" />
                                 <Area type="monotone" dataKey="hits" stroke="#60a5fa" fillOpacity={1} fill="url(#colorHits)" name="API Hits" />
@@ -226,7 +228,7 @@ export default function DashboardPage() {
                                 <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#333" : "#e5e7eb"} />
                                 <XAxis dataKey="name" stroke={isDark ? "#888" : "#6b7280"} />
                                 <YAxis stroke={isDark ? "#888" : "#6b7280"} />
-                                <Tooltip content={<CustomTooltip />} />
+                                <Tooltip content={<CustomTooltip isDark={isDark} />} />
                                 <Bar dataKey="tokens" fill="#76b900" name="Tokens" radius={[8, 8, 0, 0]} />
                             </BarChart>
                         </ResponsiveContainer>
