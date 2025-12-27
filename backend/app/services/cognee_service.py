@@ -61,6 +61,9 @@ from cognee.infrastructure.databases.relational.ModelBase import Base as CogneeB
 import tiktoken
 from cognee.infrastructure.databases.vector.embeddings.config import get_embedding_config
 
+# Initialize logger early so it's available for monkeypatch logging
+logger = logging.getLogger(__name__)
+
 # CRITICAL MONKEYPATCH: Force pgvector usage
 # Cognee caches the vector engine and doesn't always respect runtime env var changes
 # This patch intercepts the get_vector_engine function to force pgvector
@@ -105,7 +108,6 @@ def patched_encoding_for_model(model_name):
 
 tiktoken.encoding_for_model = patched_encoding_for_model
 
-logger = logging.getLogger(__name__)
 
 # MONKEYPATCH: Force MD_JSON mode for Cognee's instructor calls
 # This is much more robust for Qwen and other non-OpenAI models
