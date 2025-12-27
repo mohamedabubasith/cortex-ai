@@ -68,7 +68,8 @@ services:
       
       # Constructed URLs (Force internal hostnames)
       DATABASE_URL: postgresql+asyncpg://${APP_DB_USERNAME:-admin}:${APP_DB_PASSWORD:-admin}@db:5432/chat_db
-      VECTOR_DB_URL: postgresql://${DB_USERNAME:-admin}:${DB_PASSWORD:-admin}@db:5432/cognee_db
+      DATABASE_URL: postgresql+asyncpg://${APP_DB_USERNAME:-admin}:${APP_DB_PASSWORD:-admin}@db:5432/chat_db
+      # VECTOR_DB_URL is already defined above
       
       # Vector DB & Embeddings
       VECTOR_DB_PROVIDER: ${VECTOR_DB_PROVIDER:-pgvector}
