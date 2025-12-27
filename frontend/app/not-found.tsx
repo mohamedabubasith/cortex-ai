@@ -4,11 +4,9 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Home, AlertTriangle } from "lucide-react";
 import TubesBackground from "@/components/TubesBackground";
-import { useTheme } from "@/contexts/ThemeContext";
 
 export default function NotFound() {
-    const { theme } = useTheme();
-    // 404 page always uses dark theme for dramatic effect
+    // 404 page always uses dark theme
     const isDark = true;
     return (
         <div className="min-h-screen bg-black flex items-center justify-center p-4 relative overflow-hidden font-sans text-white">
