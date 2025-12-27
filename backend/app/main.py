@@ -31,15 +31,9 @@ async def lifespan(app: FastAPI):
     # Import models to ensure they are registered with Base
     from app.models import models
     
-    # Create tables automatically (User's request)
-    # Handle race conditions gracefully by ignoring errors if tables already exist
-    # try:
-    #     print("DEBUG: Starting automatic table creation...", flush=True)
-    #     async with engine.begin() as conn:
-    #         await conn.run_sync(Base.metadata.create_all)
-    #     print("DEBUG: Automatic table creation completed.", flush=True)
-    # except Exception as e:
-    #     print(f"DEBUG: Database table creation warning (likely race condition, safe to ignore): {e}", flush=True)
+    # Database schema is managed by Alembic migrations.
+    # Automatic table creation is disabled to prevent conflicts.
+    # See backend/alembic for migration scripts.
         
     # Initialize Cognee (creates tables if needed)
     print("DEBUG: Calling cognee_service.initialize()...", flush=True)
