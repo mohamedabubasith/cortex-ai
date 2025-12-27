@@ -25,7 +25,7 @@ interface MessageBubbleProps {
     onRetry?: () => void;
 }
 
-export default function MessageBubble({ message, isStreaming = false, isQuerying = false, hasKB = false, theme = "dark", onRetry }: MessageBubbleProps) {
+function MessageBubbleBase({ message, isStreaming = false, isQuerying = false, hasKB = false, theme = "dark", onRetry }: MessageBubbleProps) {
     const [copied, setCopied] = useState(false);
     const [isThinkingExpanded, setIsThinkingExpanded] = useState(false);
 
@@ -305,3 +305,18 @@ export default function MessageBubble({ message, isStreaming = false, isQuerying
         </motion.div >
     );
 }
+
+import React from "react";
+
+const MessageBubble = React.memo(MessageBubbleBase, (prev, next) => {
+    return (
+        prev.message === next.message &&
+        prev.isStreaming === next.isStreaming &&
+        prev.isQuerying === next.isQuerying &&
+        prev.hasKB === next.hasKB &&
+        prev.theme === next.theme
+        // Ignore onRetry as it's a new closure every render but functionally identical for the same message
+    );
+});
+
+export default MessageBubble;
