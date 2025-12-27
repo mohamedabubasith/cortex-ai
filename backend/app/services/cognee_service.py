@@ -61,6 +61,37 @@ from cognee.infrastructure.databases.relational.ModelBase import Base as CogneeB
 import tiktoken
 from cognee.infrastructure.databases.vector.embeddings.config import get_embedding_config
 
+# CRITICAL MONKEYPATCH: Force pgvector usage
+# Cognee caches the vector engine and doesn't always respect runtime env var changes
+# This patch intercepts the get_vector_engine function to force pgvector
+if settings.VECTOR_DB_PROVIDER == "pgvector":
+    try:
+        from cognee.infrastructure.databases.vector import get_vector_engine as original_get_vector_engine
+        from cognee.infrastructure.databases.vector.pgvector import PGVectorAdapter
+        
+        _pgvector_instance = None
+        
+        def patched_get_vector_engine():
+            global _pgvector_instance
+            if _pgvector_instance is None:
+                logger.info(f"Creating PGVectorAdapter with URL: {settings.constructed_vector_db_url}")
+                _pgvector_instance = PGVectorAdapter(
+                    url=settings.constructed_vector_db_url,
+                    db_name=settings.DB_NAME
+                )
+            return _pgvector_instance
+        
+        # Replace the function in the module
+        import cognee.infrastructure.databases.vector as vector_module
+        vector_module.get_vector_engine = patched_get_vector_engine
+        
+        logger.info("Successfully patched get_vector_engine to force PGVector usage")
+    except Exception as e:
+        logger.error(f"Failed to patch get_vector_engine: {e}")
+        import traceback
+        traceback.print_exc()
+
+
 # Monkeypatch tiktoken to support non-OpenAI models (e.g. fastembed)
 # Cognee uses tiktoken for chunking but fails on unknown model names.
 original_encoding_for_model = tiktoken.encoding_for_model
