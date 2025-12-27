@@ -84,11 +84,24 @@ class AuthService:
 
     def verify_password_reset_token(self, token: str) -> Optional[str]:
         try:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"Attempting to verify token: {token[:20]}...")
+            
             decoded_token = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+            logger.info(f"Decoded token: {decoded_token}")
+            
             if decoded_token["type"] != "password_reset":
+                logger.error(f"Invalid token type: {decoded_token.get('type')}")
                 return None
-            return decoded_token["sub"]
-        except JWTError:
+                
+            email = decoded_token["sub"]
+            logger.info(f"Token valid for email: {email}")
+            return email
+        except JWTError as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"JWT decode error: {str(e)}")
             return None
 
     async def reset_password(self, token: str, new_password: str) -> None:
