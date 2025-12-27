@@ -35,7 +35,8 @@ else:
     # Cognee expects this env var for pgvector connection
     # Ensure Cognee uses the configured Postgres vector DB
     # Cognee expects this env var for pgvector connection
-    # os.environ["VECTOR_DB_URL"] = settings.constructed_vector_db_url
+    # db_url = f"postgresql://{settings.DB_USERNAME}:{settings.DB_PASSWORD}@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"
+    # os.environ["VECTOR_DB_URL"] = db_url
     # os.environ["DB_PROVIDER"] = settings.DB_PROVIDER
     os.environ["VECTOR_DB_PROVIDER"] = "pgvector"
     
