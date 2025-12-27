@@ -93,7 +93,7 @@ services:
       - "3000:3000"
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
-      NEXT_PUBLIC_BACKEND_URL: http://backend:8000
+      NEXT_PUBLIC_BACKEND_URL: http://chatbot_backend:8000
 
 volumes:
   postgres_data:
