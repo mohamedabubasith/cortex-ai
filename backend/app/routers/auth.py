@@ -50,7 +50,8 @@ async def forgot_password(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Trigger password recovery email.
+    Trigger password recovery.
+    In 'soft mode', returns token directly for immediate navigation.
     """
     # Check if user exists
     user_repo = UserRepository(models.User, db)
@@ -59,19 +60,21 @@ async def forgot_password(
     if user:
         # Generate token
         token = service.create_password_reset_token(request.email)
-        # Send email in background
-        email_service = EmailService()
-        background_tasks.add_task(
-            email_service.send_reset_password_email,
-            request.email,
-            token
-        )
-    
-    # Always return success to prevent email enumeration
-    if settings.EMAIL_PROVIDER == "console":
-        return {"message": "Development Mode: Check server logs for password reset link."}
         
-    return {"message": "If this email is registered, you will receive a password reset link."}
+        # SOFT MODE: Return token directly for immediate navigation
+        # This allows frontend to navigate to /reset-password/<token> immediately
+        return {
+            "success": True,
+            "token": token,
+            "message": "Password reset token generated"
+        }
+    
+    # If user doesn't exist, return generic response (security best practice)
+    return {
+        "success": False,
+        "message": "If this email is registered, you will receive password reset instructions."
+    }
+
 
 @router.post("/reset-password")
 async def reset_password(

@@ -33,14 +33,20 @@ export default function ForgotPasswordPage() {
 
         try {
             const response = await api.post("/auth/forgot-password", { email });
-            setSuccessMessage(response.data.message);
-            setSubmitted(true);
-        } catch (err) {
+
+            // SOFT MODE: If token is returned, navigate directly to reset password page
+            if (response.data.success && response.data.token) {
+                // Navigate to reset password page in same tab
+                router.push(`/reset-password/${response.data.token}`);
+            } else {
+                // Email doesn't exist - show generic message
+                setSuccessMessage(response.data.message || "If this email is registered, you will receive password reset instructions.");
+                setSubmitted(true);
+            }
+        } catch (err: any) {
             console.error(err);
-            // Even if it fails (e.g. email not found), it's better security practice to show success
-            // or a generic message, but for this UI we'll show success.
-            setSuccessMessage("If this email is registered, you will receive a password reset link.");
-            setSubmitted(true);
+            // Show generic error message
+            setEmailError("An error occurred. Please try again.");
         } finally {
             setLoading(false);
         }
