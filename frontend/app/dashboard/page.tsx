@@ -4,8 +4,12 @@ import { useEffect, useState } from "react";
 import { Users, Database, Cpu, Activity, ArrowUpRight, TrendingUp, MessageSquare } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart } from "recharts";
 import api from "@/lib/api";
+import { useTheme } from "@/contexts/ThemeContext";
 
 export default function DashboardPage() {
+    const { theme } = useTheme();
+    const isDark = theme === "dark";
+
     const [stats, setStats] = useState({
         agents: 0,
         kbs: 0,
@@ -96,10 +100,10 @@ export default function DashboardPage() {
     }, []);
 
     const StatCard = ({ title, value, icon: Icon, trend }: any) => (
-        <div className="bg-nvidia-dark/50 backdrop-blur-sm border border-white/10 rounded-2xl p-6 hover:border-nvidia-green/30 transition-all duration-300 group">
+        <div className={`backdrop-blur-sm border rounded-2xl p-6 transition-all duration-300 group ${isDark ? "bg-nvidia-dark/50 border-white/10 hover:border-nvidia-green/30" : "bg-white border-gray-200 hover:border-nvidia-green shadow-sm"}`}>
             <div className="flex justify-between items-start mb-4">
-                <div className="p-3 bg-white/5 rounded-xl group-hover:bg-nvidia-green/10 transition-colors">
-                    <Icon className="w-6 h-6 text-gray-400 group-hover:text-nvidia-green transition-colors" />
+                <div className={`p-3 rounded-xl transition-colors ${isDark ? "bg-white/5 group-hover:bg-nvidia-green/10" : "bg-gray-100 group-hover:bg-nvidia-green/10"}`}>
+                    <Icon className={`w-6 h-6 transition-colors ${isDark ? "text-gray-400 group-hover:text-nvidia-green" : "text-gray-600 group-hover:text-nvidia-green"}`} />
                 </div>
                 {trend && (
                     <div className="flex items-center text-nvidia-green text-sm font-medium bg-nvidia-green/10 px-2 py-1 rounded-lg">
@@ -108,16 +112,16 @@ export default function DashboardPage() {
                     </div>
                 )}
             </div>
-            <h3 className="text-gray-400 text-sm font-medium mb-1">{title}</h3>
-            <p className="text-3xl font-bold text-white tracking-tight">{value}</p>
+            <h3 className={`text-sm font-medium mb-1 ${isDark ? "text-gray-400" : "text-gray-600"}`}>{title}</h3>
+            <p className={`text-3xl font-bold tracking-tight ${isDark ? "text-white" : "text-gray-900"}`}>{value}</p>
         </div>
     );
 
     const CustomTooltip = ({ active, payload, label }: any) => {
         if (active && payload && payload.length) {
             return (
-                <div className="bg-nvidia-dark/95 border border-nvidia-green/30 rounded-lg p-3 backdrop-blur-sm">
-                    <p className="text-gray-400 text-sm mb-2">{label}</p>
+                <div className={`border rounded-lg p-3 backdrop-blur-sm ${isDark ? "bg-nvidia-dark/95 border-nvidia-green/30" : "bg-white border-gray-200 shadow-lg"}`}>
+                    <p className={`text-sm mb-2 ${isDark ? "text-gray-400" : "text-gray-600"}`}>{label}</p>
                     {payload.map((entry: any, index: number) => (
                         <p key={index} className="text-sm" style={{ color: entry.color }}>
                             {entry.name}: {entry.value}
@@ -132,8 +136,8 @@ export default function DashboardPage() {
     return (
         <div className="space-y-8">
             <div>
-                <h1 className="text-3xl font-bold text-white tracking-tight mb-2">Dashboard Overview</h1>
-                <p className="text-gray-400">Real-time analytics and system status.</p>
+                <h1 className={`text-3xl font-bold tracking-tight mb-2 ${isDark ? "text-white" : "text-gray-900"}`}>Dashboard Overview</h1>
+                <p className={isDark ? "text-gray-400" : "text-gray-600"}>Real-time analytics and system status.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -146,29 +150,29 @@ export default function DashboardPage() {
             {/* Token Usage Stats */}
             {analyticsData && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="bg-nvidia-dark/30 border border-white/10 rounded-2xl p-6">
+                    <div className={`border rounded-2xl p-6 ${isDark ? "bg-nvidia-dark/30 border-white/10" : "bg-white border-gray-200 shadow-sm"}`}>
                         <div className="flex items-center gap-3 mb-2">
                             <MessageSquare className="w-5 h-5 text-nvidia-green" />
-                            <h3 className="text-white font-semibold">Total Chats</h3>
+                            <h3 className={`font-semibold ${isDark ? "text-white" : "text-gray-900"}`}>Total Chats</h3>
                         </div>
-                        <p className="text-3xl font-bold text-white">{analyticsData.token_usage?.total_requests || 0}</p>
-                        <p className="text-gray-400 text-sm mt-1">Last 24 hours</p>
+                        <p className={`text-3xl font-bold ${isDark ? "text-white" : "text-gray-900"}`}>{analyticsData.token_usage?.total_requests || 0}</p>
+                        <p className={`text-sm mt-1 ${isDark ? "text-gray-400" : "text-gray-600"}`}>Last 24 hours</p>
                     </div>
-                    <div className="bg-nvidia-dark/30 border border-white/10 rounded-2xl p-6">
+                    <div className={`border rounded-2xl p-6 ${isDark ? "bg-nvidia-dark/30 border-white/10" : "bg-white border-gray-200 shadow-sm"}`}>
                         <div className="flex items-center gap-3 mb-2">
                             <TrendingUp className="w-5 h-5 text-blue-400" />
-                            <h3 className="text-white font-semibold">Tokens Used</h3>
+                            <h3 className={`font-semibold ${isDark ? "text-white" : "text-gray-900"}`}>Tokens Used</h3>
                         </div>
-                        <p className="text-3xl font-bold text-white">{(analyticsData.token_usage?.total_tokens || 0).toLocaleString()}</p>
-                        <p className="text-gray-400 text-sm mt-1">Avg: {analyticsData.token_usage?.avg_tokens_per_request || 0}/chat</p>
+                        <p className={`text-3xl font-bold ${isDark ? "text-white" : "text-gray-900"}`}>{(analyticsData.token_usage?.total_tokens || 0).toLocaleString()}</p>
+                        <p className={`text-sm mt-1 ${isDark ? "text-gray-400" : "text-gray-600"}`}>Avg: {analyticsData.token_usage?.avg_tokens_per_request || 0}/chat</p>
                     </div>
-                    <div className="bg-nvidia-dark/30 border border-white/10 rounded-2xl p-6">
+                    <div className={`border rounded-2xl p-6 ${isDark ? "bg-nvidia-dark/30 border-white/10" : "bg-white border-gray-200 shadow-sm"}`}>
                         <div className="flex items-center gap-3 mb-2">
                             <Activity className="w-5 h-5 text-purple-400" />
-                            <h3 className="text-white font-semibold">Unique Users</h3>
+                            <h3 className={`font-semibold ${isDark ? "text-white" : "text-gray-900"}`}>Unique Users</h3>
                         </div>
-                        <p className="text-3xl font-bold text-white">{analyticsData.api_hits?.unique_users || 0}</p>
-                        <p className="text-gray-400 text-sm mt-1">Active in 24h</p>
+                        <p className={`text-3xl font-bold ${isDark ? "text-white" : "text-gray-900"}`}>{analyticsData.api_hits?.unique_users || 0}</p>
+                        <p className={`text-sm mt-1 ${isDark ? "text-gray-400" : "text-gray-600"}`}>Active in 24h</p>
                     </div>
                 </div>
             )}
@@ -176,8 +180,8 @@ export default function DashboardPage() {
             {/* Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Usage Analytics Chart */}
-                <div className="bg-nvidia-dark/30 border border-white/10 rounded-2xl p-6">
-                    <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+                <div className={`border rounded-2xl p-6 ${isDark ? "bg-nvidia-dark/30 border-white/10" : "bg-white border-gray-200 shadow-sm"}`}>
+                    <h3 className={`font-semibold mb-4 flex items-center gap-2 ${isDark ? "text-white" : "text-gray-900"}`}>
                         <Activity className="w-5 h-5 text-nvidia-green" />
                         Usage Analytics (Last 12 Hours)
                     </h3>
@@ -194,9 +198,9 @@ export default function DashboardPage() {
                                         <stop offset="95%" stopColor="#60a5fa" stopOpacity={0} />
                                     </linearGradient>
                                 </defs>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                                <XAxis dataKey="time" stroke="#888" />
-                                <YAxis stroke="#888" />
+                                <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#333" : "#e5e7eb"} />
+                                <XAxis dataKey="time" stroke={isDark ? "#888" : "#6b7280"} />
+                                <YAxis stroke={isDark ? "#888" : "#6b7280"} />
                                 <Tooltip content={<CustomTooltip />} />
                                 <Legend />
                                 <Area type="monotone" dataKey="chats" stroke="#76b900" fillOpacity={1} fill="url(#colorChats)" name="Chats" />
@@ -204,30 +208,30 @@ export default function DashboardPage() {
                             </AreaChart>
                         </ResponsiveContainer>
                     ) : (
-                        <div className="h-[280px] flex items-center justify-center text-gray-500">
+                        <div className={`h-[280px] flex items-center justify-center ${isDark ? "text-gray-500" : "text-gray-400"}`}>
                             No data available
                         </div>
                     )}
                 </div>
 
                 {/* Agent Performance Chart */}
-                <div className="bg-nvidia-dark/30 border border-white/10 rounded-2xl p-6">
-                    <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+                <div className={`border rounded-2xl p-6 ${isDark ? "bg-nvidia-dark/30 border-white/10" : "bg-white border-gray-200 shadow-sm"}`}>
+                    <h3 className={`font-semibold mb-4 flex items-center gap-2 ${isDark ? "text-white" : "text-gray-900"}`}>
                         <TrendingUp className="w-5 h-5 text-blue-400" />
                         Agent Token Usage (Top 5)
                     </h3>
                     {tokenData.length > 0 ? (
                         <ResponsiveContainer width="100%" height={280}>
                             <BarChart data={tokenData}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                                <XAxis dataKey="name" stroke="#888" />
-                                <YAxis stroke="#888" />
+                                <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#333" : "#e5e7eb"} />
+                                <XAxis dataKey="name" stroke={isDark ? "#888" : "#6b7280"} />
+                                <YAxis stroke={isDark ? "#888" : "#6b7280"} />
                                 <Tooltip content={<CustomTooltip />} />
                                 <Bar dataKey="tokens" fill="#76b900" name="Tokens" radius={[8, 8, 0, 0]} />
                             </BarChart>
                         </ResponsiveContainer>
                     ) : (
-                        <div className="h-[280px] flex items-center justify-center text-gray-500">
+                        <div className={`h-[280px] flex items-center justify-center ${isDark ? "text-gray-500" : "text-gray-400"}`}>
                             No agent data available
                         </div>
                     )}

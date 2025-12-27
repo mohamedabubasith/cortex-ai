@@ -18,6 +18,7 @@ export const viewport: Viewport = {
 };
 
 import { ToastProvider } from "@/components/ui/Toast";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 
 export default function RootLayout({
     children,
@@ -27,11 +28,13 @@ export default function RootLayout({
     return (
         <html lang="en">
             <body className={inter.className} suppressHydrationWarning>
-                <ErrorBoundary>
-                    <ToastProvider>
-                        {children}
-                    </ToastProvider>
-                </ErrorBoundary>
+                <ThemeProvider>
+                    <ErrorBoundary>
+                        <ToastProvider>
+                            {children}
+                        </ToastProvider>
+                    </ErrorBoundary>
+                </ThemeProvider>
             </body>
         </html>
     );
