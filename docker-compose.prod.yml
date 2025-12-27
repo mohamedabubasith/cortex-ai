@@ -17,7 +17,7 @@ services:
       POSTGRES_USER: ${DB_USERNAME:-admin}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-admin}
       POSTGRES_DB: ${DB_NAME:-cognee_db} # Default DB
-      POSTGRES_MULTIPLE_DATABASES: cognee_db,chat_db
+      POSTGRES_MULTIPLE_DATABASES: chat_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/scripts/init-multiple-dbs.sh:/docker-entrypoint-initdb.d/init-multiple-dbs.sh
