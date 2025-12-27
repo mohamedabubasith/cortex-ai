@@ -98,6 +98,31 @@ if settings.VECTOR_DB_PROVIDER == "pgvector":
         import traceback
         traceback.print_exc()
 
+# CRITICAL MONKEYPATCH: Fix FastEmbed integration
+# Cognee's native FastEmbed integration is broken ("module object is not callable")
+# We replace it with our own adapter that uses the library directly
+if settings.EMBEDDING_PROVIDER == "fastembed":
+    try:
+        from app.services.fastembed_adapter import FastEmbedAdapter
+        
+        _fastembed_instance = None
+        
+        def patched_get_embedding_engine():
+            global _fastembed_instance
+            if _fastembed_instance is None:
+                logger.info(f"Creating FastEmbedAdapter with model: {settings.EMBEDDING_MODEL}")
+                _fastembed_instance = FastEmbedAdapter(model_name=settings.EMBEDDING_MODEL)
+            return _fastembed_instance
+            
+        import cognee.infrastructure.databases.vector.embeddings as embeddings_module
+        embeddings_module.get_embedding_engine = patched_get_embedding_engine
+        
+        logger.info("Successfully patched get_embedding_engine to use FastEmbedAdapter")
+    except Exception as e:
+        logger.error(f"Failed to patch get_embedding_engine: {e}")
+        import traceback
+        traceback.print_exc()
+
 
 # Monkeypatch tiktoken to support non-OpenAI models (e.g. fastembed)
 # Cognee uses tiktoken for chunking but fails on unknown model names.
