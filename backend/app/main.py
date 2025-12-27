@@ -18,6 +18,10 @@ if log_level == "DEBUG":
     logging.getLogger("cognee").setLevel(logging.DEBUG)
     logging.getLogger("dlt").setLevel(logging.DEBUG)
 
+# Apply Cognee patches immediately after logging config
+from app.core.cognee_patch import apply_cognee_patches
+apply_cognee_patches()
+
 from contextlib import asynccontextmanager
 
 @asynccontextmanager
