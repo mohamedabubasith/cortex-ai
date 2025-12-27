@@ -62,7 +62,7 @@ services:
       
       # Constructed URLs (Force internal hostnames)
       DATABASE_URL: postgresql+asyncpg://${APP_DB_USERNAME:-admin}:${APP_DB_PASSWORD:-admin}@db:5432/cognee_db
-      VECTOR_DB_URL: postgresql+asyncpg://${DB_USERNAME:-admin}:${DB_PASSWORD:-admin}@db:5432/cognee_db
+      VECTOR_DB_URL: postgresql://${DB_USERNAME:-admin}:${DB_PASSWORD:-admin}@db:5432/cognee_db
       
       # Vector DB & Embeddings
       VECTOR_DB_PROVIDER: ${VECTOR_DB_PROVIDER:-pgvector}
@@ -93,7 +93,7 @@ services:
       - "3000:3000"
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
-      NEXT_PUBLIC_BACKEND_URL: http://chatbot_backend:8000
+      BACKEND_URL: http://chatbot_backend:8000
 
 volumes:
   postgres_data:
