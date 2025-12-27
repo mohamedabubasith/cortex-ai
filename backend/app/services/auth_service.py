@@ -74,8 +74,9 @@ class AuthService:
         now = datetime.utcnow()
         expires = now + delta
         exp = expires.timestamp()
+        nbf = now.timestamp()
         encoded_jwt = jwt.encode(
-            {"exp": exp, "nbf": now, "sub": email, "type": "password_reset"},
+            {"exp": exp, "nbf": nbf, "sub": email, "type": "password_reset"},
             settings.SECRET_KEY,
             algorithm=settings.ALGORITHM,
         )
