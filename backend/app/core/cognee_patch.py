@@ -16,7 +16,7 @@ def apply_cognee_patches():
     os.environ["EMBEDDING_PROVIDER"] = settings.EMBEDDING_PROVIDER
     os.environ["EMBEDDING_MODEL"] = settings.EMBEDDING_MODEL
     os.environ["EMBEDDING_DIMENSIONS"] = str(settings.EMBEDDING_DIMENSIONS)
-    os.environ["LLM_PROVIDER"] = "litellm"
+    # os.environ["LLM_PROVIDER"] = "litellm" # Removed as per user request
     
     if settings.EMBEDDING_PROVIDER == "fastembed":
         os.environ["EMBEDDING_ENDPOINT"] = ""
