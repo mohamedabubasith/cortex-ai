@@ -9,6 +9,8 @@ import api from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
 import Dialog from "@/components/ui/Dialog";
 import SidePanel from "@/components/ui/SidePanel";
+import { useTheme } from "@/contexts/ThemeContext";
+import { cn } from "@/lib/utils";
 
 interface KnowledgeBase {
     id: string;
@@ -28,6 +30,8 @@ interface DatabaseConnection {
 
 export default function KnowledgeBasePage() {
     const { toast } = useToast();
+    const { theme } = useTheme();
+    const isDark = theme === "dark";
     const [activeTab, setActiveTab] = useState<'documents' | 'databases'>('documents');
     const [kbFiles, setKbFiles] = useState<KnowledgeBase[]>([]);
     const [dbConnections, setDbConnections] = useState<DatabaseConnection[]>([]);
@@ -344,8 +348,8 @@ export default function KnowledgeBasePage() {
         <div className="space-y-8 relative">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-white tracking-tight mb-2">Knowledge Base</h1>
-                    <p className="text-gray-400">Manage documents and database connections.</p>
+                    <h1 className={cn("text-3xl font-bold tracking-tight mb-2", isDark ? "text-white" : "text-gray-900")}>Knowledge Base</h1>
+                    <p className={isDark ? "text-gray-400" : "text-gray-600"}>Manage documents and database connections.</p>
                 </div>
                 <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3 w-full md:w-auto">
                     <button
@@ -357,7 +361,7 @@ export default function KnowledgeBasePage() {
                     </button>
                     <button
                         onClick={() => setIsDbOpen(true)}
-                        className="flex items-center justify-center px-4 py-2 bg-white/10 text-white font-bold rounded-lg hover:bg-white/20 transition-all"
+                        className={cn("flex items-center justify-center px-4 py-2 font-bold rounded-lg transition-all", isDark ? "bg-white/10 text-white hover:bg-white/20" : "bg-gray-200 text-gray-900 hover:bg-gray-300")}
                     >
                         <Database className="w-5 h-5 mr-2" />
                         Add Database
@@ -366,7 +370,7 @@ export default function KnowledgeBasePage() {
             </div>
 
             {/* Tabs */}
-            <div className="flex space-x-6 border-b border-white/10 overflow-x-auto whitespace-nowrap pb-1">
+            <div className={cn("flex space-x-6 border-b overflow-x-auto whitespace-nowrap pb-1", isDark ? "border-white/10" : "border-gray-200")}>
                 <button
                     onClick={() => setActiveTab('documents')}
                     className={`pb-4 text-sm font-bold transition-colors relative ${activeTab === 'documents' ? 'text-nvidia-green' : 'text-gray-400 hover:text-white'}`}
@@ -378,7 +382,7 @@ export default function KnowledgeBasePage() {
                 </button>
                 <button
                     onClick={() => setActiveTab('databases')}
-                    className={`pb-4 text-sm font-bold transition-colors relative ${activeTab === 'databases' ? 'text-nvidia-green' : 'text-gray-400 hover:text-white'}`}
+                    className={`pb-4 text-sm font-bold transition-colors relative ${activeTab === 'databases' ? 'text-nvidia-green' : isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}
                 >
                     Databases
                     {activeTab === 'databases' && (
@@ -396,10 +400,10 @@ export default function KnowledgeBasePage() {
                     {activeTab === 'documents' ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {kbFiles.map((file) => (
-                                <div key={file.id} className="bg-nvidia-dark/80 backdrop-blur-sm border border-white/10 rounded-xl p-6 hover:border-nvidia-green/50 transition-all group">
+                                <div key={file.id} className={cn("backdrop-blur-sm border rounded-xl p-6 transition-all group", isDark ? "bg-nvidia-dark/80 border-white/10 hover:border-nvidia-green/50" : "bg-white border-gray-200 hover:border-nvidia-green/50 shadow-sm")}>
                                     <div className="flex justify-between items-start mb-4">
-                                        <div className="p-3 bg-white/5 rounded-lg group-hover:bg-nvidia-green/10 transition-colors">
-                                            <FileText className="w-6 h-6 text-gray-400 group-hover:text-nvidia-green" />
+                                        <div className={cn("p-3 rounded-lg transition-colors", isDark ? "bg-white/5 group-hover:bg-nvidia-green/10" : "bg-gray-100 group-hover:bg-nvidia-green/10")}>
+                                            <FileText className={cn("w-6 h-6 transition-colors", isDark ? "text-gray-400 group-hover:text-nvidia-green" : "text-gray-600 group-hover:text-nvidia-green")} />
                                         </div>
                                         <div className="flex space-x-2">
                                             <button
@@ -418,7 +422,7 @@ export default function KnowledgeBasePage() {
                                             </button>
                                         </div>
                                     </div>
-                                    <h3 className="text-lg font-bold text-white mb-1 truncate" title={file.name}>{file.name}</h3>
+                                    <h3 className={cn("text-lg font-bold mb-1 truncate", isDark ? "text-white" : "text-gray-900")} title={file.name}>{file.name}</h3>
                                     <div className="flex justify-between items-center mt-4">
                                         <span className="text-xs text-gray-400 uppercase">{file.file_type}</span>
                                         <span className={`text-xs font-bold px-2 py-1 rounded uppercase ${file.status === 'indexed' ? 'text-nvidia-green bg-nvidia-green/10' :
@@ -431,7 +435,7 @@ export default function KnowledgeBasePage() {
                                 </div>
                             ))}
                             {kbFiles.length === 0 && (
-                                <div className="col-span-full flex flex-col items-center justify-center py-20 bg-nvidia-dark/30 border border-white/10 rounded-2xl border-dashed">
+                                <div className={cn("col-span-full flex flex-col items-center justify-center py-20 border rounded-2xl border-dashed", isDark ? "bg-nvidia-dark/30 border-white/10" : "bg-gray-50 border-gray-300")}>
                                     <FileText className="w-16 h-16 text-gray-600 mb-4" />
                                     <h3 className="text-xl font-bold text-white mb-2">No Documents</h3>
                                     <p className="text-gray-400">Upload documents to build your knowledge base.</p>
@@ -444,11 +448,11 @@ export default function KnowledgeBasePage() {
                                 <div
                                     key={db.id}
                                     onClick={() => handleViewDbDetails(db)}
-                                    className="bg-nvidia-dark/80 backdrop-blur-sm border border-white/10 rounded-xl p-6 hover:border-nvidia-green/50 transition-all group cursor-pointer"
+                                    className={cn("backdrop-blur-sm border rounded-xl p-6 transition-all group cursor-pointer", isDark ? "bg-nvidia-dark/80 border-white/10 hover:border-nvidia-green/50" : "bg-white border-gray-200 hover:border-nvidia-green/50 shadow-sm")}
                                 >
                                     <div className="flex justify-between items-start mb-4">
-                                        <div className="p-3 bg-white/5 rounded-lg group-hover:bg-nvidia-green/10 transition-colors">
-                                            <Database className="w-6 h-6 text-gray-400 group-hover:text-nvidia-green" />
+                                        <div className={cn("p-3 rounded-lg transition-colors", isDark ? "bg-white/5 group-hover:bg-nvidia-green/10" : "bg-gray-100 group-hover:bg-nvidia-green/10")}>
+                                            <Database className={cn("w-6 h-6 transition-colors", isDark ? "text-gray-400 group-hover:text-nvidia-green" : "text-gray-600 group-hover:text-nvidia-green")} />
                                         </div>
                                         <button
                                             onClick={(e) => {
@@ -460,7 +464,7 @@ export default function KnowledgeBasePage() {
                                             <Trash2 className="w-5 h-5" />
                                         </button>
                                     </div>
-                                    <h3 className="text-lg font-bold text-white mb-1">{db.name}</h3>
+                                    <h3 className={cn("text-lg font-bold mb-1", isDark ? "text-white" : "text-gray-900")}>{db.name}</h3>
                                     <p className="text-sm text-gray-400 mb-4">{db.database_name} @ {db.host}</p>
                                     <div className="flex flex-wrap gap-2">
                                         <span className="text-xs font-bold text-black bg-nvidia-green px-2 py-1 rounded uppercase">
@@ -470,7 +474,7 @@ export default function KnowledgeBasePage() {
                                 </div>
                             ))}
                             {dbConnections.length === 0 && (
-                                <div className="col-span-full flex flex-col items-center justify-center py-20 bg-nvidia-dark/30 border border-white/10 rounded-2xl border-dashed">
+                                <div className={cn("col-span-full flex flex-col items-center justify-center py-20 border rounded-2xl border-dashed", isDark ? "bg-nvidia-dark/30 border-white/10" : "bg-gray-50 border-gray-300")}>
                                     <Database className="w-16 h-16 text-gray-600 mb-4" />
                                     <h3 className="text-xl font-bold text-white mb-2">No Database Connections</h3>
                                     <p className="text-gray-400">Connect to external databases.</p>

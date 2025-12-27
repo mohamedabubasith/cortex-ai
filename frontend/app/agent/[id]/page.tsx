@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import Dialog from "@/components/ui/Dialog";
 import { useToast } from "@/components/ui/Toast";
+import { useTheme } from "@/contexts/ThemeContext";
 
 export default function AgentConfiguration({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
     const params = use(paramsPromise);
@@ -23,7 +24,7 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
     const [agent, setAgent] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [theme, setTheme] = useState<"dark" | "light">("dark");
+    const { theme } = useTheme();
 
     // Form State
     const [systemPrompt, setSystemPrompt] = useState("");

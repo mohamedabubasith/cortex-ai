@@ -3,15 +3,16 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Cpu, Database, Bot, LogOut, Menu, X } from "lucide-react";
+import { LayoutDashboard, Cpu, Database, Bot, LogOut, Menu, X, Sun, Moon } from "lucide-react";
 import Logo from "@/components/Logo";
+import { useTheme } from "@/contexts/ThemeContext";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-    // Dashboard always uses dark theme for production reliability
-    const isDark = true;
+    const { theme, toggleTheme } = useTheme();
+    const isDark = theme === "dark";
 
     const navigation = [
         { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -65,6 +66,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                     {/* User / Logout */}
                     <div className={`p-4 border-t ${isDark ? "border-white/10" : "border-gray-200"}`}>
+                        <button
+                            onClick={toggleTheme}
+                            className={`flex items-center w-full px-4 py-3 text-sm font-medium rounded-xl transition-colors mb-2 ${isDark ? "text-gray-400 hover:bg-white/5 hover:text-white" : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"}`}
+                        >
+                            {isDark ? (
+                                <>
+                                    <Sun className="w-5 h-5 mr-3" />
+                                    Light Mode
+                                </>
+                            ) : (
+                                <>
+                                    <Moon className="w-5 h-5 mr-3" />
+                                    Dark Mode
+                                </>
+                            )}
+                        </button>
                         <button
                             onClick={() => {
                                 localStorage.removeItem("token");

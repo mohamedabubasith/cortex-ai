@@ -8,6 +8,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Settings, Trash2, Loader2, Bot } from "lucide-react";
 import api from "@/lib/api";
+import { useTheme } from "@/contexts/ThemeContext";
+import { cn } from "@/lib/utils";
 
 import Dialog from "@/components/ui/Dialog";
 
@@ -21,6 +23,8 @@ interface Agent {
 
 export default function AgentsPage() {
     const router = useRouter();
+    const { theme } = useTheme();
+    const isDark = theme === "dark";
     const [agents, setAgents] = useState<Agent[]>([]);
     const [loading, setLoading] = useState(true);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -64,8 +68,8 @@ export default function AgentsPage() {
         <div className="space-y-8 relative">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-white tracking-tight mb-2">Agents</h1>
-                    <p className="text-gray-400">Create and manage your AI agents.</p>
+                    <h1 className={cn("text-3xl font-bold tracking-tight mb-2", isDark ? "text-white" : "text-gray-900")}>Agents</h1>
+                    <p className={isDark ? "text-gray-400" : "text-gray-600"}>Create and manage your AI agents.</p>
                 </div>
                 <Link
                     href="/agent/new"
@@ -86,24 +90,24 @@ export default function AgentsPage() {
                         <div
                             key={agent.id}
                             onClick={() => router.push(`/agent/${agent.id}`)}
-                            className="group bg-nvidia-dark/80 backdrop-blur-sm rounded-xl p-6 border border-white/10 hover:border-nvidia-green/50 transition-all duration-300 hover:shadow-[0_0_30px_rgba(118,185,0,0.1)] hover:-translate-y-1 cursor-pointer"
+                            className={cn("group backdrop-blur-sm rounded-xl p-6 border transition-all duration-300 hover:shadow-[0_0_30px_rgba(118,185,0,0.1)] hover:-translate-y-1 cursor-pointer", isDark ? "bg-nvidia-dark/80 border-white/10 hover:border-nvidia-green/50" : "bg-white border-gray-200 hover:border-nvidia-green/50 shadow-sm")}
                         >
                             <div className="flex justify-between items-start mb-4">
-                                <h3 className="text-xl font-bold text-white group-hover:text-nvidia-green transition-colors">
+                                <h3 className={cn("text-xl font-bold group-hover:text-nvidia-green transition-colors", isDark ? "text-white" : "text-gray-900")}>
                                     {agent.name}
                                 </h3>
                                 <span className="px-3 py-1 text-xs font-bold rounded-full border bg-nvidia-green/10 text-nvidia-green border-nvidia-green/20">
                                     AGENT
                                 </span>
                             </div>
-                            <p className="text-gray-400 mb-8 h-12 line-clamp-2 text-sm leading-relaxed">
+                            <p className={cn("mb-8 h-12 line-clamp-2 text-sm leading-relaxed", isDark ? "text-gray-400" : "text-gray-600")}>
                                 {agent.description}
                             </p>
                             <div className="flex space-x-3">
                                 <Link
                                     href={`/agent/${agent.id}`}
                                     onClick={(e) => e.stopPropagation()}
-                                    className="flex-1 flex items-center justify-center px-4 py-2 border border-gray-700 rounded-lg text-sm font-medium text-gray-300 hover:bg-white/5 hover:text-white transition-colors"
+                                    className={cn("flex-1 flex items-center justify-center px-4 py-2 border rounded-lg text-sm font-medium transition-colors", isDark ? "border-gray-700 text-gray-300 hover:bg-white/5 hover:text-white" : "border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900")}
                                 >
                                     <Settings className="w-4 h-4 mr-2" />
                                     Configure
@@ -113,7 +117,7 @@ export default function AgentsPage() {
                                         e.stopPropagation();
                                         confirmDeleteAgent(agent.id);
                                     }}
-                                    className="px-3 py-2 border border-gray-700 rounded-lg text-gray-400 hover:bg-red-900/20 hover:text-red-400 hover:border-red-900/30 transition-colors"
+                                    className={cn("px-3 py-2 border rounded-lg transition-colors", isDark ? "border-gray-700 text-gray-400 hover:bg-red-900/20 hover:text-red-400 hover:border-red-900/30" : "border-gray-200 text-gray-400 hover:bg-red-50 hover:text-red-600 hover:border-red-100")}
                                 >
                                     <Trash2 className="h-4 w-4" />
                                 </button>
@@ -121,10 +125,10 @@ export default function AgentsPage() {
                         </div>
                     ))}
                     {agents.length === 0 && (
-                        <div className="col-span-full flex flex-col items-center justify-center py-20 bg-nvidia-dark/30 border border-white/10 rounded-2xl border-dashed">
+                        <div className={cn("col-span-full flex flex-col items-center justify-center py-20 border rounded-2xl border-dashed", isDark ? "bg-nvidia-dark/30 border-white/10" : "bg-gray-50 border-gray-300")}>
                             <Bot className="w-16 h-16 text-gray-600 mb-4" />
-                            <h3 className="text-xl font-bold text-white mb-2">No Agents Found</h3>
-                            <p className="text-gray-400 mb-6">Get started by creating your first AI agent.</p>
+                            <h3 className={cn("text-xl font-bold mb-2", isDark ? "text-white" : "text-gray-900")}>No Agents Found</h3>
+                            <p className={isDark ? "text-gray-400 mb-6" : "text-gray-600 mb-6"}>Get started by creating your first AI agent.</p>
                             <Link
                                 href="/agent/new"
                                 className="flex items-center px-6 py-3 bg-white/10 text-white font-bold rounded-lg hover:bg-white/20 transition-all"

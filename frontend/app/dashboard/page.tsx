@@ -7,10 +7,11 @@ import { useEffect, useState, memo } from "react";
 import { Users, Database, Cpu, Activity, ArrowUpRight, TrendingUp, MessageSquare } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart } from "recharts";
 import api from "@/lib/api";
+import { useTheme } from "@/contexts/ThemeContext";
 
 export default function DashboardPage() {
-    // Dashboard always uses dark theme
-    const isDark = true;
+    const { theme } = useTheme();
+    const isDark = theme === "dark";
 
     const [stats, setStats] = useState({
         agents: 0,

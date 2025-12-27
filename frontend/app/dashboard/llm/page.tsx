@@ -7,8 +7,9 @@ import { useEffect, useState } from "react";
 import { Cpu, Trash2, Loader2, Plus, Save, X, Edit2 } from "lucide-react";
 import api from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
-
 import Dialog from "@/components/ui/Dialog";
+import { useTheme } from "@/contexts/ThemeContext";
+import { cn } from "@/lib/utils";
 
 interface LLMConfig {
     id: string;
@@ -21,6 +22,8 @@ interface LLMConfig {
 
 export default function LLMPage() {
     const { toast } = useToast();
+    const { theme } = useTheme();
+    const isDark = theme === "dark";
     const [llmConfigs, setLlmConfigs] = useState<LLMConfig[]>([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -143,8 +146,8 @@ export default function LLMPage() {
         <div className="space-y-8 relative">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-white tracking-tight mb-2">LLM Configurations</h1>
-                    <p className="text-gray-400">Manage your Large Language Model connections.</p>
+                    <h1 className={cn("text-3xl font-bold tracking-tight mb-2", isDark ? "text-white" : "text-gray-900")}>LLM Configurations</h1>
+                    <p className={isDark ? "text-gray-400" : "text-gray-600"}>Manage your Large Language Model connections.</p>
                 </div>
                 <button
                     onClick={() => { resetForm(); setIsModalOpen(true); }}
@@ -162,11 +165,11 @@ export default function LLMPage() {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {llmConfigs.map((config) => (
-                        <div key={config.id} className="bg-nvidia-dark/80 backdrop-blur-sm border border-white/10 rounded-xl p-6 hover:border-nvidia-green/50 transition-all group flex flex-col justify-between h-full min-h-[180px]">
+                        <div key={config.id} className={cn("backdrop-blur-sm border rounded-xl p-6 transition-all group flex flex-col justify-between h-full min-h-[180px]", isDark ? "bg-nvidia-dark/80 border-white/10 hover:border-nvidia-green/50" : "bg-white border-gray-200 hover:border-nvidia-green/50 shadow-sm")}>
                             <div>
                                 <div className="flex justify-between items-start mb-4">
-                                    <div className="p-3 bg-white/5 rounded-lg group-hover:bg-nvidia-green/10 transition-colors">
-                                        <Cpu className="w-6 h-6 text-gray-400 group-hover:text-nvidia-green" />
+                                    <div className={cn("p-3 rounded-lg transition-colors", isDark ? "bg-white/5 group-hover:bg-nvidia-green/10" : "bg-gray-100 group-hover:bg-nvidia-green/10")}>
+                                        <Cpu className={cn("w-6 h-6 transition-colors", isDark ? "text-gray-400 group-hover:text-nvidia-green" : "text-gray-600 group-hover:text-nvidia-green")} />
                                     </div>
                                     <div className="flex space-x-2">
                                         <button
@@ -185,15 +188,15 @@ export default function LLMPage() {
                                         </button>
                                     </div>
                                 </div>
-                                <h3 className="text-lg font-bold text-white mb-2">{config.name}</h3>
+                                <h3 className={cn("text-lg font-bold mb-2", isDark ? "text-white" : "text-gray-900")}>{config.name}</h3>
                                 <div className="flex flex-wrap gap-2">
-                                    <span className="text-xs text-gray-300 bg-white/10 border border-white/5 px-2 py-1 rounded font-mono">
+                                    <span className={cn("text-xs px-2 py-1 rounded font-mono border", isDark ? "text-gray-300 bg-white/10 border-white/5" : "text-gray-600 bg-gray-100 border-gray-200")}>
                                         {config.model}
                                     </span>
                                 </div>
                             </div>
                             {config.base_url && (
-                                <div className="mt-4 pt-4 border-t border-white/5">
+                                <div className={cn("mt-4 pt-4 border-t", isDark ? "border-white/5" : "border-gray-100")}>
                                     <p className="text-xs text-gray-500 truncate" title={config.base_url}>
                                         {config.base_url}
                                     </p>
@@ -202,10 +205,10 @@ export default function LLMPage() {
                         </div>
                     ))}
                     {llmConfigs.length === 0 && (
-                        <div className="col-span-full flex flex-col items-center justify-center py-20 bg-nvidia-dark/30 border border-white/10 rounded-2xl border-dashed">
+                        <div className={cn("col-span-full flex flex-col items-center justify-center py-20 border rounded-2xl border-dashed", isDark ? "bg-nvidia-dark/30 border-white/10" : "bg-gray-50 border-gray-300")}>
                             <Cpu className="w-16 h-16 text-gray-600 mb-4" />
-                            <h3 className="text-xl font-bold text-white mb-2">No LLM Configs</h3>
-                            <p className="text-gray-400">Add your first LLM provider configuration.</p>
+                            <h3 className={cn("text-xl font-bold mb-2", isDark ? "text-white" : "text-gray-900")}>No LLM Configs</h3>
+                            <p className={isDark ? "text-gray-400" : "text-gray-600"}>Add your first LLM provider configuration.</p>
                         </div>
                     )}
                 </div>

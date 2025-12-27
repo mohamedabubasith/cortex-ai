@@ -6,9 +6,12 @@ import { ArrowLeft, Bot, Loader2 } from "lucide-react";
 import Link from "next/link";
 import api from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/contexts/ThemeContext";
 
 export default function NewAgentPage() {
     const router = useRouter();
+    const { theme } = useTheme();
+    const isDark = theme === "dark";
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [formData, setFormData] = useState({
@@ -39,8 +42,8 @@ export default function NewAgentPage() {
     };
 
     return (
-        <div className="min-h-screen bg-black text-white flex flex-col">
-            <nav className="border-b border-white/10 bg-nvidia-dark/50 backdrop-blur-md">
+        <div className={cn("min-h-screen flex flex-col transition-colors duration-300", isDark ? "bg-black text-white" : "bg-gray-50 text-gray-900")}>
+            <nav className={cn("border-b backdrop-blur-md", isDark ? "border-white/10 bg-nvidia-dark/50" : "border-gray-200 bg-white/80")}>
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between h-16">
                         <div className="flex items-center">
@@ -59,16 +62,16 @@ export default function NewAgentPage() {
             <main className="flex-1 flex items-center justify-center p-4">
                 <div className="w-full max-w-md space-y-8">
                     <div className="text-center">
-                        <div className="mx-auto h-12 w-12 bg-nvidia-green/10 rounded-xl flex items-center justify-center mb-4">
+                        <div className={cn("mx-auto h-12 w-12 rounded-xl flex items-center justify-center mb-4", isDark ? "bg-nvidia-green/10" : "bg-nvidia-green/10")}>
                             <Bot className="h-6 w-6 text-nvidia-green" />
                         </div>
-                        <h2 className="text-3xl font-bold tracking-tight text-white">Create New Agent</h2>
+                        <h2 className={cn("text-3xl font-bold tracking-tight", isDark ? "text-white" : "text-gray-900")}>Create New Agent</h2>
                         <p className="mt-2 text-sm text-gray-400">
                             Give your agent a name and description to get started.
                         </p>
                     </div>
 
-                    <div className="bg-nvidia-dark/50 backdrop-blur-md border border-white/10 rounded-2xl p-8 shadow-xl">
+                    <div className={cn("backdrop-blur-md border rounded-2xl p-8 shadow-xl", isDark ? "bg-nvidia-dark/50 border-white/10" : "bg-white border-gray-200")}>
                         {error && (
                             <div className="mb-6 p-4 bg-red-900/20 border border-red-500/50 text-red-200 rounded-lg text-sm">
                                 {error}
@@ -77,7 +80,7 @@ export default function NewAgentPage() {
 
                         <form className="space-y-6" onSubmit={handleSubmit}>
                             <div>
-                                <label htmlFor="name" className="block text-sm font-medium text-gray-300">
+                                <label htmlFor="name" className={cn("block text-sm font-medium", isDark ? "text-gray-300" : "text-gray-700")}>
                                     Agent Name
                                 </label>
                                 <div className="mt-1">
@@ -86,7 +89,7 @@ export default function NewAgentPage() {
                                         name="name"
                                         id="name"
                                         required
-                                        className="block w-full px-4 py-3 bg-black/50 border border-gray-700 rounded-xl focus:ring-2 focus:ring-nvidia-green focus:border-transparent text-white placeholder-gray-500 transition-all"
+                                        className={cn("block w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-nvidia-green focus:border-transparent transition-all", isDark ? "bg-black/50 border-gray-700 text-white placeholder-gray-500" : "bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400")}
                                         placeholder="e.g., Customer Support Bot"
                                         value={formData.name}
                                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -95,7 +98,7 @@ export default function NewAgentPage() {
                             </div>
 
                             <div>
-                                <label htmlFor="description" className="block text-sm font-medium text-gray-300">
+                                <label htmlFor="description" className={cn("block text-sm font-medium", isDark ? "text-gray-300" : "text-gray-700")}>
                                     Description
                                 </label>
                                 <div className="mt-1">
@@ -103,7 +106,7 @@ export default function NewAgentPage() {
                                         id="description"
                                         name="description"
                                         rows={3}
-                                        className="block w-full px-4 py-3 bg-black/50 border border-gray-700 rounded-xl focus:ring-2 focus:ring-nvidia-green focus:border-transparent text-white placeholder-gray-500 transition-all"
+                                        className={cn("block w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-nvidia-green focus:border-transparent transition-all", isDark ? "bg-black/50 border-gray-700 text-white placeholder-gray-500" : "bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400")}
                                         placeholder="What does this agent do?"
                                         value={formData.description}
                                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}

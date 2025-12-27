@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect } from "react";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface DialogButton {
     label: string;
@@ -29,8 +30,10 @@ export default function Dialog({
     description,
     children,
     buttons = [],
-    theme = "dark"
+    theme: propTheme
 }: DialogProps) {
+    const { theme: globalTheme } = useTheme();
+    const theme = propTheme || globalTheme;
 
     // Close on escape key
     useEffect(() => {
