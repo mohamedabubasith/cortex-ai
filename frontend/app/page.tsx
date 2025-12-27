@@ -6,9 +6,11 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Mail, Lock, ArrowRight, Loader2, AlertCircle } from "lucide-react";
 import api from "@/lib/api";
-import TubesBackground from "@/components/TubesBackground";
 import Logo from "@/components/Logo";
 import { isValidEmail } from "@/lib/validation";
+import dynamic from "next/dynamic";
+
+const TubesBackground = dynamic(() => import("@/components/TubesBackground"), { ssr: false });
 
 export default function LoginPage() {
     const [email, setEmail] = useState("");
@@ -123,8 +125,8 @@ export default function LoginPage() {
                                     <input
                                         type="email"
                                         className={`block w-full pl-10 pr-3 py-3 md:py-2.5 bg-black/50 border rounded-lg focus:ring-2 focus:border-transparent text-white placeholder-gray-500 transition-all ${formErrors.email
-                                                ? "border-red-500 focus:ring-red-500"
-                                                : "border-gray-700 focus:ring-nvidia-green"
+                                            ? "border-red-500 focus:ring-red-500"
+                                            : "border-gray-700 focus:ring-nvidia-green"
                                             }`}
                                         placeholder="you@example.com"
                                         value={email}
@@ -156,8 +158,8 @@ export default function LoginPage() {
                                     <input
                                         type="password"
                                         className={`block w-full pl-10 pr-3 py-3 md:py-2.5 bg-black/50 border rounded-lg focus:ring-2 focus:border-transparent text-white placeholder-gray-500 transition-all ${formErrors.password
-                                                ? "border-red-500 focus:ring-red-500"
-                                                : "border-gray-700 focus:ring-nvidia-green"
+                                            ? "border-red-500 focus:ring-red-500"
+                                            : "border-gray-700 focus:ring-nvidia-green"
                                             }`}
                                         placeholder="••••••••"
                                         value={password}

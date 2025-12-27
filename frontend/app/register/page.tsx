@@ -6,9 +6,11 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { User, Mail, Lock, ArrowRight, Loader2, Check, X, AlertCircle } from "lucide-react";
 import api from "@/lib/api";
-import TubesBackground from "@/components/TubesBackground";
 import Logo from "@/components/Logo";
 import { isValidEmail, calculatePasswordStrength, PasswordStrength } from "@/lib/validation";
+import dynamic from "next/dynamic";
+
+const TubesBackground = dynamic(() => import("@/components/TubesBackground"), { ssr: false });
 
 export default function RegisterPage() {
     const router = useRouter();
