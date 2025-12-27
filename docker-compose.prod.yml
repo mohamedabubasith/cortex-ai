@@ -16,9 +16,11 @@ services:
     environment:
       POSTGRES_USER: ${DB_USERNAME:-admin}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-admin}
-      POSTGRES_DB: ${DB_NAME:-cognee_db}
+      POSTGRES_DB: ${DB_NAME:-cognee_db} # Default DB
+      POSTGRES_MULTIPLE_DATABASES: cognee_db,chat_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./backend/scripts/init-multiple-dbs.sh:/docker-entrypoint-initdb.d/init-multiple-dbs.sh
     ports:
       - "5432:5432"
     healthcheck:
@@ -56,12 +58,12 @@ services:
       # App Database Connection
       APP_DB_HOST: db
       APP_DB_PORT: 5432
-      APP_DB_NAME: cognee_db
+      APP_DB_NAME: chat_db
       APP_DB_USERNAME: ${APP_DB_USERNAME:-admin}
       APP_DB_PASSWORD: ${APP_DB_PASSWORD:-admin}
       
       # Constructed URLs (Force internal hostnames)
-      DATABASE_URL: postgresql+asyncpg://${APP_DB_USERNAME:-admin}:${APP_DB_PASSWORD:-admin}@db:5432/cognee_db
+      DATABASE_URL: postgresql+asyncpg://${APP_DB_USERNAME:-admin}:${APP_DB_PASSWORD:-admin}@db:5432/chat_db
       VECTOR_DB_URL: postgresql://${DB_USERNAME:-admin}:${DB_PASSWORD:-admin}@db:5432/cognee_db
       
       # Vector DB & Embeddings
