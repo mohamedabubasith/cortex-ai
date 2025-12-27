@@ -33,13 +33,13 @@ async def lifespan(app: FastAPI):
     
     # Create tables automatically (User's request)
     # Handle race conditions gracefully by ignoring errors if tables already exist
-    try:
-        print("DEBUG: Starting automatic table creation...", flush=True)
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-        print("DEBUG: Automatic table creation completed.", flush=True)
-    except Exception as e:
-        print(f"DEBUG: Database table creation warning (likely race condition, safe to ignore): {e}", flush=True)
+    # try:
+    #     print("DEBUG: Starting automatic table creation...", flush=True)
+    #     async with engine.begin() as conn:
+    #         await conn.run_sync(Base.metadata.create_all)
+    #     print("DEBUG: Automatic table creation completed.", flush=True)
+    # except Exception as e:
+    #     print(f"DEBUG: Database table creation warning (likely race condition, safe to ignore): {e}", flush=True)
         
     # Initialize Cognee (creates tables if needed)
     print("DEBUG: Calling cognee_service.initialize()...", flush=True)
