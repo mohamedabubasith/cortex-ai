@@ -8,7 +8,7 @@ class FastEmbedAdapter(EmbeddingEngine):
         self.model = TextEmbedding(model_name=model_name)
         self.vector_size = 384  # Default for all-MiniLM-L6-v2
 
-    def embed_text(self, text: List[str]) -> List[List[float]]:
+    async def embed_text(self, text: List[str]) -> List[List[float]]:
         # FastEmbed returns a generator, convert to list
         embeddings = list(self.model.embed(text))
         # Convert numpy arrays to lists
