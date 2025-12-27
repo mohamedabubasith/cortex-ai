@@ -15,9 +15,6 @@ os.environ["EMBEDDING_PROVIDER"] = settings.EMBEDDING_PROVIDER
 os.environ["EMBEDDING_MODEL"] = settings.EMBEDDING_MODEL
 os.environ["EMBEDDING_DIMENSIONS"] = str(settings.EMBEDDING_DIMENSIONS)
 # os.environ["LLM_PROVIDER"] = "litellm"  # Removed as per user request
-# Force local embeddings (no remote API)
-os.environ["EMBEDDING_ENDPOINT"] = ""
-os.environ["EMBEDDING_API_KEY"] = ""
 
 # Set persistent data path for Cognee (LanceDB)
 # This ensures data survives server restarts

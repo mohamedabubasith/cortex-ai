@@ -18,42 +18,8 @@ def apply_cognee_patches():
     os.environ["EMBEDDING_DIMENSIONS"] = str(settings.EMBEDDING_DIMENSIONS)
     # os.environ["LLM_PROVIDER"] = "litellm" # Removed as per user request
     
-    if settings.EMBEDDING_PROVIDER == "fastembed":
-        os.environ["EMBEDDING_ENDPOINT"] = ""
-        os.environ["EMBEDDING_API_KEY"] = ""
-
-    if settings.EMBEDDING_PROVIDER == "fastembed":
-        os.environ["EMBEDDING_ENDPOINT"] = ""
-        os.environ["EMBEDDING_API_KEY"] = ""
-
-    # 2. Patch get_embedding_engine for FastEmbed
-    # CRITICAL: This patch is REQUIRED because Cognee 0.3.6 has a bug in FastEmbed integration
-    # ('module' object is not callable). We cannot fix this with env vars alone.
-    if settings.EMBEDDING_PROVIDER == "fastembed":
-        try:
-            # Import the module we want to patch
-            import cognee.infrastructure.databases.vector.embeddings as embeddings_module
-            
-            # Import our adapter
-            from app.services.fastembed_adapter import FastEmbedAdapter
-            
-            _fastembed_instance = None
-            
-            def patched_get_embedding_engine():
-                global _fastembed_instance
-                if _fastembed_instance is None:
-                    logger.info(f"Creating FastEmbedAdapter with model: {settings.EMBEDDING_MODEL}")
-                    _fastembed_instance = FastEmbedAdapter(model_name=settings.EMBEDDING_MODEL)
-                return _fastembed_instance
-            
-            # Apply patch
-            embeddings_module.get_embedding_engine = patched_get_embedding_engine
-            logger.info("Successfully patched get_embedding_engine to use FastEmbedAdapter")
-            
-        except Exception as e:
-            logger.error(f"Failed to patch get_embedding_engine: {e}")
-            import traceback
-            traceback.print_exc()
+    # FastEmbed patch REMOVED as per user request
+    pass
 
     # 3. Patch pgvector if needed
     if settings.VECTOR_DB_PROVIDER == "pgvector":
