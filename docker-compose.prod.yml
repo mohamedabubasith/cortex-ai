@@ -8,6 +8,11 @@ services:
     image: pgvector/pgvector:pg16
     container_name: chatbot_db
     restart: always
+    networks:
+      default:
+        aliases:
+          - cognee-postgres
+          - db
     environment:
       POSTGRES_USER: ${DB_USERNAME:-admin}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-admin}
