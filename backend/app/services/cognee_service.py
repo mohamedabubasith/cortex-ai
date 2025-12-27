@@ -14,6 +14,7 @@ from app.core.config import settings
 os.environ["EMBEDDING_PROVIDER"] = settings.EMBEDDING_PROVIDER
 os.environ["EMBEDDING_MODEL"] = settings.EMBEDDING_MODEL
 os.environ["EMBEDDING_DIMENSIONS"] = str(settings.EMBEDDING_DIMENSIONS)
+os.environ["LLM_PROVIDER"] = "litellm"  # Required for Cognee to work properly
 
 # Set persistent data path for Cognee (LanceDB)
 # This ensures data survives server restarts
