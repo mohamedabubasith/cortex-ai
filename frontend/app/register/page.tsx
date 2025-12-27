@@ -72,10 +72,7 @@ export default function RegisterPage() {
             isValid = false;
         }
 
-        if (!formData.agreeTerms) {
-            errors.agreeTerms = "You must agree to the terms and conditions";
-            isValid = false;
-        }
+        // Terms validation removed
 
         setFormErrors(errors);
         return isValid;
@@ -176,8 +173,8 @@ export default function RegisterPage() {
                                     <input
                                         type="text"
                                         className={`block w-full pl-10 pr-3 py-3 md:py-2.5 bg-black/50 border rounded-lg focus:ring-2 focus:border-transparent text-white placeholder-gray-500 transition-all ${formErrors.full_name
-                                                ? "border-red-500 focus:ring-red-500"
-                                                : "border-gray-700 focus:ring-nvidia-green"
+                                            ? "border-red-500 focus:ring-red-500"
+                                            : "border-gray-700 focus:ring-nvidia-green"
                                             }`}
                                         placeholder="John Doe"
                                         value={formData.full_name}
@@ -196,8 +193,8 @@ export default function RegisterPage() {
                                     <input
                                         type="email"
                                         className={`block w-full pl-10 pr-3 py-3 md:py-2.5 bg-black/50 border rounded-lg focus:ring-2 focus:border-transparent text-white placeholder-gray-500 transition-all ${formErrors.email
-                                                ? "border-red-500 focus:ring-red-500"
-                                                : "border-gray-700 focus:ring-nvidia-green"
+                                            ? "border-red-500 focus:ring-red-500"
+                                            : "border-gray-700 focus:ring-nvidia-green"
                                             }`}
                                         placeholder="you@example.com"
                                         value={formData.email}
@@ -216,8 +213,8 @@ export default function RegisterPage() {
                                     <input
                                         type="password"
                                         className={`block w-full pl-10 pr-3 py-3 md:py-2.5 bg-black/50 border rounded-lg focus:ring-2 focus:border-transparent text-white placeholder-gray-500 transition-all ${formErrors.password
-                                                ? "border-red-500 focus:ring-red-500"
-                                                : "border-gray-700 focus:ring-nvidia-green"
+                                            ? "border-red-500 focus:ring-red-500"
+                                            : "border-gray-700 focus:ring-nvidia-green"
                                             }`}
                                         placeholder="••••••••"
                                         value={formData.password}
@@ -252,8 +249,8 @@ export default function RegisterPage() {
                                     <input
                                         type="password"
                                         className={`block w-full pl-10 pr-3 py-3 md:py-2.5 bg-black/50 border rounded-lg focus:ring-2 focus:border-transparent text-white placeholder-gray-500 transition-all ${formErrors.confirmPassword
-                                                ? "border-red-500 focus:ring-red-500"
-                                                : "border-gray-700 focus:ring-nvidia-green"
+                                            ? "border-red-500 focus:ring-red-500"
+                                            : "border-gray-700 focus:ring-nvidia-green"
                                             }`}
                                         placeholder="••••••••"
                                         value={formData.confirmPassword}
@@ -263,30 +260,7 @@ export default function RegisterPage() {
                                 {formErrors.confirmPassword && <p className="mt-1 text-xs text-red-500">{formErrors.confirmPassword}</p>}
                             </div>
 
-                            <div className="flex items-start">
-                                <div className="flex items-center h-5">
-                                    <input
-                                        id="terms"
-                                        type="checkbox"
-                                        className="w-4 h-4 rounded border-gray-600 bg-black/50 text-nvidia-green focus:ring-nvidia-green focus:ring-offset-0"
-                                        checked={formData.agreeTerms}
-                                        onChange={(e) => handleChange("agreeTerms", e.target.checked)}
-                                    />
-                                </div>
-                                <div className="ml-3 text-sm">
-                                    <label htmlFor="terms" className="text-gray-400">
-                                        I agree to the{" "}
-                                        <a href="#" className="text-nvidia-green hover:underline">
-                                            Terms of Service
-                                        </a>{" "}
-                                        and{" "}
-                                        <a href="#" className="text-nvidia-green hover:underline">
-                                            Privacy Policy
-                                        </a>
-                                    </label>
-                                    {formErrors.agreeTerms && <p className="mt-1 text-xs text-red-500">{formErrors.agreeTerms}</p>}
-                                </div>
-                            </div>
+                            {/* Terms of Service Removed */}
 
                             <button
                                 type="submit"
