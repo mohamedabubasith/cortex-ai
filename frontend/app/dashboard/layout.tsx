@@ -20,8 +20,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         { name: "Agents", href: "/dashboard/agents", icon: Bot },
     ];
 
-    const isDark = theme === "dark";
-
     return (
         <div className={`min-h-screen flex ${isDark ? "bg-black" : "bg-gray-50"}`}>
             {/* Sidebar */}
