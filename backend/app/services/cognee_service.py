@@ -33,16 +33,18 @@ if settings.VECTOR_DB_PROVIDER != "pgvector":
 else:
     # Ensure Cognee uses the configured Postgres vector DB
     # Cognee expects this env var for pgvector connection
-    os.environ["VECTOR_DB_URL"] = settings.constructed_vector_db_url
-    os.environ["DB_PROVIDER"] = settings.DB_PROVIDER
+    # Ensure Cognee uses the configured Postgres vector DB
+    # Cognee expects this env var for pgvector connection
+    # os.environ["VECTOR_DB_URL"] = settings.constructed_vector_db_url
+    # os.environ["DB_PROVIDER"] = settings.DB_PROVIDER
     os.environ["VECTOR_DB_PROVIDER"] = "pgvector"
     
     # Explicitly set DB vars for Cognee (crucial for local execution where env vars might not be set)
-    os.environ["DB_HOST"] = settings.DB_HOST
-    os.environ["DB_PORT"] = str(settings.DB_PORT)
-    os.environ["DB_NAME"] = settings.DB_NAME
-    os.environ["DB_USERNAME"] = settings.DB_USERNAME
-    os.environ["DB_PASSWORD"] = settings.DB_PASSWORD
+    # os.environ["DB_HOST"] = settings.DB_HOST
+    # os.environ["DB_PORT"] = str(settings.DB_PORT)
+    # os.environ["DB_NAME"] = settings.DB_NAME
+    # os.environ["DB_USERNAME"] = settings.DB_USERNAME
+    # os.environ["DB_PASSWORD"] = settings.DB_PASSWORD
 
 # Ensure persistent path for SQLite (if used as fallback for metadata)
 COGNEE_DB_PATH = os.path.join(DATA_DIR, "cognee.db")
