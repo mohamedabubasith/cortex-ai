@@ -45,8 +45,12 @@ export default function TubesBackground() {
     return (
         <canvas
             ref={canvasRef}
-            className="fixed inset-0 z-0 pointer-events-none w-full h-full"
-            style={{ opacity: 0.6 }}
+            className="fixed top-0 left-0 z-0 pointer-events-none"
+            style={{
+                width: '100vw',
+                height: '100vh',
+                opacity: 0.6
+            }}
         />
     );
 }
