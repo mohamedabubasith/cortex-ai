@@ -7,11 +7,11 @@ echo "🧹 Starting full clean deployment..."
 
 # 1. Stop containers and remove volumes, networks, and images
 echo "🗑️  Removing containers, volumes, and images..."
-docker-compose -f docker-compose.prod.yml down -v --rmi all --remove-orphans
+docker compose -f docker-compose.prod.yml down -v --rmi all --remove-orphans
 
 # 2. Build and start containers
 echo "🏗️  Building and starting services..."
-docker-compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml up -d --build
 
 # 3. Wait for Database to be ready
 echo "⏳ Waiting for Database to be healthy..."
@@ -24,7 +24,7 @@ echo "✅ Database is ready!"
 
 # 4. Run Migrations
 echo "🔄 Running Database Migrations..."
-docker-compose -f docker-compose.prod.yml exec backend alembic upgrade head
+docker compose -f docker-compose.prod.yml exec backend alembic upgrade head
 
 echo "🚀 Deployment Complete! Services are running."
 echo "   - App DB: chat_db (Managed by Alembic)"
