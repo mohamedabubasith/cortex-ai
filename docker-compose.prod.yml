@@ -40,13 +40,39 @@ services:
     env_file:
       - .env
     environment:
-      # Overrides or specific docker-compose vars can go here
-      # But mostly we rely on .env now
+      # Core
+      SECRET_KEY: ${SECRET_KEY:-production_secret_key_change_me}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      
+      # Database Connection
+      DB_PROVIDER: ${DB_PROVIDER:-postgres}
       DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: cognee_db
+      DB_USERNAME: ${DB_USERNAME:-admin}
+      DB_PASSWORD: ${DB_PASSWORD:-admin}
+      
+      # App Database Connection
       APP_DB_HOST: db
+      APP_DB_PORT: 5432
       APP_DB_NAME: cognee_db
-      # Override DATABASE_URL to ensure it uses the internal docker hostname 'db' and the existing 'cognee_db'
+      APP_DB_USERNAME: ${APP_DB_USERNAME:-admin}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:-admin}
+      
+      # Constructed URLs (Force internal hostnames)
       DATABASE_URL: postgresql+asyncpg://${APP_DB_USERNAME:-admin}:${APP_DB_PASSWORD:-admin}@db:5432/cognee_db
+      VECTOR_DB_URL: postgresql+asyncpg://${DB_USERNAME:-admin}:${DB_PASSWORD:-admin}@db:5432/cognee_db
+      
+      # Vector DB & Embeddings
+      VECTOR_DB_PROVIDER: ${VECTOR_DB_PROVIDER:-pgvector}
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-fastembed}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
+      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-384}
+      
+      # Security & Access Control
+      ENABLE_BACKEND_ACCESS_CONTROL: ${ENABLE_BACKEND_ACCESS_CONTROL:-true}
+      REQUIRE_AUTHENTICATION: ${REQUIRE_AUTHENTICATION:-true}
       
     volumes:
       - ./backend/uploads:/app/uploads
