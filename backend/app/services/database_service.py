@@ -55,7 +55,8 @@ class DatabaseService:
                     password=password,
                     database=connection.database_name,
                     host=connection.host,
-                    port=connection.port
+                    port=connection.port,
+                    timeout=5
                 )
                 try:
                     # Fetch results

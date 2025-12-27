@@ -35,8 +35,18 @@ else:
     os.environ["VECTOR_DB_URL"] = settings.constructed_vector_db_url
     os.environ["DB_PROVIDER"] = settings.DB_PROVIDER
     os.environ["VECTOR_DB_PROVIDER"] = "pgvector"
-    # Note: DB_NAME, DB_USERNAME, DB_PASSWORD are now provided directly via docker-compose environment
-    # so Cognee picks them up automatically.
+    
+    # Explicitly set DB vars for Cognee (crucial for local execution where env vars might not be set)
+    os.environ["DB_HOST"] = settings.DB_HOST
+    os.environ["DB_PORT"] = str(settings.DB_PORT)
+    os.environ["DB_NAME"] = settings.DB_NAME
+    os.environ["DB_USERNAME"] = settings.DB_USERNAME
+    os.environ["DB_PASSWORD"] = settings.DB_PASSWORD
+
+# Ensure persistent path for SQLite (if used as fallback for metadata)
+COGNEE_DB_PATH = os.path.join(DATA_DIR, "cognee.db")
+os.environ["COGNEE_DB_PATH"] = COGNEE_DB_PATH
+os.environ["DB_PATH"] = COGNEE_DB_PATH
 
 # Also set a specialized path for Cognee's internal storage if needed
 os.environ["COGNEE_ROOT_DIR"] = DATA_DIR
@@ -192,6 +202,9 @@ class CogneeService:
         if not user_email:
             logger.info("No user_email provided, using default Cognee user")
             return await get_default_user()
+        
+        # Normalize email to ensure consistency across logins
+        user_email = user_email.lower().strip()
         
         try:
             user = await get_user_by_email(user_email)

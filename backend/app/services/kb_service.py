@@ -114,7 +114,7 @@ class KBService:
             return {"success": False, "message": "KB not found"}
         
         # Sync status before checking
-        await self._sync_status(kb)
+        await self._sync_status(kb, user_email=user_email)
         
         if kb.status != "indexed":
             return {"success": False, "message": f"KB not indexed (status: {kb.status})"}

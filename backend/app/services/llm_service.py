@@ -46,12 +46,11 @@ class LLMService:
             
             # Get available tools (including agent-specific database tools)
             db_connections = agent.database_connections if hasattr(agent, 'database_connections') else []
+            logger.info(f"LLM Service: Found {len(db_connections)} DB connections for agent {agent.id}")
             
-            # Enhance system prompt with database info if available
-            system_prompt = agent.system_prompt if agent.system_prompt else "You are a helpful AI assistant."
-            if db_connections and len(db_connections) > 0:
-                db_names_list = ", ".join([db.name for db in db_connections])
-                system_prompt += f"\n\nYou have access to databases ({db_names_list}). When users ask questions that require querying data, use the query_database tool to retrieve information. Do not tell users about the database names or infrastructure details unless they specifically ask. Just provide the requested information naturally."
+            # Build System Prompt using PromptService
+            from app.services.prompt_service import prompt_service
+            system_prompt = prompt_service.build_system_prompt(agent, db_connections)
             
             full_messages.append({"role": "system", "content": system_prompt})
             full_messages.extend(messages)
@@ -63,12 +62,9 @@ class LLMService:
             tools_service.set_agent_context(db_connections, database_service)
             
             # Loop for handling tool calls (max depth 5)
-            for _ in range(5):
-                # Count input tokens (approximation)
-                input_text = " ".join([str(m.get("content", "")) for m in full_messages])
-                input_tokens = int(len(input_text.split()) * 1.3)
-                
-                logger.info(f"Sending request to {agent.llm_config.model} with {len(tools)} tools")
+            # Loop for handling tool calls (max depth 3 to prevent infinite loops)
+            for loop_index in range(3):
+                logger.info(f"Sending request to {agent.llm_config.model} (Loop {loop_index})")
                 
                 # Create stream
                 stream = await client.chat.completions.create(
@@ -89,7 +85,6 @@ class LLMService:
                     
                     # Handle Tool Calls
                     if delta.tool_calls:
-                        # ... (existing tool call logic)
                         for tc in delta.tool_calls:
                             if tc.index is not None:
                                 if len(tool_calls) <= tc.index:
@@ -124,19 +119,12 @@ class LLMService:
                         if chunk_count % 100 == 0:
                             await asyncio.sleep(0.001)
                 
-                # Final check to close thinking tag if it was never closed
+                # Final check to close thinking tag
                 if has_started_thinking:
                     yield "</THINK>"
                 
                 # If no tool calls, we are done
                 if not tool_calls:
-                    # Calculate output tokens
-                    output_tokens = int(len(output_text.split()) * 1.3) if output_text else 0
-                    self.last_token_usage = {
-                        "prompt_tokens": input_tokens,
-                        "completion_tokens": output_tokens,
-                        "total_tokens": input_tokens + output_tokens
-                    }
                     break
                 
                 # If we have tool calls, execute them and continue loop
@@ -155,10 +143,16 @@ class LLMService:
                     
                     logger.info(f"Executing tool: {func_name} with args: {func_args}")
                     
-                    # Optional: notify user about tool execution?
-                    # yield f"\n\n[Using tool: {func_name}]" 
-                    
-                    tool_result = await tools_service.execute_tool(func_name, func_args)
+                    # Execute tool (No visible output to user)
+                    try:
+                        # Add timeout to prevent hanging
+                        tool_result = await asyncio.wait_for(tools_service.execute_tool(func_name, func_args), timeout=30.0)
+                    except asyncio.TimeoutError:
+                        logger.error(f"Tool {func_name} timed out")
+                        tool_result = json.dumps({"error": "Tool execution timed out (30s limit)."})
+                    except Exception as e:
+                        logger.error(f"Tool {func_name} failed: {e}")
+                        tool_result = json.dumps({"error": f"Tool execution failed: {str(e)}"})
                     
                     full_messages.append({
                         "tool_call_id": tc["id"],
@@ -176,9 +170,6 @@ class LLMService:
             self.last_token_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
             
         except Exception as e:
-            error_msg = str(e)
-            logger.error(f"LLM streaming error: {error_msg}")
-            
             error_msg = str(e)
             logger.error(f"LLM streaming error: {error_msg}")
             

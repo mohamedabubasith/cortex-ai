@@ -118,6 +118,18 @@ class ToolsService:
         except Exception as e:
             return json.dumps({"error": str(e)})
 
+    def json_serializer(self, obj):
+        """JSON serializer for objects not serializable by default json code"""
+        if isinstance(obj, (datetime.datetime, datetime.date)):
+            return obj.isoformat()
+        import uuid
+        if isinstance(obj, uuid.UUID):
+            return str(obj)
+        import decimal
+        if isinstance(obj, decimal.Decimal):
+            return float(obj)
+        return str(obj)
+
     async def query_database_tool(self, arguments: str) -> str:
         """Execute a database query tool call"""
         try:
@@ -151,11 +163,34 @@ class ToolsService:
                     return json.dumps(results)
                 
                 # Format results nicely
-                return json.dumps({
+                # Format results nicely
+                # Truncate if too many rows to prevent context overflow
+                MAX_ROWS = 50
+                MAX_CHARS = 8000
+                
+                if isinstance(results, list) and len(results) > MAX_ROWS:
+                    results = results[:MAX_ROWS]
+                    truncated = True
+                else:
+                    truncated = False
+                
+                result_json = json.dumps({
                     "success": True,
                     "rows": results,
-                    "row_count": len(results) if isinstance(results, list) else 0
-                })
+                    "row_count": len(results),
+                    "truncated": truncated,
+                    "note": "Results truncated to 50 rows for performance" if truncated else ""
+                }, default=self.json_serializer)
+                
+                if len(result_json) > MAX_CHARS:
+                    return json.dumps({
+                        "success": True,
+                        "rows": [],
+                        "row_count": 0,
+                        "error": "Result too large for chat context. Please refine query with LIMIT or specific columns."
+                    })
+                    
+                return result_json
             else:
                 return json.dumps({"error": "Database service not available"})
                 
