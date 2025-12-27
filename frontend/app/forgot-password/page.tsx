@@ -11,6 +11,7 @@ import Logo from "@/components/Logo";
 import { isValidEmail } from "@/lib/validation";
 
 export default function ForgotPasswordPage() {
+    const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [submitted, setSubmitted] = useState(false);
     const [email, setEmail] = useState("");
