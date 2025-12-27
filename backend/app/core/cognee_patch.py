@@ -57,9 +57,16 @@ def apply_cognee_patches():
                 global _pgvector_instance
                 if _pgvector_instance is None:
                     logger.info(f"Creating PGVectorAdapter with URL: {settings.constructed_vector_db_url}")
+                    
+                    # Create embedding engine
+                    from app.services.fastembed_adapter import FastEmbedAdapter
+                    embedding_engine = FastEmbedAdapter(model_name=settings.EMBEDDING_MODEL)
+                    
+                    # Instantiate PGVectorAdapter with correct signature
                     _pgvector_instance = PGVectorAdapter(
-                        url=settings.constructed_vector_db_url,
-                        db_name=settings.DB_NAME
+                        connection_string=settings.constructed_vector_db_url,
+                        api_key=None,
+                        embedding_engine=embedding_engine
                     )
                 return _pgvector_instance
             
