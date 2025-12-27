@@ -16,6 +16,7 @@ else
 fi
 
 echo "Using: $DOCKER_COMPOSE_CMD"
+COMPOSE_FILE="docker-compose.prod.yml"
 
 echo "Starting deployment..."
 
@@ -29,19 +30,21 @@ git stash pop || echo "No local changes to restore or conflict occurred."
 if [ ! -f .env ]; then
     echo "Creating .env file..."
     touch .env
+    echo "DB_PASSWORD=admin" >> .env
+    echo "NEXT_PUBLIC_API_URL=http://localhost:8000" >> .env
 fi
 
 # 3. Stop existing containers
 echo "Stopping existing containers..."
-$DOCKER_COMPOSE_CMD down
+$DOCKER_COMPOSE_CMD -f $COMPOSE_FILE down || true
 
 # 4. Build and start new containers
 echo "Building and starting containers..."
-$DOCKER_COMPOSE_CMD up --build -d
+$DOCKER_COMPOSE_CMD -f $COMPOSE_FILE up --build -d
 
 # 5. Check status
 echo "Checking status..."
 sleep 5
-$DOCKER_COMPOSE_CMD ps
+$DOCKER_COMPOSE_CMD -f $COMPOSE_FILE ps
 
 echo "Deployment complete! Access the application at http://localhost:3000 (or your server IP)."

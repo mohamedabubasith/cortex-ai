@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  # Database Service (PostgreSQL + pgvector)
+  # Using pgvector image as it is required for Cognee vector search.
+  # If you specifically need TimescaleDB features, you would need a custom image combining both.
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: chatbot_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:-admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-admin}
+      POSTGRES_DB: ${DB_NAME:-cognee_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-admin} -d ${DB_NAME:-cognee_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend Service
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: chatbot_backend
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      # Overrides or specific docker-compose vars can go here
+      # But mostly we rely on .env now
+      DB_HOST: db
+      APP_DB_HOST: db
+      
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./backend/data:/app/data
+    ports:
+      - "8000:8000"
+
+  # Frontend Service
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    container_name: chatbot_frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+
+volumes:
+  postgres_data:
