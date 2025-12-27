@@ -17,12 +17,12 @@ api.interceptors.request.use((config) => {
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }
-    
+
     // Fix for multipart/form-data: Remove Content-Type to let browser set boundary
     if (config.data instanceof FormData) {
         delete config.headers["Content-Type"];
     }
-    
+
     return config;
 });
 
@@ -31,9 +31,16 @@ api.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response?.status === 401) {
-            // Handle unauthorized
+            // Don't redirect if it's a login attempt failure
+            if (error.config?.url?.includes("/auth/token")) {
+                return Promise.reject(error);
+            }
+            // Handle unauthorized for other requests
             localStorage.removeItem("token");
-            window.location.href = "/login";
+            // Only redirect if not already on the login page (root)
+            if (window.location.pathname !== "/") {
+                window.location.href = "/";
+            }
         }
         return Promise.reject(error);
     }
