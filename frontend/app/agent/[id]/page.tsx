@@ -207,6 +207,12 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
         );
     };
 
+    const tabs = [
+        { id: "agent", label: "Agent" },
+        { id: "knowledge", label: "Knowledge Base" },
+        { id: "advanced", label: "Advanced" },
+    ];
+
     return (
         <div className={cn(
             "flex flex-col h-screen font-sans transition-colors duration-300",
