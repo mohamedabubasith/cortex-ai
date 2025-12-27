@@ -2,26 +2,10 @@ version: '3.8'
 
 services:
   # Database Service
-  # Using pgvector image as Cognee requires pgvector extension for vector search.
-  # This serves as the "internal postgres db" with vector capabilities.
-  db:
-    image: pgvector/pgvector:pg16
-    container_name: chatbot_db
-    restart: always
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: chatbot
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
-    ports:
-      - "5433:5432" # Exposed on 5433 to avoid conflicts with local Postgres
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+  # User provided external DB, so we don't need to run one.
+  # db:
+  #   image: pgvector/pgvector:pg16
+  #   ...
 
   # Backend Service (FastAPI + Cognee)
   backend:
@@ -30,38 +14,53 @@ services:
       dockerfile: Dockerfile
     container_name: chatbot_backend
     restart: always
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
-      # Connection to internal DB service
-      DATABASE_URL: postgresql+asyncpg://postgres:password@db:5432/chatbot
+      # Cognee Configuration (Standard DB vars)
+      DB_PROVIDER: postgres
+      DB_HOST: cognee-postgres
+      DB_PORT: 5432
+      DB_NAME: cognee_db
+      DB_USERNAME: admin
+      DB_PASSWORD: admin
+      
+      # App Configuration (APP_ prefix)
+      APP_DB_HOST: cognee-postgres
+      APP_DB_PORT: 5432
+      APP_DB_NAME: chat_db
+      APP_DB_USERNAME: admin
+      APP_DB_PASSWORD: admin
+      
+      # Legacy/Reference
+      COGNEE_DB_NAME: cognee_db
+      COGNEE_DB_USERNAME: admin
+      COGNEE_DB_PASSWORD: admin
+      
       # Environment
       ENVIRONMENT: production
       # Embedding Configuration
-      EMBEDDING_PROVIDER: fastembed
-      EMBEDDING_MODEL: sentence-transformers/all-MiniLM-L6-v2
-      EMBEDDING_DIMENSIONS: 384
-      # Cognee Relational DB
-      DB_PROVIDER: postgres
-      DB_HOST: db
-      DB_PORT: 5432
-      DB_NAME: cognee_db
-      DB_USERNAME: postgres
-      DB_PASSWORD: password
-      # Cognee Vector DB
-      VECTOR_DB_PROVIDER: pgvector
-      VECTOR_DB_URL: postgresql://postgres:password@db:5432/cognee_db
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-fastembed}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
+      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-384}
+      
+      
+      # Cognee Vector DB (Configured via DB params above)
+      VECTOR_DB_PROVIDER: ${VECTOR_DB_PROVIDER:-pgvector}
+      VECTOR_DB_URL: postgresql+asyncpg://admin:admin@cognee-postgres:5432/cognee_db
       ENABLE_BACKEND_ACCESS_CONTROL: "true"
+      REQUIRE_AUTHENTICATION: "true"
       LOG_LEVEL: DEBUG
-    env_file:
-      - .env
+      TOKENIZERS_PARALLELISM: "true"
     ports:
       - "8000:8000"
-    depends_on:
-      db:
-        condition: service_healthy
+    # depends_on:
+    #   db:
+    #     condition: service_healthy
     volumes:
       # Persist uploads
       - ./backend/uploads:/app/uploads
-      # Persist vector data (LanceDB)
+      # Persist vector data (LanceDB - deprecated but kept for volume structure)
       - ./backend/data:/app/data
 
   # Frontend Service (Next.js)

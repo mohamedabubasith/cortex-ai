@@ -11,8 +11,8 @@ class ChatRepository(BaseRepository[ChatSession]):
     async def create_session(self, session_id: str, agent_id: str) -> ChatSession:
         return await self.create({"id": session_id, "agent_id": agent_id})
 
-    async def add_message(self, session_id: str, role: str, content: str) -> Message:
-        message = Message(session_id=session_id, role=role, content=content)
+    async def add_message(self, session_id: str, role: str, content: str, thinking: Optional[str] = None) -> Message:
+        message = Message(session_id=session_id, role=role, content=content, thinking=thinking)
         self.db.add(message)
         await self.db.commit()
         return message

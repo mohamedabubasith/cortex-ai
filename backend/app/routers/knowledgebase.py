@@ -28,7 +28,7 @@ async def upload_kb_file(
     kb_service: KBService = Depends(get_kb_service)
 ):
     """Upload knowledge base file"""
-    allowed_extensions = ['.pdf', '.docx', '.txt', '.md', '.doc']
+    allowed_extensions = ['.pdf', '.docx', '.txt', '.md', '.doc', '.json', '.xlsx', '.xls', '.csv', '.pptx', '.ppt']
     file_ext = os.path.splitext(file.filename)[1].lower()
     print(f"DEBUG: Uploading file: {file.filename}, ext: {file_ext}")
     
@@ -95,13 +95,31 @@ async def upload_kb_file(
         
         return kb
         
+    except HTTPException:
+        # Re-raise HTTP exceptions (like file type validation, missing LLM config)
+        raise
     except Exception as e:
         print(f"ERROR in upload_kb_file: {e}")
         import traceback
         traceback.print_exc()
+        
+        # Clean up file if it was created
         if 'file_path' in locals() and os.path.exists(file_path):
-            os.remove(file_path)
-        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+            try:
+                os.remove(file_path)
+            except:
+                pass
+        
+        # Provide specific error messages
+        error_str = str(e).lower()
+        if "no space left" in error_str or "disk" in error_str:
+            raise HTTPException(status_code=507, detail="Server storage is full. Please contact administrator.")
+        elif "permission" in error_str or "access denied" in error_str:
+            raise HTTPException(status_code=500, detail="Server permission error. Please contact administrator.")
+        elif "too large" in error_str or "size" in error_str:
+            raise HTTPException(status_code=413, detail=f"File too large: {file.filename}")
+        else:
+            raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 @router.get("/{kb_id}/status")
 async def get_kb_status(
@@ -110,7 +128,7 @@ async def get_kb_status(
     kb_service: KBService = Depends(get_kb_service)
 ):
     """Get Cognee processing status"""
-    status = await kb_service.get_status(kb_id, current_user.id)
+    status = await kb_service.get_status(kb_id, current_user.id, user_email = current_user.email)
     
     if not status:
         raise HTTPException(status_code=404, detail="Not found")
@@ -123,7 +141,7 @@ async def get_kb_files(
     kb_service: KBService = Depends(get_kb_service)
 ):
     """Get all KB files"""
-    return await kb_service.get_all(current_user.id)
+    return await kb_service.get_all(current_user.id, user_email = current_user.email)
 
 @router.post("/{kb_id}/query")
 async def query_kb(
@@ -145,7 +163,7 @@ async def query_kb(
     if not llm_config:
         raise HTTPException(status_code=404, detail="LLM config not found")
     
-    result = await kb_service.query(kb_id, current_user.id, query_request.query, llm_config)
+    result = await kb_service.query(kb_id, current_user.id, query_request.query, llm_config, user_email = current_user.email)
     
     if not result["success"]:
         raise HTTPException(status_code=400, detail=result["message"])
@@ -159,7 +177,7 @@ async def delete_kb(
     kb_service: KBService = Depends(get_kb_service)
 ):
     """Delete KB"""
-    result = await kb_service.delete(kb_id, current_user.id)
+    result = await kb_service.delete(kb_id, current_user.id, user_email = current_user.email)
     
     if not result["success"]:
         raise HTTPException(status_code=404, detail=result["message"])

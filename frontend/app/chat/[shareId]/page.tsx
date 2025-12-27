@@ -3,12 +3,12 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import ChatInterface, { ChatSession } from "@/components/ChatInterface";
-import api from "@/lib/api";
 import config from "@/lib/config";
 
 interface Message {
     role: "user" | "assistant";
     content: string;
+    thinking?: string;
 }
 
 interface BackendSession {
@@ -30,22 +30,26 @@ export default function PublicChatPage() {
     const [sessionId, setSessionId] = useState<string | null>(null);
     const [agentName, setAgentName] = useState<string>("Cortex AI");
     const [agentFirstMessage, setAgentFirstMessage] = useState<string>("");
+    const [hasKB, setHasKB] = useState<boolean>(false);
     const [sessions, setSessions] = useState<ChatSession[]>([]);
     const [currentSessionId, setCurrentSessionId] = useState<string>("");
     const [loading, setLoading] = useState(true);
-    // Removed isFirstVisit flag for persistent session handling
 
     useEffect(() => {
         const initChat = async () => {
             if (params.shareId) {
+                const searchParams = new URLSearchParams(window.location.search);
+                const isNew = searchParams.get("new") === "true";
+
                 // Check if user was on a specific session (from localStorage)
                 const savedSessionId = localStorage.getItem(`currentSession_${params.shareId}`);
 
-                // IMPORTANT: Fetch agent info FIRST to get first_message
-                await fetchAgentInfo();
+                // IMPORTANT: Fetch agent info FIRST to get first_message and KB status
+                const firstMsg = await fetchAgentInfo();
 
                 // Then load sessions (will use first_message if needed)
-                await loadSessions(savedSessionId || undefined);
+                // If isNew is true, we pass "new" to loadSessions to force a fresh state
+                await loadSessions(isNew ? "new" : (savedSessionId || undefined), firstMsg);
             }
         };
 
@@ -59,6 +63,7 @@ export default function PublicChatPage() {
                 const data = await response.json();
                 setAgentName(data.name);
                 setAgentFirstMessage(data.first_message || "");
+                setHasKB(data.has_kb || false);
                 return data.first_message || "";
             }
         } catch (error) {
@@ -67,23 +72,12 @@ export default function PublicChatPage() {
         return "";
     };
 
-    const loadSessions = async (restoredSessionId?: string) => {
-        console.log(`[loadSessions] Fetching sessions for agent: ${params.shareId}`);
-
-        // Get current first message from state or fetch it
-        let firstMessage = agentFirstMessage;
-        if (!firstMessage) {
-            const response = await fetch(`${config.apiV1Url}/chat/public/${params.shareId}`);
-            if (response.ok) {
-                const data = await response.json();
-                firstMessage = data.first_message || "";
-            }
-        }
-
+    const loadSessions = async (restoredSessionId?: string, firstMsgFromFetch?: string) => {
         try {
+            const firstMessage = firstMsgFromFetch || agentFirstMessage;
+
             setLoading(true);
             const url = `${config.apiV1Url}/chat/public/${params.shareId}/sessions`;
-            console.log(`[loadSessions] Calling: ${url}`);
             const response = await fetch(url);
 
             if (response.ok) {
@@ -92,71 +86,105 @@ export default function PublicChatPage() {
                 // Convert backend sessions to frontend format
                 const sessionsList: ChatSession[] = backendSessions.map(s => ({
                     id: s.id,
-                    title: s.messages.find(m => m.role === "user")?.content.substring(0, 50) || "New chat",
+                    title: s.messages && s.messages.length > 0
+                        ? s.messages.find(m => m.role === "user")?.content.substring(0, 50) || "New chat"
+                        : "New chat",
                     timestamp: new Date(s.created_at).getTime()
                 }));
 
                 setSessions(sessionsList);
 
-                // If user was on a specific session (refresh), restore it
-                if (restoredSessionId && backendSessions.find(s => s.id === restoredSessionId)) {
-                    console.log(`[loadSessions] Restoring session: ${restoredSessionId}`);
-                    setCurrentSessionId(restoredSessionId);
-                    setSessionId(restoredSessionId);
-                    await loadSessionMessages(restoredSessionId);
-                } else if (backendSessions.length > 0) {
-                    // User has sessions but no saved session - load most recent
-                    const latest = backendSessions[0];
-                    setCurrentSessionId(latest.id);
-                    setSessionId(latest.id);
-                    await loadSessionMessages(latest.id);
-                } else {
-                    // First visit or no sessions - show new chat with first message
-                    console.log(`[loadSessions] First visit - showing first message: "${firstMessage}"`);
+                let sessionRestored = false;
+
+                // Handle 'new' state explicitly
+                if (restoredSessionId === "new") {
+                    console.log("[loadSessions] Initializing 'new' chat state");
                     setMessages(firstMessage ? [{ role: "assistant", content: firstMessage }] : []);
-                    setLoading(false);
+                    setSessionId(null);
+                    setCurrentSessionId("");
+                    localStorage.setItem(`currentSession_${params.shareId}`, "new");
+                    sessionRestored = true;
                 }
-            } else if (response.status === 404) {
-                // Agent not found
-                console.error("Agent not found");
-                setLoading(false);
+                // If user was on a specific session (refresh), try to restore it
+                else if (restoredSessionId) {
+                    const inList = backendSessions.find(s => s.id === restoredSessionId);
+                    if (inList) {
+                        setCurrentSessionId(restoredSessionId);
+                        setSessionId(restoredSessionId);
+                        await loadSessionMessages(restoredSessionId, firstMessage);
+                        sessionRestored = true;
+                    } else {
+                        const success = await loadSessionMessages(restoredSessionId, firstMessage);
+                        if (success) {
+                            setCurrentSessionId(restoredSessionId);
+                            setSessionId(restoredSessionId);
+                            sessionRestored = true;
+                            setSessions(prev => [
+                                { id: restoredSessionId, title: "Restored Session", timestamp: Date.now() },
+                                ...prev
+                            ]);
+                        }
+                    }
+                }
+
+                if (!sessionRestored) {
+                    if (backendSessions.length > 0) {
+                        const latest = backendSessions[0];
+                        setCurrentSessionId(latest.id);
+                        setSessionId(latest.id);
+                        localStorage.setItem(`currentSession_${params.shareId}`, latest.id);
+                        await loadSessionMessages(latest.id, firstMessage);
+                    } else {
+                        setMessages(firstMessage ? [{ role: "assistant", content: firstMessage }] : []);
+                    }
+                }
             } else {
-                // No sessions yet - show new chat with first message
-                console.log(`[loadSessions] No sessions - showing first message: "${firstMessage}"`);
                 setMessages(firstMessage ? [{ role: "assistant", content: firstMessage }] : []);
-                setLoading(false);
             }
         } catch (error) {
             console.error("Failed to load sessions", error);
+            const firstMessage = firstMsgFromFetch || agentFirstMessage;
             setMessages(firstMessage ? [{ role: "assistant", content: firstMessage }] : []);
+        } finally {
             setLoading(false);
         }
     };
 
-    const loadSessionMessages = async (sessionIdToLoad: string) => {
+    const loadSessionMessages = async (sessionIdToLoad: string, firstMsgFromFetch?: string): Promise<boolean> => {
         try {
+            const firstMessage = firstMsgFromFetch || agentFirstMessage;
             const response = await fetch(`${config.apiV1Url}/chat/public/${params.shareId}/sessions/${sessionIdToLoad}/messages`);
 
             if (response.ok) {
                 const backendMessages = await response.json();
                 const messagesList: Message[] = backendMessages.map((m: any) => ({
                     role: m.role as "user" | "assistant",
-                    content: m.content
+                    content: m.content,
+                    thinking: m.thinking
                 }));
-                setMessages(messagesList);
+
+                if (messagesList.length === 0 && firstMessage) {
+                    setMessages([{ role: "assistant", content: firstMessage }]);
+                } else {
+                    setMessages(messagesList);
+                }
+
+                setLoading(false);
+                return true;
             }
+            return false;
         } catch (error) {
-            console.error("Failed to load messages", error);
-        } finally {
-            setLoading(false);
+            console.error("Failed to load session messages", error);
+            return false;
         }
     };
 
-    const createNewSession = () => {
+    const createNewSession = (firstMsgFromFetch?: string) => {
+        const firstMessage = firstMsgFromFetch || agentFirstMessage;
         setCurrentSessionId("");
         setSessionId(null);
-        setMessages(agentFirstMessage ? [{ role: "assistant", content: agentFirstMessage }] : []);
-        localStorage.removeItem(`currentSession_${params.shareId}`);
+        setMessages(firstMessage ? [{ role: "assistant", content: firstMessage }] : []);
+        localStorage.setItem(`currentSession_${params.shareId}`, "new");
     };
 
     const handleSelectSession = async (selectedSessionId: string) => {
@@ -168,25 +196,17 @@ export default function PublicChatPage() {
 
     const handleDeleteSession = async (sessionIdToDelete: string) => {
         try {
-            // Call backend to delete the session
             const response = await fetch(
                 `${config.apiV1Url}/chat/public/${params.shareId}/sessions/${sessionIdToDelete}`,
                 { method: 'DELETE' }
             );
 
             if (response.ok) {
-                console.log(`[handleDeleteSession] Session ${sessionIdToDelete} deleted successfully`);
-
-                // If we deleted the current session, switch to another one or create new
                 if (sessionIdToDelete === currentSessionId) {
-                    // Reload all sessions and load the most recent one
                     await loadSessions();
                 } else {
-                    // Just remove from the list
                     setSessions(prev => prev.filter(s => s.id !== sessionIdToDelete));
                 }
-            } else {
-                console.error("Failed to delete session");
             }
         } catch (error) {
             console.error("Failed to delete session", error);
@@ -196,124 +216,106 @@ export default function PublicChatPage() {
     const handleSendMessage = async (message: string) => {
         setIsStreaming(true);
 
-        // Add user message optimistically
         const userMessage = { role: "user" as const, content: message };
-        // Create placeholder for assistant message immediately to show typing indicator
         setMessages((prev) => [...prev, userMessage, { role: "assistant", content: "" }]);
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 180000); // 3 min timeout
+        const timeoutId = setTimeout(() => controller.abort(), 180000);
 
         try {
             const response = await fetch(`${config.apiV1Url}/chat/public/${params.shareId}/chat`, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    message,
-                    session_id: sessionId,
-                    model: "default"
-                }),
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ message, session_id: sessionId }),
                 signal: controller.signal
             });
 
             clearTimeout(timeoutId);
 
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`Server error: ${response.status} - ${errorText}`);
-            }
+            if (!response.ok) throw new Error(`Server error: ${response.status}`);
             if (!response.body) throw new Error("No response body");
-
-            // Assistant message is already in the list (last item)
 
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
             let assistantMessage = "";
+            let assistantThinking = "";
+            let isThinkingMode = false;
             let updateScheduled = false;
-            let chunkCount = 0;
-            const maxChunks = 10000; // Safety limit
 
-            // Function to update UI with batching
             const updateUI = () => {
                 setMessages((prev) => {
                     const updated = [...prev];
-                    updated[updated.length - 1] = { role: "assistant", content: assistantMessage };
+                    updated[updated.length - 1] = {
+                        role: "assistant",
+                        content: assistantMessage,
+                        thinking: assistantThinking || undefined
+                    };
                     return updated;
                 });
                 updateScheduled = false;
             };
 
-            // Read stream with error handling
             try {
                 while (true) {
                     const { done, value } = await reader.read();
                     if (done) break;
 
-                    chunkCount++;
+                    let chunk = decoder.decode(value, { stream: true });
 
-                    // Safety check for very long responses
-                    if (chunkCount > maxChunks) {
-                        console.warn(`Exceeded max chunks (${maxChunks}), stopping stream`);
-                        assistantMessage += "\n\n[Response truncated - maximum length reached]";
-                        updateUI();
-                        break;
+                    // Robust parsing: process markers sequentially within the chunk
+                    let remaining = chunk;
+                    while (remaining.length > 0) {
+                        if (isThinkingMode) {
+                            const endIdx = remaining.indexOf("</THINK>");
+                            if (endIdx !== -1) {
+                                assistantThinking += remaining.substring(0, endIdx);
+                                isThinkingMode = false;
+                                remaining = remaining.substring(endIdx + 8); // length of </THINK>
+                            } else {
+                                assistantThinking += remaining;
+                                remaining = "";
+                            }
+                        } else {
+                            const startIdx = remaining.indexOf("<THINK>");
+                            if (startIdx !== -1) {
+                                assistantMessage += remaining.substring(0, startIdx);
+                                isThinkingMode = true;
+                                remaining = remaining.substring(startIdx + 7); // length of <THINK>
+                            } else {
+                                assistantMessage += remaining;
+                                remaining = "";
+                            }
+                        }
                     }
 
-                    const chunk = decoder.decode(value, { stream: true });
-                    assistantMessage += chunk;
-
-                    // Batch updates using requestAnimationFrame to prevent too many re-renders
                     if (!updateScheduled) {
                         updateScheduled = true;
                         requestAnimationFrame(updateUI);
                     }
                 }
-            } catch (streamError) {
-                console.error("Stream reading error:", streamError);
-                assistantMessage += "\n\n[Stream interrupted]";
             } finally {
                 reader.releaseLock();
             }
 
-            // Final update to ensure we have the complete message
             updateUI();
 
-            // Update session ID if it was created during this chat
-            if (!sessionId && response.headers.get('x-session-id')) {
-                const newSessionId = response.headers.get('x-session-id');
+            const newSessionId = response.headers.get('x-session-id');
+            if (!sessionId && newSessionId) {
                 setSessionId(newSessionId);
-                setCurrentSessionId(newSessionId || '');
-                if (newSessionId) {
-                    localStorage.setItem(`currentSession_${params.shareId}`, newSessionId);
+                setCurrentSessionId(newSessionId);
+                localStorage.setItem(`currentSession_${params.shareId}`, newSessionId);
 
-                    // Add to sessions list immediately
-                    setSessions(prev => [
-                        {
-                            id: newSessionId,
-                            title: message.substring(0, 50) || "New chat",
-                            timestamp: Date.now()
-                        },
-                        ...prev
-                    ]);
-                }
+                setSessions(prev => [
+                    { id: newSessionId, title: message.substring(0, 50) || "New chat", timestamp: Date.now() },
+                    ...prev
+                ]);
             }
 
         } catch (error: any) {
             console.error("Failed to send message:", error);
-
-            // Display error message to user
-            let errorMsg = "Error: Failed to get response.";
-            if (error.name === 'AbortError') {
-                errorMsg = "Error: Request timed out. The response took too long.";
-            } else if (error.message) {
-                errorMsg = `Error: ${error.message}`;
-            }
-
+            const errorMsg = error.name === 'AbortError' ? "Error: Request timed out." : `Error: ${error.message}`;
             setMessages((prev) => {
                 const updated = [...prev];
-                // Replace empty assistant message with error
                 if (updated[updated.length - 1]?.role === "assistant" && !updated[updated.length - 1]?.content) {
                     updated[updated.length - 1] = { role: "assistant", content: errorMsg };
                 } else {
@@ -328,7 +330,6 @@ export default function PublicChatPage() {
     };
 
     const handleRetryMessage = async (messageIndex: number) => {
-        // Find the user message that preceded this error message
         let userMessageIndex = -1;
         for (let i = messageIndex - 1; i >= 0; i--) {
             if (messages[i].role === "user") {
@@ -339,16 +340,8 @@ export default function PublicChatPage() {
 
         if (userMessageIndex !== -1) {
             const userMessage = messages[userMessageIndex].content;
-            console.log(`[handleRetryMessage] Retrying message: "${userMessage}"`);
-
-            // Remove everything from the user message onwards (includes user msg + error)
-            // This prevents duplicates since handleSendMessage adds user message optimistically
             setMessages(prev => prev.slice(0, userMessageIndex));
-
-            // Small delay to prevent flicker
             await new Promise(resolve => setTimeout(resolve, 100));
-
-            // Resend the message
             await handleSendMessage(userMessage);
         }
     };
@@ -367,9 +360,10 @@ export default function PublicChatPage() {
             onSendMessage={handleSendMessage}
             isStreaming={isStreaming}
             agentName={agentName}
+            hasKB={hasKB}
             sessions={sessions}
             currentSessionId={currentSessionId}
-            onNewChat={createNewSession}
+            onNewChat={() => createNewSession()}
             onSelectSession={handleSelectSession}
             onDeleteSession={handleDeleteSession}
             onRetryMessage={handleRetryMessage}

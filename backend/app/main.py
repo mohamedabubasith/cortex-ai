@@ -8,7 +8,7 @@ import logging
 import os
 
 # Configure logging
-log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+log_level = settings.LOG_LEVEL.upper()
 logging.basicConfig(
     level=getattr(logging, log_level),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -18,9 +18,40 @@ if log_level == "DEBUG":
     logging.getLogger("cognee").setLevel(logging.DEBUG)
     logging.getLogger("dlt").setLevel(logging.DEBUG)
 
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup logic
+    # Validate critical configuration
+    settings.validate_providers()
+
+    from app.services.cognee_service import cognee_service
+    from app.core.database import engine, Base
+    # Import models to ensure they are registered with Base
+    from app.models import models
+    
+    # Create tables automatically (User's request)
+    # Handle race conditions gracefully by ignoring errors if tables already exist
+    try:
+        print("DEBUG: Starting automatic table creation...", flush=True)
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        print("DEBUG: Automatic table creation completed.", flush=True)
+    except Exception as e:
+        print(f"DEBUG: Database table creation warning (likely race condition, safe to ignore): {e}", flush=True)
+        
+    # Initialize Cognee (creates tables if needed)
+    print("DEBUG: Calling cognee_service.initialize()...", flush=True)
+    await cognee_service.initialize()
+    
+    yield
+    # Shutdown logic (if any)
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    openapi_url=f"{settings.API_V1_STR}/openapi.json"
+    openapi_url=f"{settings.API_V1_STR}/openapi.json",
+    lifespan=lifespan
 )
 
 # CORS
@@ -30,6 +61,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["x-session-id"],
 )
 
 from fastapi.exceptions import RequestValidationError
@@ -62,30 +94,3 @@ app.include_router(resources.router, prefix=f"{settings.API_V1_STR}/resources", 
 app.include_router(knowledgebase.router, prefix=f"{settings.API_V1_STR}/kb", tags=["knowledge-base"])
 app.include_router(llm.router, prefix=f"{settings.API_V1_STR}/llm", tags=["llm-config"])
 app.include_router(analytics.router, prefix=f"{settings.API_V1_STR}/analytics", tags=["analytics"])
-# from app.routers import databases
-# app.include_router(databases.router, prefix=f"{settings.API_V1_STR}/projects/{{project_id}}/databases", tags=["databases"])
-
-@app.on_event("startup")
-async def startup_event():
-    from app.services.cognee_service import cognee_service
-    from app.core.database import engine, Base
-    # Import models to ensure they are registered with Base
-    from app.models import models
-    
-    # Create tables automatically (User's request)
-    # Create tables automatically (User's request)
-    # Create tables automatically (User's request)
-    # Handle race conditions gracefully by ignoring errors if tables already exist
-    try:
-        print("DEBUG: Starting automatic table creation...", flush=True)
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-        print("DEBUG: Automatic table creation completed.", flush=True)
-    except Exception as e:
-        # If multiple workers try to create tables at once, some might fail.
-        # This is expected and safe to ignore if the tables end up existing.
-        print(f"DEBUG: Database table creation warning (likely race condition, safe to ignore): {e}", flush=True)
-        
-    # Initialize Cognee (creates tables if needed)
-    print("DEBUG: Calling cognee_service.initialize()...", flush=True)
-    await cognee_service.initialize()

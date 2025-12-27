@@ -3,18 +3,19 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   output: "standalone",
   async rewrites() {
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
     return [
       {
         source: "/api/:path*",
-        destination: "http://backend:8000/api/:path*", // Proxy to Backend
+        destination: `${backendUrl}/api/:path*`, // Proxy to Backend
       },
       {
         source: "/docs",
-        destination: "http://backend:8000/docs", // Proxy to Docs
+        destination: `${backendUrl}/docs`, // Proxy to Docs
       },
       {
         source: "/openapi.json",
-        destination: "http://backend:8000/openapi.json", // Proxy to OpenAPI
+        destination: `${backendUrl}/openapi.json`, // Proxy to OpenAPI
       },
     ];
   },

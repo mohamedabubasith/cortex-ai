@@ -31,22 +31,19 @@ class DatabaseService:
     async def test_connection(self, connection: models.DatabaseConnection) -> bool:
         password = self.decrypt_password(connection.encrypted_password)
         
-        try:
-            if connection.type == "postgres":
-                conn = await asyncpg.connect(
-                    user=connection.username,
-                    password=password,
-                    database=connection.database_name,
-                    host=connection.host,
-                    port=connection.port
-                )
-                await conn.close()
-                return True
-            # Add other drivers here (mysql, mongo)
-            return False
-        except Exception as e:
-            print(f"Connection failed: {e}")
-            return False
+        if connection.type == "postgres":
+            conn = await asyncpg.connect(
+                user=connection.username,
+                password=password,
+                database=connection.database_name,
+                host=connection.host,
+                port=connection.port
+            )
+            await conn.close()
+            return True
+        else:
+            raise ValueError(f"Unsupported database type: {connection.type}")
+
 
     async def execute_query(self, connection: models.DatabaseConnection, query: str):
         password = self.decrypt_password(connection.encrypted_password)

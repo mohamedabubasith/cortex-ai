@@ -16,6 +16,7 @@ interface ChatWindowProps {
     onSendMessage: (message: string) => Promise<void>;
     isStreaming?: boolean;
     agentName?: string;
+    hasKB?: boolean;
     theme?: "dark" | "light";
     onToggleTheme?: () => void;
     onToggleSidebar?: () => void;
@@ -28,6 +29,7 @@ export default function ChatWindow({
     onSendMessage,
     isStreaming = false,
     agentName = "Cortex AI",
+    hasKB = false,
     theme = "dark",
     onToggleTheme,
     onToggleSidebar,
@@ -87,13 +89,13 @@ export default function ChatWindow({
     return (
         <div className={cn(
             "flex flex-col flex-1 overflow-hidden relative transition-all duration-300",
-            theme === 'dark' ? "bg-black" : "bg-gray-50"
+            theme === 'dark' ? "bg-[#05070A]" : "bg-gray-50"
         )}>
             {/* Header */}
             <motion.div
                 className={cn(
-                    "border-b backdrop-blur-lg px-4 py-3 flex items-center justify-between sticky top-0 z-10 transition-colors duration-300",
-                    theme === 'dark' ? "bg-[#0B0F19]/90 border-gray-800" : "bg-white/90 border-gray-200"
+                    "border-b backdrop-blur-xl px-4 py-3 flex items-center justify-between sticky top-0 z-10 transition-colors duration-300",
+                    theme === 'dark' ? "bg-[#05070A]/80 border-white/5" : "bg-white/90 border-gray-200"
                 )}
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -159,7 +161,7 @@ export default function ChatWindow({
                 ref={messagesContainerRef}
                 className={cn(
                     "flex-1 overflow-y-auto transition-colors duration-300",
-                    theme === 'dark' ? "bg-black" : "bg-gray-50"
+                    theme === 'dark' ? "bg-[#05070A]" : "bg-gray-50"
                 )}
             >
                 <div className="max-w-3xl mx-auto p-2 md:p-4 space-y-6">
@@ -169,31 +171,14 @@ export default function ChatWindow({
                                 key={index}
                                 message={msg}
                                 theme={theme}
+                                isStreaming={isStreaming && index === messages.length - 1}
+                                hasKB={hasKB}
                                 onRetry={onRetryMessage ? () => onRetryMessage(index) : undefined}
                             />
                         ))}
                     </AnimatePresence>
 
-                    {isStreaming && messages[messages.length - 1]?.role === "assistant" && !messages[messages.length - 1]?.content && (
-                        <motion.div
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="flex w-full justify-start"
-                        >
-                            <div className="flex items-start space-x-3">
-                                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[#76B900] flex items-center justify-center text-black shadow-lg shadow-[#76B900]/20">
-                                    <Bot className="w-4 h-4" />
-                                </div>
-                                <div className="p-4 rounded-2xl rounded-tl-sm bg-transparent pl-0">
-                                    <div className="flex space-x-1.5">
-                                        <div className="w-1.5 h-1.5 bg-[#76B900] rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                                        <div className="w-1.5 h-1.5 bg-[#76B900] rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                                        <div className="w-1.5 h-1.5 bg-[#76B900] rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-                                    </div>
-                                </div>
-                            </div>
-                        </motion.div>
-                    )}
+
 
                     <div ref={messagesEndRef} />
                 </div>
@@ -201,8 +186,8 @@ export default function ChatWindow({
 
             {/* Input Area */}
             <div className={cn(
-                "border-t backdrop-blur-lg p-3 md:p-4 sticky bottom-0 transition-colors duration-300",
-                theme === 'dark' ? "bg-[#0B0F19]/90 border-gray-800" : "bg-white/90 border-gray-200"
+                "border-t backdrop-blur-xl p-3 md:p-4 sticky bottom-0 transition-colors duration-300",
+                theme === 'dark' ? "bg-[#05070A]/80 border-white/5" : "bg-white/90 border-gray-200"
             )}>
                 <div className="max-w-3xl mx-auto">
                     <motion.form
@@ -236,7 +221,13 @@ export default function ChatWindow({
                             <textarea
                                 ref={textareaRef}
                                 value={input}
-                                onChange={(e) => setInput(e.target.value)}
+                                onChange={(e) => {
+                                    setInput(e.target.value);
+                                    // Auto-hide sidebar when user starts typing (like ChatGPT)
+                                    if (sidebarOpen && onToggleSidebar) {
+                                        onToggleSidebar();
+                                    }
+                                }}
                                 onKeyDown={handleKeyDown}
                                 placeholder="Message Cortex AI..."
                                 className={cn(

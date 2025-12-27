@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Cpu, Trash2, Loader2, Plus, Save, X, Edit2 } from "lucide-react";
 import api from "@/lib/api";
+import { useToast } from "@/components/ui/Toast";
 
 import Dialog from "@/components/ui/Dialog";
 
@@ -16,6 +17,7 @@ interface LLMConfig {
 }
 
 export default function LLMPage() {
+    const { toast } = useToast();
     const [llmConfigs, setLlmConfigs] = useState<LLMConfig[]>([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -47,6 +49,7 @@ export default function LLMPage() {
             setLlmConfigs(response.data);
         } catch (error) {
             console.error("Failed to fetch LLM configs", error);
+            toast("Failed to fetch LLM configurations", "error");
         } finally {
             setLoading(false);
         }
@@ -57,15 +60,17 @@ export default function LLMPage() {
         try {
             if (editingId) {
                 await api.put(`/llm/${editingId}`, newConfig);
+                toast("Configuration updated successfully", "success");
             } else {
                 await api.post("/llm", newConfig);
+                toast("Configuration created successfully", "success");
             }
             setIsModalOpen(false);
             resetForm();
             fetchLLMs();
         } catch (error) {
             console.error("Failed to save LLM config", error);
-            alert("Failed to save configuration. Please check your inputs.");
+            toast("Failed to save configuration. Please check your inputs.", "error");
         } finally {
             setCreating(false);
         }
@@ -90,7 +95,7 @@ export default function LLMPage() {
 
     const handleTestConnection = async () => {
         if (!newConfig.api_key) {
-            alert("Please enter an API Key to test.");
+            toast("Please enter an API Key to test.", "warning");
             return;
         }
         setTesting(true);
@@ -101,10 +106,11 @@ export default function LLMPage() {
                 api_key: newConfig.api_key,
                 base_url: newConfig.base_url
             });
-            alert("Connection successful!");
-        } catch (error) {
+            toast("Connection successful!", "success");
+        } catch (error: any) {
             console.error("Test connection failed", error);
-            alert("Connection failed. Please check your credentials.");
+            const errorMessage = error.response?.data?.detail || error.message || "Connection failed. Please check your credentials.";
+            toast(errorMessage, "error");
         } finally {
             setTesting(false);
         }
@@ -119,9 +125,11 @@ export default function LLMPage() {
         if (!configToDelete) return;
         try {
             await api.delete(`/llm/${configToDelete}`);
+            toast("Configuration deleted successfully", "success");
             fetchLLMs();
         } catch (error) {
             console.error("Failed to delete LLM config", error);
+            toast("Failed to delete configuration", "error");
         } finally {
             setDeleteDialogOpen(false);
             setConfigToDelete(null);

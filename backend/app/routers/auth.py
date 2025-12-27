@@ -1,6 +1,6 @@
 from datetime import timedelta
 from typing import Any
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -8,6 +8,9 @@ from app.core.database import get_db
 from app.core.config import settings
 from app.schemas import schemas
 from app.services.auth_service import AuthService
+from app.services.email_service import EmailService
+from app.repositories.user_repository import UserRepository
+from app.models import models
 
 router = APIRouter()
 
@@ -42,8 +45,41 @@ async def register_user(
 @router.post("/forgot-password")
 async def forgot_password(
     request: schemas.ForgotPasswordRequest,
+    background_tasks: BackgroundTasks,
+    service: AuthService = Depends(get_auth_service),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Trigger password recovery email.
+    """
+    # Check if user exists
+    user_repo = UserRepository(models.User, db)
+    user = await user_repo.get_by_email(request.email)
+    
+    if user:
+        # Generate token
+        token = service.create_password_reset_token(request.email)
+        # Send email in background
+        email_service = EmailService()
+        background_tasks.add_task(
+            email_service.send_reset_password_email,
+            request.email,
+            token
+        )
+    
+    # Always return success to prevent email enumeration
+    if settings.EMAIL_PROVIDER == "console":
+        return {"message": "Development Mode: Check server logs for password reset link."}
+        
+    return {"message": "If this email is registered, you will receive a password reset link."}
+
+@router.post("/reset-password")
+async def reset_password(
+    body: schemas.NewPassword,
     service: AuthService = Depends(get_auth_service)
 ):
-    # Placeholder for actual email sending logic
-    # In a real app, we would verify email exists and send a reset link
-    return {"message": "If this email is registered, you will receive a password reset link."}
+    """
+    Reset password using token.
+    """
+    await service.reset_password(body.token, body.new_password)
+    return {"message": "Password updated successfully"}

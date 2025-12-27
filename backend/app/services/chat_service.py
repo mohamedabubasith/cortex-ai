@@ -9,6 +9,10 @@ from app.repositories.analytics_repository import AnalyticsRepository
 from app.services.llm_service import llm_service
 from app.services.kb_service import KBService
 from app.repositories.kb_repository import KBRepository
+import logging
+import tiktoken
+
+logger = logging.getLogger(__name__)
 
 class ChatService:
     def __init__(self, db: AsyncSession):
@@ -16,6 +20,13 @@ class ChatService:
         self.agent_repo = AgentRepository(models.Agent, db)
         self.analytics_repo = AnalyticsRepository(db)
         self.db = db
+
+    def _count_tokens(self, text: str, model: str = "gpt-4o") -> int:
+        try:
+            encoding = tiktoken.encoding_for_model(model)
+        except KeyError:
+            encoding = tiktoken.get_encoding("cl100k_base")
+        return len(encoding.encode(text))
 
     async def get_public_agent(self, share_token: str) -> models.Agent:
         agent = await self.agent_repo.get_by_share_token(share_token)
@@ -75,20 +86,49 @@ class ChatService:
             history = await self.chat_repo.get_history(session_id)
             messages = [{"role": m.role, "content": m.content} for m in history]
 
+            # 3.5 Prune History based on Context Window
+            context_window = getattr(agent.llm_config, 'context_window', 128000) or 128000
+            # Reserve tokens for response (e.g. 4096)
+            max_input_tokens = context_window - 4096
+            
+            system_prompt_tokens = 0
+            if agent.system_prompt:
+                system_prompt_tokens = self._count_tokens(agent.system_prompt, agent.llm_config.model)
+            
+            current_tokens = system_prompt_tokens
+            kept_messages = []
+            
+            # Process from newest to oldest
+            for msg in reversed(messages):
+                msg_content = msg.get("content", "")
+                msg_tokens = self._count_tokens(msg_content, agent.llm_config.model)
+                
+                if current_tokens + msg_tokens > max_input_tokens:
+                    # If we can't fit this message, stop adding older messages
+                    # But always ensure we have at least the last message (the user query)
+                    if not kept_messages:
+                         kept_messages.append(msg)
+                    break
+                
+                current_tokens += msg_tokens
+                kept_messages.append(msg)
+            
+            # Restore order
+            messages = list(reversed(kept_messages))
+
             # 4. RAG: Retrieve Context
             context_parts = []
             
             # Debug: Log KB selection
-            print(f"DEBUG process_chat: Agent ID: {agent.id}, Agent Name: {agent.name}")
-            print(f"DEBUG process_chat: Number of linked KBs: {len(agent.knowledge_bases) if agent.knowledge_bases else 0}")
-            if agent.knowledge_bases:
-                for kb in agent.knowledge_bases:
-                    print(f"DEBUG process_chat: Linked KB: {kb.id} - {kb.name}")
+            logger.info(f"RAG Check: Agent ID: {agent.id}, Name: {agent.name}")
+            logger.info(f"RAG Check: Linked KBs: {len(agent.knowledge_bases) if agent.knowledge_bases else 0}")
             
             if agent.knowledge_bases and agent.llm_config:
                 dataset_names = [f"doc_{kb.id}" for kb in agent.knowledge_bases]
+                for kb in agent.knowledge_bases:
+                    logger.info(f"RAG Check: Linked KB: {kb.id} - {kb.name} (Status: {kb.status})")
                 
-                print(f"DEBUG process_chat: Querying datasets: {dataset_names} for user: {agent.owner.email if agent.owner else None}")
+                logger.info(f"RAG Query: Datasets: {dataset_names}, Query: {message[:50]}...")
                 
                 # Initialize KB Service (lightweight)
                 kb_repo = KBRepository(self.db)
@@ -103,21 +143,21 @@ class ChatService:
                         user_email=agent.owner.email if agent.owner else None  # Use owner email
                     )
                     if search_result and search_result.get("success") and search_result.get("data"):
-                        print(f"DEBUG process_chat: Search returned {len(search_result['data'])} results")
+                        logger.info(f"RAG Success: Found {len(search_result['data'])} results")
                         # Format results
                         for result in search_result["data"]:
                             # Assuming result is a string or dict with 'text'
                             text = result.get("text", str(result)) if isinstance(result, dict) else str(result)
                             context_parts.append(text)
                     else:
-                        print(f"DEBUG process_chat: No search results returned")
+                        logger.info(f"RAG Info: No results found for query")
                 except Exception as e:
-                    print(f"RAG Error: {e}")
+                    logger.error(f"RAG Error: {e}")
             else:
                 if not agent.knowledge_bases:
-                    print(f"DEBUG process_chat: No KBs linked to this agent, skipping RAG")
+                    logger.info(f"RAG Skip: No KBs linked to this agent")
                 if not agent.llm_config:
-                    print(f"DEBUG process_chat: No LLM config for this agent")
+                    logger.info(f"RAG Skip: No LLM config for this agent")
             
             if context_parts:
                 full_context = "\n\n".join(context_parts)
@@ -127,12 +167,25 @@ class ChatService:
 
             # 5. Stream Response
             full_response = ""
+            full_thinking = ""
+            is_thinking = False
+            
             async for chunk in llm_service.stream_chat(agent, messages):
-                full_response += chunk
-                yield chunk
+                if chunk == "<THINK>":
+                    is_thinking = True
+                    yield chunk
+                elif chunk == "</THINK>":
+                    is_thinking = False
+                    yield chunk
+                else:
+                    if is_thinking:
+                        full_thinking += chunk
+                    else:
+                        full_response += chunk
+                    yield chunk
 
             # 6. Save Assistant Message
-            await self.chat_repo.add_message(session_id, "assistant", full_response)
+            await self.chat_repo.add_message(session_id, "assistant", full_response, thinking=full_thinking if full_thinking else None)
             
             # 7. Log analytics with token usage
             token_usage = llm_service.get_last_token_usage()

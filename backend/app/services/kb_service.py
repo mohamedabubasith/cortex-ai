@@ -58,11 +58,11 @@ class KBService:
             logger.error(f"Background processing failed: {e}")
             await self.kb_repo.update_status(kb_id, "failed")
 
-    async def _sync_status(self, kb):
+    async def _sync_status(self, kb, user_email: str = None):
         """Sync DB status with Cognee status"""
         if kb.status in ["processing", "pending"]:
             dataset_name = f"doc_{kb.id}"
-            status_info = await cognee_service.get_status(dataset_name)
+            status_info = await cognee_service.get_status(dataset_name, user_email = user_email)
             cognee_status = status_info.get("status")
             
             print(f"DEBUG: Syncing status for {kb.id}. Cognee returned: {status_info}")
@@ -78,7 +78,7 @@ class KBService:
                 kb.status = "failed"
             # If still processing/initiated, keep as is
 
-    async def get_status(self, kb_id: str, user_id: str) -> Dict[str, Any]:
+    async def get_status(self, kb_id: str, user_id: str, user_email: str = None) -> Dict[str, Any]:
         """Get KB status with Cognee pipeline status"""
         kb = await self.kb_repo.get_by_id(kb_id, user_id)
         
@@ -86,23 +86,23 @@ class KBService:
             return None
         
         # Sync status
-        await self._sync_status(kb)
+        await self._sync_status(kb, user_email = user_email)
         
         dataset_name = f"doc_{kb.id}"
-        cognee_status = await cognee_service.get_status(dataset_name)
+        cognee_status = await cognee_service.get_status(dataset_name, user_email = user_email)
         
         # Simplified response as requested
         return {
             "status": cognee_status.get("status")
         }
     
-    async def get_all(self, user_id: str):
+    async def get_all(self, user_id: str, user_email: str = None):
         """Get all KB files and sync status"""
         kbs = await self.kb_repo.get_all(user_id)
         
         # Sync status for processing items
         for kb in kbs:
-            await self._sync_status(kb)
+            await self._sync_status(kb, user_email = user_email)
             
         return kbs
     
@@ -126,7 +126,7 @@ class KBService:
         """Query multiple datasets directly"""
         return await cognee_service.search(query_text, dataset_names, llm_config, user_email=user_email)
     
-    async def delete(self, kb_id: str, user_id: str) -> Dict[str, Any]:
+    async def delete(self, kb_id: str, user_id: str, user_email: str = None) -> Dict[str, Any]:
         """Delete KB"""
         kb = await self.kb_repo.get_by_id(kb_id, user_id)
         
@@ -135,7 +135,7 @@ class KBService:
         
         # Delete from Cognee
         dataset_name = f"doc_{kb.id}"
-        await cognee_service.delete_dataset(dataset_name)
+        await cognee_service.delete_dataset(dataset_name, user_email = user_email)
         
         # Delete file
         if os.path.exists(kb.file_path):

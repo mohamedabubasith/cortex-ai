@@ -7,15 +7,13 @@ import logging
 import os
 import asyncio
 from typing import Dict, Any, List, Optional
+from app.core.config import settings
 
 # CRITICAL: Set embedding provider BEFORE importing cognee
 # This ensures Cognee reads the correct configuration during module initialization
-if os.getenv("EMBEDDING_PROVIDER"):
-    os.environ["EMBEDDING_PROVIDER"] = os.getenv("EMBEDDING_PROVIDER")
-if os.getenv("EMBEDDING_MODEL"):
-    os.environ["EMBEDDING_MODEL"] = os.getenv("EMBEDDING_MODEL")
-if os.getenv("EMBEDDING_DIMENSIONS"):
-    os.environ["EMBEDDING_DIMENSIONS"] = os.getenv("EMBEDDING_DIMENSIONS")
+os.environ["EMBEDDING_PROVIDER"] = settings.EMBEDDING_PROVIDER
+os.environ["EMBEDDING_MODEL"] = settings.EMBEDDING_MODEL
+os.environ["EMBEDDING_DIMENSIONS"] = str(settings.EMBEDDING_DIMENSIONS)
 
 # Set persistent data path for Cognee (LanceDB)
 # This ensures data survives server restarts
@@ -26,8 +24,20 @@ LANCEDB_PATH = os.path.join(DATA_DIR, "lancedb")
 if not os.path.exists(DATA_DIR):
     os.makedirs(DATA_DIR)
 
-os.environ["COGNEE_VECTOR_DB_PATH"] = LANCEDB_PATH
-os.environ["COGNEE_LANCEDB_URL"] = LANCEDB_PATH
+# Only set LanceDB paths if we are NOT using pgvector
+# User explicitly requested to remove local DBs and use pgvector
+if settings.VECTOR_DB_PROVIDER != "pgvector":
+    os.environ["COGNEE_VECTOR_DB_PATH"] = LANCEDB_PATH
+    os.environ["COGNEE_LANCEDB_URL"] = LANCEDB_PATH
+else:
+    # Ensure Cognee uses the configured Postgres vector DB
+    # Cognee expects this env var for pgvector connection
+    os.environ["VECTOR_DB_URL"] = settings.constructed_vector_db_url
+    os.environ["DB_PROVIDER"] = settings.DB_PROVIDER
+    os.environ["VECTOR_DB_PROVIDER"] = "pgvector"
+    # Note: DB_NAME, DB_USERNAME, DB_PASSWORD are now provided directly via docker-compose environment
+    # so Cognee picks them up automatically.
+
 # Also set a specialized path for Cognee's internal storage if needed
 os.environ["COGNEE_ROOT_DIR"] = DATA_DIR
 
@@ -35,11 +45,10 @@ import cognee
 from sqlalchemy import text
 from cognee.api.v1.search import SearchType
 from cognee.api.v1.search import search as cognee_search
-from cognee.modules.users.methods import get_default_user
+from cognee.modules.users.methods import get_default_user, get_user_by_email, create_user
 from cognee.infrastructure.databases.relational import get_relational_engine
 from cognee.infrastructure.databases.relational.ModelBase import Base as CogneeBase
 import tiktoken
-from app.core.config import settings
 from cognee.infrastructure.databases.vector.embeddings.config import get_embedding_config
 
 # Monkeypatch tiktoken to support non-OpenAI models (e.g. fastembed)
@@ -56,6 +65,29 @@ def patched_encoding_for_model(model_name):
 tiktoken.encoding_for_model = patched_encoding_for_model
 
 logger = logging.getLogger(__name__)
+
+# MONKEYPATCH: Force MD_JSON mode for Cognee's instructor calls
+# This is much more robust for Qwen and other non-OpenAI models
+# than the default tool-calling mode, which often fails with 422 errors.
+import instructor
+original_from_litellm = instructor.from_litellm
+
+def patched_from_litellm(*args, **kwargs):
+    # Force MD_JSON mode if no mode is specified (Cognee's default)
+    if "mode" not in kwargs or kwargs["mode"] is None:
+        kwargs["mode"] = instructor.Mode.MD_JSON
+    return original_from_litellm(*args, **kwargs)
+
+instructor.from_litellm = patched_from_litellm
+
+# MONKEYPATCH: Increase retries for Cognee's OpenAI adapter
+# This gives the model more chances to follow the complex schema
+try:
+    from cognee.infrastructure.llm.structured_output_framework.litellm_instructor.llm.openai.adapter import OpenAIAdapter
+    OpenAIAdapter.MAX_RETRIES = 10
+    logger.info("Monkeypatched OpenAIAdapter.MAX_RETRIES to 10")
+except ImportError:
+    logger.warning("Could not monkeypatch OpenAIAdapter.MAX_RETRIES")
 
 class CogneeService:
     def __init__(self):
@@ -84,15 +116,13 @@ class CogneeService:
         """Configure embedding settings based on environment"""
         embed_config = get_embedding_config()
         
-        provider_env = os.getenv("EMBEDDING_PROVIDER")
-        # Default to fastembed if not specified, for robust local support
-        current_provider = provider_env if provider_env else "fastembed"
+        current_provider = settings.EMBEDDING_PROVIDER
         
         if current_provider == "fastembed":
             # Configure fastembed
             embed_config.embedding_provider = "fastembed"
-            embed_config.embedding_model = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
-            embed_config.embedding_dimensions = int(os.getenv("EMBEDDING_DIMENSIONS", "384"))
+            embed_config.embedding_model = settings.EMBEDDING_MODEL
+            embed_config.embedding_dimensions = settings.EMBEDDING_DIMENSIONS
             embed_config.embedding_endpoint = None
             embed_config.embedding_api_key = None
             logger.info(f"Configured FastEmbed with model: {embed_config.embedding_model}")
@@ -133,6 +163,11 @@ class CogneeService:
                 if llm_config.base_url and not model.startswith("openai/"):
                     model = f"openai/{model}"
                 cognee.config.set_llm_model(model)
+                
+                # Optimization for Qwen and other non-OpenAI models:
+                # We use a monkeypatch at the top of this file to force MD_JSON mode
+                # and increase retries, which is much more effective than env vars.
+                os.environ["STRUCTURED_OUTPUT_FRAMEWORK"] = "instructor"
 
             # Configure Embeddings
             # Ensure base config is set
@@ -152,16 +187,44 @@ class CogneeService:
                     # NVIDIA usually uses nv-embed-v1
                     embed_config.embedding_model = "openai/nvidia/nv-embed-v1"
 
-    async def _get_dataset_by_name(self, dataset_name: str) -> Optional[dict]:
-        """Check if dataset exists"""
+    async def _get_cognee_user(self, user_email: str):
+        """Get or create a Cognee user for multi-tenancy"""
+        if not user_email:
+            logger.info("No user_email provided, using default Cognee user")
+            return await get_default_user()
+        
         try:
-            datasets = await cognee.datasets.list_datasets()
-            for dataset in datasets:
-                if dataset.name == dataset_name:
-                    return dataset
+            user = await get_user_by_email(user_email)
+            if not user:
+                logger.info(f"Creating new Cognee user for: {user_email}")
+                user = await create_user(email = user_email, password = "default_password")
+            
+            logger.info(f"Cognee user for {user_email}: id={user.id} (type={type(user.id)})")
+            return user
+        except Exception as e:
+            logger.error(f"Error getting/creating Cognee user: {e}")
+            return await get_default_user()
+
+    async def _get_dataset_by_name(self, dataset_name: str, user_id) -> Optional[dict]:
+        """Check if dataset exists for a specific user"""
+        try:
+            from cognee.modules.data.methods import get_datasets_by_name
+            from uuid import UUID
+            
+            # Ensure user_id is a UUID object
+            uid = user_id if isinstance(user_id, UUID) else UUID(str(user_id))
+            
+            logger.info(f"Checking dataset '{dataset_name}' for user_id={uid}")
+            datasets = await get_datasets_by_name(dataset_name, uid)
+            
+            if datasets and len(datasets) > 0:
+                logger.info(f"Found dataset: {datasets[0].id} for name '{dataset_name}'")
+                return datasets[0]
+            
+            logger.warning(f"Dataset '{dataset_name}' NOT FOUND for user_id={uid}")
             return None
         except Exception as e:
-            logger.error(f"Error checking dataset: {e}")
+            logger.error(f"Error checking dataset for user {user_id}: {e}")
             return None
     
     async def add_document(self, file_path: str, dataset_name: str, llm_config, user_email: str = None) -> Dict[str, Any]:
@@ -171,12 +234,15 @@ class CogneeService:
         """
         self._configure_llm(llm_config)
         try:
-            logger.info(f"Adding file {file_path} to dataset {dataset_name}")
+            logger.info(f"Adding file {file_path} to dataset {dataset_name} for user {user_email}")
+            
+            user = await self._get_cognee_user(user_email)
             
             # Add data to Cognee (creates dataset if needed)
             await cognee.add(
                 data=file_path,
                 dataset_name=dataset_name,
+                user = user
             )
             
             return {"success": True, "message": "Document added successfully"}
@@ -190,11 +256,14 @@ class CogneeService:
         """
         self._configure_llm(llm_config)
         try:
-            logger.info(f"Cognifying dataset {dataset_name}")
+            logger.info(f"Cognifying dataset {dataset_name} for user {user_email}")
+            
+            user = await self._get_cognee_user(user_email)
             
             # Cognify
             await cognee.cognify(
                 datasets=[dataset_name],
+                user = user
             )
             
             return {"success": True, "message": "Dataset cognify started"}
@@ -202,17 +271,18 @@ class CogneeService:
             logger.error(f"Error cognifying dataset: {e}")
             raise e
 
-    async def get_status(self, dataset_name: str) -> Dict[str, Any]:
+    async def get_status(self, dataset_name: str, user_email: str = None) -> Dict[str, Any]:
         """
         Get the status of a dataset using Cognee's pipeline status API.
         Handles PipelineRunStatus enum format.
         """
         try:
-            dataset = await self._get_dataset_by_name(dataset_name)
+            user = await self._get_cognee_user(user_email)
+            dataset = await self._get_dataset_by_name(dataset_name, user.id)
             if not dataset:
                 return {
                     "status": "not_found",
-                    "message": f"Dataset '{dataset_name}' not found"
+                    "message": f"Dataset '{dataset_name}' not found for user {user_email}"
                 }
             
             dataset_id = dataset.id
@@ -328,16 +398,19 @@ class CogneeService:
             
             s_type = search_type_map.get(search_type, SearchType.CHUNKS)
             
-            logger.info(f"Calling cognee_search with datasets={datasets}")
+            # Ensure datasets is always a list of strings
+            search_datasets = datasets if isinstance(datasets, list) else [datasets]
             
-            # If only one dataset is provided, pass it as a string as requested
-            search_datasets = datasets[0] if datasets and len(datasets) == 1 else datasets
+            logger.info(f"Calling cognee_search with datasets={search_datasets} for user {user_email}")
+            
+            user = await self._get_cognee_user(user_email)
             
             # Pass user parameter to Cognee for multi-tenancy
             results = await cognee_search(
                 query_type=s_type,
                 query_text=query_text,
                 datasets=search_datasets,
+                user = user
             )
 
             # Log which datasets the results belong to
@@ -357,17 +430,18 @@ class CogneeService:
             traceback.print_exc()
             return {"success": False, "message": str(e)}
 
-    async def delete_dataset(self, dataset_name: str) -> Dict[str, Any]:
+    async def delete_dataset(self, dataset_name: str, user_email: str = None) -> Dict[str, Any]:
         """
         Delete a specific dataset.
         """
         try:
-            logger.info(f"Deleting dataset {dataset_name}")
+            logger.info(f"Deleting dataset {dataset_name} for user {user_email}")
             
-            dataset = await self._get_dataset_by_name(dataset_name)
+            user = await self._get_cognee_user(user_email)
+            dataset = await self._get_dataset_by_name(dataset_name, user.id)
             if dataset:
                 dataset_id = dataset.id
-                await cognee.prune.prune_data(dataset_name)
+                # await cognee.prune.prune_data(dataset_name) # Prune might also need user context if it's user-aware
                 # delete_dataset takes ID
                 await cognee.datasets.delete_dataset(dataset_id)
                 return {"success": True, "message": "Dataset deleted"}

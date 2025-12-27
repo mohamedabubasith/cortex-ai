@@ -232,8 +232,16 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
                         {copied ? "Copied" : "Copy link"}
                     </button>
                     <button
-                        onClick={() => window.open(`/chat/${agent.share_token}`, '_blank')}
-                        className="flex-1 md:flex-none justify-center px-4 py-1.5 bg-white/10 text-white text-sm font-bold rounded-lg hover:bg-white/20 transition-all flex items-center"
+                        onClick={() => {
+                            if (!selectedLlmId) {
+                                toast("Configuration Error", "error");
+                                showDialog("Configuration Error", "You must select a Global LLM Configuration before previewing the agent.", [{ label: "OK", onClick: closeDialog, variant: "primary" }]);
+                                return;
+                            }
+                            window.open(`/chat/${agent.share_token}?new=true`, '_blank');
+                        }}
+                        disabled={!selectedLlmId}
+                        className="flex-1 md:flex-none justify-center px-4 py-1.5 bg-white/10 text-white text-sm font-bold rounded-lg hover:bg-white/20 transition-all flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         Preview
                     </button>

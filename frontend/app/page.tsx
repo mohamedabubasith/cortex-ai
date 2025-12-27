@@ -4,15 +4,16 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Mail, Lock, ArrowRight, Loader2 } from "lucide-react";
+import { Mail, Lock, ArrowRight, Loader2, AlertCircle } from "lucide-react";
 import api from "@/lib/api";
 import TubesBackground from "@/components/TubesBackground";
 import Logo from "@/components/Logo";
+import { isValidEmail } from "@/lib/validation";
 
 export default function LoginPage() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [error, setError] = useState("");
+    const [formErrors, setFormErrors] = useState({ email: "", password: "", global: "" });
     const [loading, setLoading] = useState(false);
     const router = useRouter();
 
@@ -23,9 +24,33 @@ export default function LoginPage() {
         }
     }, [router]);
 
+    const validateForm = () => {
+        const errors = { email: "", password: "", global: "" };
+        let isValid = true;
+
+        if (!email) {
+            errors.email = "Email is required";
+            isValid = false;
+        } else if (!isValidEmail(email)) {
+            errors.email = "Please enter a valid email address";
+            isValid = false;
+        }
+
+        if (!password) {
+            errors.password = "Password is required";
+            isValid = false;
+        }
+
+        setFormErrors(errors);
+        return isValid;
+    };
+
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError("");
+        setFormErrors({ email: "", password: "", global: "" });
+
+        if (!validateForm()) return;
+
         setLoading(true);
 
         try {
@@ -39,9 +64,12 @@ export default function LoginPage() {
 
             localStorage.setItem("token", response.data.access_token);
             router.push("/dashboard");
-        } catch (err) {
+        } catch (err: any) {
             console.error(err);
-            setError("Invalid email or password");
+            setFormErrors(prev => ({
+                ...prev,
+                global: "Invalid email or password. Please try again."
+            }));
         } finally {
             setLoading(false);
         }
@@ -74,10 +102,15 @@ export default function LoginPage() {
                             <p className="text-gray-400">Sign in to your account</p>
                         </div>
 
-                        {error && (
-                            <div className="mb-6 p-4 bg-red-900/20 border border-red-500/50 text-red-200 rounded-lg text-sm flex items-center">
-                                <span className="mr-2">⚠️</span> {error}
-                            </div>
+                        {formErrors.global && (
+                            <motion.div
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="mb-6 p-4 bg-red-900/20 border border-red-500/50 text-red-200 rounded-lg text-sm flex items-center"
+                            >
+                                <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
+                                {formErrors.global}
+                            </motion.div>
                         )}
 
                         <form onSubmit={handleLogin} className="space-y-6">
@@ -85,17 +118,25 @@ export default function LoginPage() {
                                 <label className="block text-sm font-medium text-gray-300 mb-1">Email Address</label>
                                 <div className="relative">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <Mail className="h-5 w-5 text-gray-500" />
+                                        <Mail className={`h-5 w-5 ${formErrors.email ? "text-red-500" : "text-gray-500"}`} />
                                     </div>
                                     <input
                                         type="email"
-                                        required
-                                        className="block w-full pl-10 pr-3 py-3 md:py-2.5 bg-black/50 border border-gray-700 rounded-lg focus:ring-2 focus:ring-nvidia-green focus:border-transparent text-white placeholder-gray-500 transition-all"
+                                        className={`block w-full pl-10 pr-3 py-3 md:py-2.5 bg-black/50 border rounded-lg focus:ring-2 focus:border-transparent text-white placeholder-gray-500 transition-all ${formErrors.email
+                                                ? "border-red-500 focus:ring-red-500"
+                                                : "border-gray-700 focus:ring-nvidia-green"
+                                            }`}
                                         placeholder="you@example.com"
                                         value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
+                                        onChange={(e) => {
+                                            setEmail(e.target.value);
+                                            if (formErrors.email) setFormErrors(prev => ({ ...prev, email: "" }));
+                                        }}
                                     />
                                 </div>
+                                {formErrors.email && (
+                                    <p className="mt-1 text-xs text-red-500">{formErrors.email}</p>
+                                )}
                             </div>
 
                             <div>
@@ -110,17 +151,25 @@ export default function LoginPage() {
                                 </div>
                                 <div className="relative">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <Lock className="h-5 w-5 text-gray-500" />
+                                        <Lock className={`h-5 w-5 ${formErrors.password ? "text-red-500" : "text-gray-500"}`} />
                                     </div>
                                     <input
                                         type="password"
-                                        required
-                                        className="block w-full pl-10 pr-3 py-3 md:py-2.5 bg-black/50 border border-gray-700 rounded-lg focus:ring-2 focus:ring-nvidia-green focus:border-transparent text-white placeholder-gray-500 transition-all"
+                                        className={`block w-full pl-10 pr-3 py-3 md:py-2.5 bg-black/50 border rounded-lg focus:ring-2 focus:border-transparent text-white placeholder-gray-500 transition-all ${formErrors.password
+                                                ? "border-red-500 focus:ring-red-500"
+                                                : "border-gray-700 focus:ring-nvidia-green"
+                                            }`}
                                         placeholder="••••••••"
                                         value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
+                                        onChange={(e) => {
+                                            setPassword(e.target.value);
+                                            if (formErrors.password) setFormErrors(prev => ({ ...prev, password: "" }));
+                                        }}
                                     />
                                 </div>
+                                {formErrors.password && (
+                                    <p className="mt-1 text-xs text-red-500">{formErrors.password}</p>
+                                )}
                             </div>
 
                             <button
@@ -156,3 +205,4 @@ export default function LoginPage() {
         </div>
     );
 }
+

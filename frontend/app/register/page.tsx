@@ -1,34 +1,91 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { User, Mail, Lock, ArrowRight, Loader2 } from "lucide-react";
+import { User, Mail, Lock, ArrowRight, Loader2, Check, X, AlertCircle } from "lucide-react";
 import api from "@/lib/api";
 import TubesBackground from "@/components/TubesBackground";
 import Logo from "@/components/Logo";
+import { isValidEmail, calculatePasswordStrength, PasswordStrength } from "@/lib/validation";
 
 export default function RegisterPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
     const [success, setSuccess] = useState(false);
     const [formData, setFormData] = useState({
         full_name: "",
         email: "",
         password: "",
-        confirmPassword: ""
+        confirmPassword: "",
+        agreeTerms: false
     });
+    const [formErrors, setFormErrors] = useState({
+        full_name: "",
+        email: "",
+        password: "",
+        confirmPassword: "",
+        agreeTerms: "",
+        global: ""
+    });
+    const [passwordStrength, setPasswordStrength] = useState<PasswordStrength>({ score: 0, label: "Weak", color: "bg-gray-600" });
+
+    useEffect(() => {
+        setPasswordStrength(calculatePasswordStrength(formData.password));
+    }, [formData.password]);
+
+    const validateForm = () => {
+        const errors = {
+            full_name: "",
+            email: "",
+            password: "",
+            confirmPassword: "",
+            agreeTerms: "",
+            global: ""
+        };
+        let isValid = true;
+
+        if (!formData.full_name.trim()) {
+            errors.full_name = "Full name is required";
+            isValid = false;
+        }
+
+        if (!formData.email) {
+            errors.email = "Email is required";
+            isValid = false;
+        } else if (!isValidEmail(formData.email)) {
+            errors.email = "Please enter a valid email address";
+            isValid = false;
+        }
+
+        if (!formData.password) {
+            errors.password = "Password is required";
+            isValid = false;
+        } else if (formData.password.length < 8) {
+            errors.password = "Password must be at least 8 characters";
+            isValid = false;
+        }
+
+        if (formData.password !== formData.confirmPassword) {
+            errors.confirmPassword = "Passwords do not match";
+            isValid = false;
+        }
+
+        if (!formData.agreeTerms) {
+            errors.agreeTerms = "You must agree to the terms and conditions";
+            isValid = false;
+        }
+
+        setFormErrors(errors);
+        return isValid;
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError("");
+        setFormErrors({ full_name: "", email: "", password: "", confirmPassword: "", agreeTerms: "", global: "" });
 
-        if (formData.password !== formData.confirmPassword) {
-            setError("Passwords do not match");
-            return;
-        }
+        if (!validateForm()) return;
 
         setLoading(true);
 
@@ -45,8 +102,18 @@ export default function RegisterPage() {
             }, 2000);
         } catch (err: any) {
             console.error(err);
-            setError(err.response?.data?.detail || "Registration failed. Please try again.");
+            setFormErrors(prev => ({
+                ...prev,
+                global: err.response?.data?.detail || "Registration failed. Please try again."
+            }));
             setLoading(false);
+        }
+    };
+
+    const handleChange = (field: string, value: any) => {
+        setFormData(prev => ({ ...prev, [field]: value }));
+        if (formErrors[field as keyof typeof formErrors]) {
+            setFormErrors(prev => ({ ...prev, [field]: "" }));
         }
     };
 
@@ -77,16 +144,26 @@ export default function RegisterPage() {
                             <p className="text-gray-400">Join Cortex AI today</p>
                         </div>
 
-                        {error && (
-                            <div className="mb-6 p-4 bg-red-900/20 border border-red-500/50 text-red-200 rounded-lg text-sm flex items-center">
-                                <span className="mr-2">⚠️</span> {error}
-                            </div>
+                        {formErrors.global && (
+                            <motion.div
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="mb-6 p-4 bg-red-900/20 border border-red-500/50 text-red-200 rounded-lg text-sm flex items-center"
+                            >
+                                <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
+                                {formErrors.global}
+                            </motion.div>
                         )}
 
                         {success && (
-                            <div className="mb-6 p-4 bg-green-900/20 border border-green-500/50 text-green-200 rounded-lg text-sm flex items-center">
-                                <span className="mr-2">✅</span> Account created! Redirecting to login...
-                            </div>
+                            <motion.div
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="mb-6 p-4 bg-green-900/20 border border-green-500/50 text-green-200 rounded-lg text-sm flex items-center"
+                            >
+                                <Check className="w-4 h-4 mr-2 flex-shrink-0" />
+                                Account created! Redirecting to login...
+                            </motion.div>
                         )}
 
                         <form onSubmit={handleSubmit} className="space-y-5">
@@ -94,67 +171,120 @@ export default function RegisterPage() {
                                 <label className="block text-sm font-medium text-gray-300 mb-1">Full Name</label>
                                 <div className="relative">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <User className="h-5 w-5 text-gray-500" />
+                                        <User className={`h-5 w-5 ${formErrors.full_name ? "text-red-500" : "text-gray-500"}`} />
                                     </div>
                                     <input
                                         type="text"
-                                        required
-                                        className="block w-full pl-10 pr-3 py-3 md:py-2.5 bg-black/50 border border-gray-700 rounded-lg focus:ring-2 focus:ring-nvidia-green focus:border-transparent text-white placeholder-gray-500 transition-all"
+                                        className={`block w-full pl-10 pr-3 py-3 md:py-2.5 bg-black/50 border rounded-lg focus:ring-2 focus:border-transparent text-white placeholder-gray-500 transition-all ${formErrors.full_name
+                                                ? "border-red-500 focus:ring-red-500"
+                                                : "border-gray-700 focus:ring-nvidia-green"
+                                            }`}
                                         placeholder="John Doe"
                                         value={formData.full_name}
-                                        onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                                        onChange={(e) => handleChange("full_name", e.target.value)}
                                     />
                                 </div>
+                                {formErrors.full_name && <p className="mt-1 text-xs text-red-500">{formErrors.full_name}</p>}
                             </div>
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-300 mb-1">Email Address</label>
                                 <div className="relative">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <Mail className="h-5 w-5 text-gray-500" />
+                                        <Mail className={`h-5 w-5 ${formErrors.email ? "text-red-500" : "text-gray-500"}`} />
                                     </div>
                                     <input
                                         type="email"
-                                        required
-                                        className="block w-full pl-10 pr-3 py-3 md:py-2.5 bg-black/50 border border-gray-700 rounded-lg focus:ring-2 focus:ring-nvidia-green focus:border-transparent text-white placeholder-gray-500 transition-all"
+                                        className={`block w-full pl-10 pr-3 py-3 md:py-2.5 bg-black/50 border rounded-lg focus:ring-2 focus:border-transparent text-white placeholder-gray-500 transition-all ${formErrors.email
+                                                ? "border-red-500 focus:ring-red-500"
+                                                : "border-gray-700 focus:ring-nvidia-green"
+                                            }`}
                                         placeholder="you@example.com"
                                         value={formData.email}
-                                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                        onChange={(e) => handleChange("email", e.target.value)}
                                     />
                                 </div>
+                                {formErrors.email && <p className="mt-1 text-xs text-red-500">{formErrors.email}</p>}
                             </div>
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-300 mb-1">Password</label>
                                 <div className="relative">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <Lock className="h-5 w-5 text-gray-500" />
+                                        <Lock className={`h-5 w-5 ${formErrors.password ? "text-red-500" : "text-gray-500"}`} />
                                     </div>
                                     <input
                                         type="password"
-                                        required
-                                        className="block w-full pl-10 pr-3 py-3 md:py-2.5 bg-black/50 border border-gray-700 rounded-lg focus:ring-2 focus:ring-nvidia-green focus:border-transparent text-white placeholder-gray-500 transition-all"
+                                        className={`block w-full pl-10 pr-3 py-3 md:py-2.5 bg-black/50 border rounded-lg focus:ring-2 focus:border-transparent text-white placeholder-gray-500 transition-all ${formErrors.password
+                                                ? "border-red-500 focus:ring-red-500"
+                                                : "border-gray-700 focus:ring-nvidia-green"
+                                            }`}
                                         placeholder="••••••••"
                                         value={formData.password}
-                                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                        onChange={(e) => handleChange("password", e.target.value)}
                                     />
                                 </div>
+                                {formData.password && (
+                                    <div className="mt-2">
+                                        <div className="flex justify-between items-center mb-1">
+                                            <span className="text-xs text-gray-400">Strength</span>
+                                            <span className={`text-xs font-medium ${passwordStrength.color.replace("bg-", "text-")}`}>
+                                                {passwordStrength.label}
+                                            </span>
+                                        </div>
+                                        <div className="h-1 w-full bg-gray-700 rounded-full overflow-hidden">
+                                            <div
+                                                className={`h-full transition-all duration-300 ${passwordStrength.color}`}
+                                                style={{ width: `${(passwordStrength.score / 4) * 100}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                                {formErrors.password && <p className="mt-1 text-xs text-red-500">{formErrors.password}</p>}
                             </div>
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-300 mb-1">Confirm Password</label>
                                 <div className="relative">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <Lock className="h-5 w-5 text-gray-500" />
+                                        <Lock className={`h-5 w-5 ${formErrors.confirmPassword ? "text-red-500" : "text-gray-500"}`} />
                                     </div>
                                     <input
                                         type="password"
-                                        required
-                                        className="block w-full pl-10 pr-3 py-3 md:py-2.5 bg-black/50 border border-gray-700 rounded-lg focus:ring-2 focus:ring-nvidia-green focus:border-transparent text-white placeholder-gray-500 transition-all"
+                                        className={`block w-full pl-10 pr-3 py-3 md:py-2.5 bg-black/50 border rounded-lg focus:ring-2 focus:border-transparent text-white placeholder-gray-500 transition-all ${formErrors.confirmPassword
+                                                ? "border-red-500 focus:ring-red-500"
+                                                : "border-gray-700 focus:ring-nvidia-green"
+                                            }`}
                                         placeholder="••••••••"
                                         value={formData.confirmPassword}
-                                        onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                                        onChange={(e) => handleChange("confirmPassword", e.target.value)}
                                     />
+                                </div>
+                                {formErrors.confirmPassword && <p className="mt-1 text-xs text-red-500">{formErrors.confirmPassword}</p>}
+                            </div>
+
+                            <div className="flex items-start">
+                                <div className="flex items-center h-5">
+                                    <input
+                                        id="terms"
+                                        type="checkbox"
+                                        className="w-4 h-4 rounded border-gray-600 bg-black/50 text-nvidia-green focus:ring-nvidia-green focus:ring-offset-0"
+                                        checked={formData.agreeTerms}
+                                        onChange={(e) => handleChange("agreeTerms", e.target.checked)}
+                                    />
+                                </div>
+                                <div className="ml-3 text-sm">
+                                    <label htmlFor="terms" className="text-gray-400">
+                                        I agree to the{" "}
+                                        <a href="#" className="text-nvidia-green hover:underline">
+                                            Terms of Service
+                                        </a>{" "}
+                                        and{" "}
+                                        <a href="#" className="text-nvidia-green hover:underline">
+                                            Privacy Policy
+                                        </a>
+                                    </label>
+                                    {formErrors.agreeTerms && <p className="mt-1 text-xs text-red-500">{formErrors.agreeTerms}</p>}
                                 </div>
                             </div>
 
@@ -191,3 +321,4 @@ export default function RegisterPage() {
         </div>
     );
 }
+

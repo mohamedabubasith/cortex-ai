@@ -8,27 +8,38 @@ import { Mail, ArrowRight, Loader2, ArrowLeft, CheckCircle } from "lucide-react"
 import api from "@/lib/api";
 import TubesBackground from "@/components/TubesBackground";
 import Logo from "@/components/Logo";
+import { isValidEmail } from "@/lib/validation";
 
 export default function ForgotPasswordPage() {
     const [loading, setLoading] = useState(false);
     const [submitted, setSubmitted] = useState(false);
     const [email, setEmail] = useState("");
-    const [error, setError] = useState("");
+    const [emailError, setEmailError] = useState("");
+    const [successMessage, setSuccessMessage] = useState("");
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError("");
+        setEmailError("");
+
+        if (!email) {
+            setEmailError("Email is required");
+            return;
+        } else if (!isValidEmail(email)) {
+            setEmailError("Please enter a valid email address");
+            return;
+        }
+
         setLoading(true);
 
         try {
-            // Assuming endpoint exists, or mock it for now
-            await api.post("/auth/forgot-password", { email });
+            const response = await api.post("/auth/forgot-password", { email });
+            setSuccessMessage(response.data.message);
             setSubmitted(true);
         } catch (err) {
-            // For security, often we don't reveal if email exists, but for this UI we'll show success mostly
-            // Or if it's a real error (500), show it.
             console.error(err);
-            // Mock success for now if endpoint is missing
+            // Even if it fails (e.g. email not found), it's better security practice to show success
+            // or a generic message, but for this UI we'll show success.
+            setSuccessMessage("If this email is registered, you will receive a password reset link.");
             setSubmitted(true);
         } finally {
             setLoading(false);
@@ -71,8 +82,7 @@ export default function ForgotPasswordPage() {
                                 </div>
                                 <h3 className="text-xl font-bold text-white mb-2">Check your email</h3>
                                 <p className="text-gray-400 mb-8">
-                                    We have sent a password reset link to <br />
-                                    <strong className="text-white">{email}</strong>
+                                    {successMessage}
                                 </p>
                                 <div>
                                     <Link
@@ -92,17 +102,25 @@ export default function ForgotPasswordPage() {
                                     </label>
                                     <div className="relative">
                                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                            <Mail className="h-5 w-5 text-gray-500" />
+                                            <Mail className={`h-5 w-5 ${emailError ? "text-red-500" : "text-gray-500"}`} />
                                         </div>
                                         <input
                                             type="email"
-                                            required
-                                            className="block w-full pl-10 pr-3 py-3 md:py-2.5 bg-black/50 border border-gray-700 rounded-lg focus:ring-2 focus:ring-nvidia-green focus:border-transparent text-white placeholder-gray-500 transition-all"
+                                            className={`block w-full pl-10 pr-3 py-3 md:py-2.5 bg-black/50 border rounded-lg focus:ring-2 focus:border-transparent text-white placeholder-gray-500 transition-all ${emailError
+                                                ? "border-red-500 focus:ring-red-500"
+                                                : "border-gray-700 focus:ring-nvidia-green"
+                                                }`}
                                             placeholder="you@example.com"
                                             value={email}
-                                            onChange={(e) => setEmail(e.target.value)}
+                                            onChange={(e) => {
+                                                setEmail(e.target.value);
+                                                if (emailError) setEmailError("");
+                                            }}
                                         />
                                     </div>
+                                    {emailError && (
+                                        <p className="mt-1 text-xs text-red-500">{emailError}</p>
+                                    )}
                                 </div>
 
                                 <button
@@ -137,3 +155,4 @@ export default function ForgotPasswordPage() {
         </div>
     );
 }
+

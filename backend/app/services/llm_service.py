@@ -43,12 +43,24 @@ class LLMService:
             
             # Add system prompt
             full_messages = []
-            if agent.system_prompt:
-                full_messages.append({"role": "system", "content": agent.system_prompt})
+            
+            # Get available tools (including agent-specific database tools)
+            db_connections = agent.database_connections if hasattr(agent, 'database_connections') else []
+            
+            # Enhance system prompt with database info if available
+            system_prompt = agent.system_prompt if agent.system_prompt else "You are a helpful AI assistant."
+            if db_connections and len(db_connections) > 0:
+                db_names_list = ", ".join([db.name for db in db_connections])
+                system_prompt += f"\n\nYou have access to databases ({db_names_list}). When users ask questions that require querying data, use the query_database tool to retrieve information. Do not tell users about the database names or infrastructure details unless they specifically ask. Just provide the requested information naturally."
+            
+            full_messages.append({"role": "system", "content": system_prompt})
             full_messages.extend(messages)
             
-            # Get available tools
-            tools = tools_service.get_tool_definitions()
+            tools = tools_service.get_agent_specific_tools(db_connections)
+            
+            # Set agent context for tool execution (database service needs to be passed from chat_service)
+            from app.services.database_service import database_service
+            tools_service.set_agent_context(db_connections, database_service)
             
             # Loop for handling tool calls (max depth 5)
             for _ in range(5):
@@ -69,6 +81,7 @@ class LLMService:
                 
                 tool_calls = []
                 output_text = ""
+                has_started_thinking = False
                 
                 async for chunk in stream:
                     chunk_count += 1
@@ -76,6 +89,7 @@ class LLMService:
                     
                     # Handle Tool Calls
                     if delta.tool_calls:
+                        # ... (existing tool call logic)
                         for tc in delta.tool_calls:
                             if tc.index is not None:
                                 if len(tool_calls) <= tc.index:
@@ -89,8 +103,19 @@ class LLMService:
                                     if tc.function.arguments:
                                         tool_calls[tc.index]["function"]["arguments"] += tc.function.arguments
                     
+                    # Handle Reasoning/Thinking
+                    if hasattr(delta, 'reasoning_content') and delta.reasoning_content:
+                        if not has_started_thinking:
+                            yield "<THINK>"
+                            has_started_thinking = True
+                        yield delta.reasoning_content
+
                     # Handle Content
                     if delta.content:
+                        if has_started_thinking:
+                            yield "</THINK>"
+                            has_started_thinking = False
+                        
                         content = delta.content
                         output_text += content
                         yield content
@@ -99,10 +124,14 @@ class LLMService:
                         if chunk_count % 100 == 0:
                             await asyncio.sleep(0.001)
                 
+                # Final check to close thinking tag if it was never closed
+                if has_started_thinking:
+                    yield "</THINK>"
+                
                 # If no tool calls, we are done
                 if not tool_calls:
                     # Calculate output tokens
-                    output_tokens = int(len(output_text.split()) * 1.3)
+                    output_tokens = int(len(output_text.split()) * 1.3) if output_text else 0
                     self.last_token_usage = {
                         "prompt_tokens": input_tokens,
                         "completion_tokens": output_tokens,
@@ -147,6 +176,9 @@ class LLMService:
             self.last_token_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
             
         except Exception as e:
+            error_msg = str(e)
+            logger.error(f"LLM streaming error: {error_msg}")
+            
             error_msg = str(e)
             logger.error(f"LLM streaming error: {error_msg}")
             

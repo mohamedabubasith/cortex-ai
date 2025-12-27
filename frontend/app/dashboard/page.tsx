@@ -24,7 +24,7 @@ export default function DashboardPage() {
                     api.get("/agents"),
                     api.get("/llm"),
                     api.get("/analytics/stats/overview?hours=24"),
-                    api.get("/analytics/analytics/live?limit=50"),
+                    api.get("/analytics/live?limit=50"),
                     api.get("/kb")
                 ]);
 
@@ -56,15 +56,27 @@ export default function DashboardPage() {
 
                 setUsageData(Object.values(hourlyData).slice(-12));
 
+
                 // Get token usage by agent
                 const agentTokens: any = {};
+                const existingAgentIds = new Set(agentsRes.data.map((a: any) => a.id));
+
                 events.forEach((event: any) => {
                     if (event.event_type === 'chat' && event.event_data?.tokens) {
-                        const agentId = event.agent_id || 'unknown';
-                        if (!agentTokens[agentId]) {
-                            agentTokens[agentId] = { name: `Agent ${agentId.slice(0, 6)}`, tokens: 0 };
+                        const agentId = event.agent_id;
+
+                        // Only include token data for agents that actually exist
+                        if (agentId && existingAgentIds.has(agentId)) {
+                            if (!agentTokens[agentId]) {
+                                // Find the actual agent name
+                                const agent = agentsRes.data.find((a: any) => a.id === agentId);
+                                agentTokens[agentId] = {
+                                    name: agent?.name || `Agent ${agentId.slice(0, 6)}`,
+                                    tokens: 0
+                                };
+                            }
+                            agentTokens[agentId].tokens += event.event_data.tokens.total_tokens || 0;
                         }
-                        agentTokens[agentId].tokens += event.event_data.tokens.total_tokens || 0;
                     }
                 });
 

@@ -20,7 +20,7 @@ def get_analytics_service(db: AsyncSession = Depends(get_db)) -> AnalyticsServic
 def get_audit_service(db: AsyncSession = Depends(get_db)) -> AuditService:
     return AuditService(AuditLogRepository(db))
 
-@router.get("/analytics/events")
+@router.get("/events")
 async def get_analytics_events(
     event_type: Optional[str] = Query(None),
     agent_id: Optional[str] = Query(None),
@@ -40,7 +40,7 @@ async def get_analytics_events(
             limit=limit
         )
 
-@router.get("/analytics/live")
+@router.get("/live")
 async def get_live_analytics(
     limit: int = Query(50, le=100),
     current_user: models.User = Depends(get_current_active_user),

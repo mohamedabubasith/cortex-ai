@@ -69,6 +69,39 @@ class AuthService:
             
         return user
 
+    def create_password_reset_token(self, email: str) -> str:
+        delta = timedelta(hours=settings.RESET_PASSWORD_TOKEN_EXPIRE_HOURS)
+        now = datetime.utcnow()
+        expires = now + delta
+        exp = expires.timestamp()
+        encoded_jwt = jwt.encode(
+            {"exp": exp, "nbf": now, "sub": email, "type": "password_reset"},
+            settings.SECRET_KEY,
+            algorithm=settings.ALGORITHM,
+        )
+        return encoded_jwt
+
+    def verify_password_reset_token(self, token: str) -> Optional[str]:
+        try:
+            decoded_token = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+            if decoded_token["type"] != "password_reset":
+                return None
+            return decoded_token["sub"]
+        except JWTError:
+            return None
+
+    async def reset_password(self, token: str, new_password: str) -> None:
+        email = self.verify_password_reset_token(token)
+        if not email:
+            raise HTTPException(status_code=400, detail="Invalid or expired token")
+        
+        user = await self.repo.get_by_email(email)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+            
+        hashed_password = self.get_password_hash(new_password)
+        await self.repo.update(user.id, {"hashed_password": hashed_password})
+
 async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)) -> models.User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,

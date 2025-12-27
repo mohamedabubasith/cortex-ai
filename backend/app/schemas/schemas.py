@@ -81,6 +81,16 @@ class DatabaseConnectionBase(BaseModel):
 class DatabaseConnectionCreate(DatabaseConnectionBase):
     password: str
 
+class DatabaseConnectionUpdate(BaseModel):
+    name: Optional[str] = None
+    type: Optional[str] = None
+    host: Optional[str] = None
+    port: Optional[int] = None
+    username: Optional[str] = None
+    password: Optional[str] = None
+    database_name: Optional[str] = None
+    ssl_mode: Optional[str] = None
+
 class DatabaseConnectionResponse(DatabaseConnectionBase):
     id: str
     user_id: str
@@ -132,6 +142,7 @@ class Agent(AgentBase):
 class MessageBase(BaseModel):
     role: str
     content: str
+    thinking: Optional[str] = None
 
 class MessageCreate(MessageBase):
     pass
@@ -203,6 +214,11 @@ class PublicAgentInfo(BaseModel):
     name: str
     description: Optional[str] = None
     first_message: Optional[str] = None
+    has_kb: bool = False
 
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
+
+class NewPassword(BaseModel):
+    token: str
+    new_password: str

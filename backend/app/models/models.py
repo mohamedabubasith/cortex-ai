@@ -46,6 +46,7 @@ class LLMConfiguration(Base):
     base_url = Column(String)
     api_key = Column(String)
     model = Column(String)
+    context_window = Column(Integer, default=128000)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     owner = relationship("User", back_populates="llm_configs")
@@ -156,6 +157,7 @@ class Message(Base):
     session_id = Column(String, ForeignKey("chat_sessions.id"))
     role = Column(String) # user, assistant, system
     content = Column(Text)
+    thinking = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     session = relationship("ChatSession", back_populates="messages")

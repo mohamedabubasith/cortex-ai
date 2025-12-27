@@ -9,6 +9,7 @@ import { ChatSession } from "./chat/ChatList";
 interface Message {
     role: "user" | "assistant";
     content: string;
+    thinking?: string;
 }
 
 interface ChatInterfaceProps {
@@ -17,6 +18,7 @@ interface ChatInterfaceProps {
     isStreaming?: boolean;
     className?: string;
     agentName?: string;
+    hasKB?: boolean;
     sessions?: ChatSession[];
     currentSessionId?: string;
     onNewChat?: () => void;
@@ -31,6 +33,7 @@ export default function ChatInterface({
     isStreaming = false,
     className,
     agentName = "Cortex AI",
+    hasKB = false,
     sessions = [],
     currentSessionId,
     onNewChat,
@@ -68,6 +71,10 @@ export default function ChatInterface({
     };
 
     const handleSendMessage = async (message: string) => {
+        // Auto-hide sidebar when user starts chatting (like ChatGPT)
+        if (sidebarOpen) {
+            setSidebarOpen(false);
+        }
         // Don't add optimistic update here - parent already does it
         await onSendMessage(message);
     };
@@ -75,7 +82,7 @@ export default function ChatInterface({
     return (
         <div className={cn(
             "flex h-screen font-sans overflow-hidden relative transition-colors duration-300",
-            theme === 'dark' ? "bg-black text-white" : "bg-gray-50 text-gray-900",
+            theme === 'dark' ? "bg-[#05070A] text-white" : "bg-gray-50 text-gray-900",
             className
         )}>
             <Sidebar
@@ -94,6 +101,7 @@ export default function ChatInterface({
                 onSendMessage={handleSendMessage}
                 isStreaming={isStreaming}
                 agentName={agentName}
+                hasKB={hasKB}
                 theme={theme}
                 onToggleTheme={toggleTheme}
                 onToggleSidebar={toggleSidebar}
