@@ -22,6 +22,10 @@ until [ "`docker inspect -f {{.State.Health.Status}} chatbot_db`" == "healthy" ]
 done
 echo "✅ Database is ready!"
 
+# Explicitly create chat_db to ensure it exists (fallback if init script fails)
+echo "🛠️  Ensuring chat_db exists..."
+docker compose -f docker-compose.prod.yml exec db psql -U admin -d cognee_db -c "CREATE DATABASE chat_db;" || echo "⚠️  Database chat_db creation returned non-zero (it might already exist)."
+
 # 4. Run Migrations
 echo "🔄 Running Database Migrations..."
 docker compose -f docker-compose.prod.yml exec backend alembic upgrade head
