@@ -165,27 +165,9 @@ class CogneeService:
         # Configure embeddings early
         self._configure_embeddings()
         
-        # CRITICAL: Force Cognee to use pgvector instead of LanceDB
-        # This must happen BEFORE any Cognee operations
-        if settings.VECTOR_DB_PROVIDER == "pgvector":
-            try:
-                from cognee.infrastructure.databases.vector import get_vector_engine
-                # Force reinitialize vector engine with pgvector
-                vector_engine = get_vector_engine()
-                logger.info(f"Initialized vector engine: {type(vector_engine).__name__}")
-                
-                # Verify we're using PGVector, not LanceDB
-                if "Lance" in type(vector_engine).__name__:
-                    logger.error("CRITICAL: Vector engine is LanceDB despite pgvector config!")
-                    # Try to force pgvector by clearing the cached engine
-                    from cognee.infrastructure.databases.vector import vector_db_config
-                    vector_db_config.vector_db_url = settings.constructed_vector_db_url
-                    vector_db_config.vector_db_provider = "pgvector"
-                    # Re-get engine
-                    vector_engine = get_vector_engine()
-                    logger.info(f"Re-initialized vector engine: {type(vector_engine).__name__}")
-            except Exception as e:
-                logger.warning(f"Could not explicitly configure vector engine: {e}")
+        # CRITICAL: Force Cognee to use pgvector - REMOVED as per user request
+        # User confirmed that environment variables should be sufficient
+        pass
         
         try:
             # Try setup first
