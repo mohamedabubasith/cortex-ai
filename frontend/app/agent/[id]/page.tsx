@@ -213,6 +213,12 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
         { id: "advanced", label: "Advanced" },
     ];
 
+    if (loading || !agent) return (
+        <div className="flex h-screen items-center justify-center bg-white dark:bg-black text-[#76B900]">
+            <Loader2 className="w-8 h-8 animate-spin" />
+        </div>
+    );
+
     return (
         <div className={cn(
             "flex flex-col h-screen font-sans transition-colors duration-300",
