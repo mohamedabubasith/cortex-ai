@@ -50,7 +50,7 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: Optional[str] = None
     EMAILS_FROM_EMAIL: Optional[str] = "info@example.com"
     EMAILS_FROM_NAME: Optional[str] = "Cortex AI"
-    RESET_PASSWORD_TOKEN_EXPIRE_HOURS: int = 1
+    RESET_PASSWORD_TOKEN_EXPIRE_MINUTES: int = 15
 
     # Embeddings
     EMBEDDING_PROVIDER: str = "fastembed"

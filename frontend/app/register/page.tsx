@@ -225,7 +225,11 @@ export default function RegisterPage() {
                                     <div className="mt-2">
                                         <div className="flex justify-between items-center mb-1">
                                             <span className="text-xs text-gray-400">Strength</span>
-                                            <span className={`text-xs font-medium ${passwordStrength.color.replace("bg-", "text-")}`}>
+                                            <span className={`text-xs font-medium ${passwordStrength.score <= 1 ? 'text-red-500' :
+                                                    passwordStrength.score === 2 ? 'text-yellow-500' :
+                                                        passwordStrength.score === 3 ? 'text-blue-500' :
+                                                            'text-green-500'
+                                                }`}>
                                                 {passwordStrength.label}
                                             </span>
                                         </div>

@@ -70,7 +70,7 @@ class AuthService:
         return user
 
     def create_password_reset_token(self, email: str) -> str:
-        delta = timedelta(hours=settings.RESET_PASSWORD_TOKEN_EXPIRE_HOURS)
+        delta = timedelta(minutes=settings.RESET_PASSWORD_TOKEN_EXPIRE_MINUTES)
         now = datetime.utcnow()
         expires = now + delta
         exp = expires.timestamp()
