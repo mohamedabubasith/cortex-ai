@@ -16,15 +16,22 @@ class VisitorMiddleware(BaseHTTPMiddleware):
     _recent_ips = {}
 
     async def dispatch(self, request: Request, call_next):
+        # 1. Early exclusion check - VERY IMPORTANT for streaming compatibility
+        if (not request.url.path.startswith("/api/v1") or 
+            request.url.path.endswith("/health") or
+            request.url.path.startswith("/api/v1/chat/")):
+            return await call_next(request)
+
+        # Capture metadata BEFORE call_next and background task
+        headers = dict(request.headers)
+        client_host = request.client.host if request.client else None
+        path = request.url.path
+        method = request.method
+
         response = await call_next(request)
         
-        # Only log API requests, skip health checks, static files, and chat endpoints
-        # Chat endpoints use streaming responses which conflict with database logging
-        if (request.url.path.startswith("/api/v1") and 
-            not request.url.path.endswith("/health") and
-            not request.url.path.startswith("/api/v1/chat/")):
-            # Fire and forget logging using asyncio.create_task
-            asyncio.create_task(self.log_visit(request.headers, request.client.host, request.url.path, request.method))
+        # Fire and forget logging using asyncio.create_task with extracted data
+        asyncio.create_task(self.log_visit(headers, client_host, path, method))
             
         return response
 
@@ -95,26 +102,32 @@ class VisitorMiddleware(BaseHTTPMiddleware):
 
             # Log to DB
             async with AsyncSessionLocal() as session:
-                repo = AnalyticsRepository(session)
-                service = AnalyticsService(repo)
-                
-                # Merge location data into metadata
-                meta = {
-                    "ip": ip,
-                    "user_agent": user_agent,
-                    "country": country,
-                    **location_data
-                }
-                
-                await service.log_event(
-                    event_type="api_hit",
-                    event_data={
-                        "path": path,
-                        "method": method
-                    },
-                    metadata=meta
-                )
-                await session.commit()
+                try:
+                    repo = AnalyticsRepository(session)
+                    service = AnalyticsService(repo)
+                    
+                    # Merge location data into metadata
+                    meta = {
+                        "ip": ip,
+                        "user_agent": user_agent,
+                        "country": country,
+                        **location_data
+                    }
+                    
+                    await service.log_event(
+                        event_type="api_hit",
+                        event_data={
+                            "path": path,
+                            "method": method
+                        },
+                        metadata=meta
+                    )
+                    await session.commit()
+                except Exception as db_exc:
+                    logger.error(f"Database error in visitor logging: {db_exc}")
+                    await session.rollback()
+                finally:
+                    await session.close()
                 
         except Exception as e:
             logger.error(f"Error logging visit: {e}")

@@ -16,7 +16,15 @@ logger = logging.getLogger(__name__)
 
 class AuditMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        # Capture request body
+        # 1. Early exclusion check - VERY IMPORTANT for streaming compatibility
+        # We MUST NOT touch the request body or use BaseHTTPMiddleware wrapping for chat
+        if (not request.url.path.startswith("/api/v1") or 
+            request.url.path.endswith("/health") or
+            request.url.path.startswith("/api/v1/auth/") or
+            request.url.path.startswith("/api/v1/chat/")):
+            return await call_next(request)
+
+        # Capture request body for non-chat POST/PUT/PATCH requests
         request_body = None
         if request.method in ["POST", "PUT", "PATCH"]:
             try:
@@ -30,64 +38,81 @@ class AuditMiddleware(BaseHTTPMiddleware):
             except Exception:
                 pass
         
+        # Capture metadata BEFORE call_next and background task
+        # This ensures we don't depend on the request object after it might be disposed
+        path = request.url.path
+        method = request.method
+        query_params = dict(request.query_params)
+        user_agent = request.headers.get("User-Agent")
+        
+        # Extract IP
+        ip = None
+        forwarded = request.headers.get("X-Forwarded-For")
+        if forwarded:
+            ip = forwarded.split(",")[0].strip()
+        if not ip:
+            ip = request.headers.get("X-Real-IP")
+        if not ip:
+            ip = request.client.host if request.client else None
+
+        # Extract token early
+        token = None
+        try:
+            token = await oauth2_scheme(request)
+        except Exception:
+            pass
+
         response = await call_next(request)
         
-        # Only log API requests (skip health checks, static files, auth endpoints, and ALL chat endpoints)
-        # Chat endpoints use streaming responses which conflict with audit logging
-        if (request.url.path.startswith("/api/v1") and 
-            not request.url.path.endswith("/health") and
-            not request.url.path.startswith("/api/v1/auth/") and
-            not request.url.path.startswith("/api/v1/chat/")):
-            
-            # Fire and forget logging
-            asyncio.create_task(self.log_audit(request, response.status_code, request_body))
+        # Fire and forget logging with extracted data
+        asyncio.create_task(self.log_audit(
+            path=path,
+            method=method,
+            status_code=response.status_code,
+            request_body=request_body,
+            query_params=query_params,
+            user_agent=user_agent,
+            ip=ip,
+            token=token
+        ))
             
         return response
 
-    async def log_audit(self, request: Request, status_code: int, request_body: str = None):
+    async def log_audit(self, 
+        path: str, 
+        method: str, 
+        status_code: int, 
+        request_body: str = None,
+        query_params: dict = None,
+        user_agent: str = None,
+        ip: str = None,
+        token: str = None
+    ):
         try:
             # Extract user from token
             user_id = None
             user_email = None
             
-            try:
-                token = await oauth2_scheme(request)
-                if token:
-                    try:
-                        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
-                        user_email = payload.get("sub")
-                        
-                        # Fetch user_id from database
-                        if user_email:
-                            async with AsyncSessionLocal() as session:
-                                from app.models import models
-                                from sqlalchemy import select
-                                result = await session.execute(
-                                    select(models.User).where(models.User.email == user_email)
-                                )
-                                user = result.scalar_one_or_none()
-                                if user:
-                                    user_id = user.id
-                    except JWTError:
-                        pass
-            except HTTPException:
-                # No authentication token - this is fine for public endpoints
-                pass
-            
-            # Extract IP
-            ip = None
-            forwarded = request.headers.get("X-Forwarded-For")
-            if forwarded:
-                ip = forwarded.split(",")[0].strip()
-            if not ip:
-                ip = request.headers.get("X-Real-IP")
-            if not ip:
-                ip = request.client.host if request.client else None
-            
-            user_agent = request.headers.get("User-Agent")
+            if token:
+                try:
+                    payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+                    user_email = payload.get("sub")
+                    
+                    # Fetch user_id from database
+                    if user_email:
+                        async with AsyncSessionLocal() as session:
+                            from app.models import models
+                            from sqlalchemy import select
+                            result = await session.execute(
+                                select(models.User).where(models.User.email == user_email)
+                            )
+                            user = result.scalar_one_or_none()
+                            if user:
+                                user_id = user.id
+                except (JWTError, Exception):
+                    pass
             
             # Determine action from HTTP method
-            method = request.method
             action_map = {
                 "GET": "access",
                 "POST": "create",
@@ -99,7 +124,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
             
             # Extract resource type from path
             # e.g., /api/v1/agents/123 -> resource_type="agents", resource_id="123"
-            path_parts = request.url.path.split("/")
+            path_parts = path.split("/")
             resource_type = "api"
             resource_id = None
             
@@ -111,26 +136,32 @@ class AuditMiddleware(BaseHTTPMiddleware):
             
             # Log to DB
             async with AsyncSessionLocal() as session:
-                repo = AuditLogRepository(session)
-                service = AuditService(repo)
-                
-                await service.log_action(
-                    action=action,
-                    resource_type=resource_type,
-                    user_id=user_id,
-                    resource_id=resource_id,
-                    details={
-                        "method": method,
-                        "path": request.url.path,
-                        "status_code": status_code,
-                        "user_email": user_email,
-                        "request_body": request_body[:1000] if request_body else None,  # Limit to 1000 chars
-                        "query_params": dict(request.query_params) if request.query_params else None
-                    },
-                    ip_address=ip,
-                    user_agent=user_agent
-                )
-                await session.commit()
+                try:
+                    repo = AuditLogRepository(session)
+                    service = AuditService(repo)
+                    
+                    await service.log_action(
+                        action=action,
+                        resource_type=resource_type,
+                        user_id=user_id,
+                        resource_id=resource_id,
+                        details={
+                            "method": method,
+                            "path": path,
+                            "status_code": status_code,
+                            "user_email": user_email,
+                            "request_body": request_body[:1000] if request_body else None,  # Limit to 1000 chars
+                            "query_params": query_params
+                        },
+                        ip_address=ip,
+                        user_agent=user_agent
+                    )
+                    await session.commit()
+                except Exception as db_exc:
+                    logger.error(f"Database error in audit logging: {db_exc}")
+                    await session.rollback()
+                finally:
+                    await session.close()
                 
         except Exception as e:
             logger.error(f"Error logging audit: {e}")
