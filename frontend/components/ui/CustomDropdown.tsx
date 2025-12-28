@@ -85,7 +85,7 @@ export default function CustomDropdown<T>({
                         exit={{ opacity: 0, y: 5, scale: 0.95 }}
                         transition={{ duration: 0.1, ease: "easeOut" }}
                         className={cn(
-                            "absolute z-50 w-full mt-2 rounded-xl border shadow-xl overflow-hidden max-h-60 overflow-y-auto",
+                            "absolute z-[100] w-full mt-2 rounded-xl border shadow-xl overflow-hidden max-h-60 overflow-y-auto",
                             isDark
                                 ? "bg-[#1a1a1a] border-gray-700"
                                 : "bg-white border-gray-200"

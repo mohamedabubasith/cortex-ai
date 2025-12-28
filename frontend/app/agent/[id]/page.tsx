@@ -380,7 +380,7 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
                                 <div className="space-y-2">
                                     <h3 className={cn("text-base md:text-sm font-medium", isDark ? "text-white" : "text-gray-900")}>LLM</h3>
                                     <p className="text-xs text-gray-500">Select which provider and model to use for the LLM.</p>
-                                    <div className={cn("rounded-xl border overflow-hidden", isDark ? "bg-[#111] border-white/10" : "bg-white border-gray-200")}>
+                                    <div className={cn("rounded-xl border", isDark ? "bg-[#111] border-white/10" : "bg-white border-gray-200")}>
                                         {llmConfigs.length > 0 ? (
                                             <div className="p-1">
                                                 <CustomDropdown
