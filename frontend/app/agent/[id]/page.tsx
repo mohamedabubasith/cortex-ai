@@ -28,6 +28,7 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const { theme, toggleTheme } = useTheme();
+    const isDark = theme === "dark";
 
     // Form State
     const [systemPrompt, setSystemPrompt] = useState("");
@@ -226,22 +227,22 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
     return (
         <div className={cn(
             "flex flex-col h-screen font-sans transition-colors duration-300",
-            theme === 'dark' ? "bg-black text-white" : "bg-white text-gray-900"
+            isDark ? "bg-black text-white" : "bg-white text-gray-900"
         )}>
             {/* Header */}
             <header className={cn(
                 "flex flex-col md:flex-row items-start md:items-center justify-between px-4 md:px-8 py-4 border-b sticky top-0 z-10 gap-4 transition-colors duration-300",
-                theme === 'dark' ? "bg-black/50 border-white/10 backdrop-blur-md" : "bg-white/80 border-gray-200 backdrop-blur-md"
+                isDark ? "bg-black/50 border-white/10 backdrop-blur-md" : "bg-white/80 border-gray-200 backdrop-blur-md"
             )}>
                 <div className="flex items-center justify-between w-full md:w-auto">
                     <div className="flex items-center space-x-4">
-                        <Link href="/dashboard/agents" className={cn("transition-colors", theme === 'dark' ? "text-gray-400 hover:text-white" : "text-gray-600 hover:text-gray-900")}>
+                        <Link href="/dashboard/agents" className={cn("transition-colors", isDark ? "text-gray-400 hover:text-white" : "text-gray-600 hover:text-gray-900")}>
                             <ArrowLeft className="w-5 h-5" />
                         </Link>
                         <div>
                             <div className="flex items-center space-x-2">
-                                <h1 className={cn("text-xl font-bold truncate max-w-[150px] md:max-w-none", theme === 'dark' ? "text-white" : "text-gray-900")}>{agent.name}</h1>
-                                <span className={cn("px-2 py-0.5 text-[10px] font-medium rounded-full shrink-0", theme === 'dark' ? "bg-gray-800 text-gray-400" : "bg-gray-100 text-gray-500")}>
+                                <h1 className={cn("text-xl font-bold truncate max-w-[150px] md:max-w-none", isDark ? "text-white" : "text-gray-900")}>{agent.name}</h1>
+                                <span className={cn("px-2 py-0.5 text-[10px] font-medium rounded-full shrink-0", isDark ? "bg-gray-800 text-gray-400" : "bg-gray-100 text-gray-500")}>
                                     {agent.is_public ? "Public" : "Private"}
                                 </span>
                             </div>
@@ -252,9 +253,9 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
                     {/* Mobile Theme Toggle */}
                     <button
                         onClick={toggleTheme}
-                        className={cn("md:hidden p-2 rounded-lg transition-colors", theme === 'dark' ? "text-gray-400 hover:text-white hover:bg-white/5" : "text-gray-600 hover:text-gray-900 hover:bg-gray-100")}
+                        className={cn("md:hidden p-2 rounded-lg transition-colors", isDark ? "text-gray-400 hover:text-white hover:bg-white/5" : "text-gray-600 hover:text-gray-900 hover:bg-gray-100")}
                     >
-                        {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                        {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                     </button>
                 </div>
 
@@ -268,11 +269,11 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
                         {saving ? "Saving..." : "Save Changes"}
                     </button>
 
-                    <div className={cn("hidden md:block h-6 w-px mx-2", theme === 'dark' ? "bg-white/10" : "bg-gray-200")}></div>
+                    <div className={cn("hidden md:block h-6 w-px mx-2", isDark ? "bg-white/10" : "bg-gray-200")}></div>
 
                     <button
                         onClick={copyToClipboard}
-                        className={cn("flex-1 md:flex-none justify-center px-3 py-2 text-sm font-medium rounded-lg transition-colors flex items-center whitespace-nowrap", theme === 'dark' ? "text-gray-300 hover:bg-white/5" : "text-gray-600 hover:bg-gray-100")}
+                        className={cn("flex-1 md:flex-none justify-center px-3 py-2 text-sm font-medium rounded-lg transition-colors flex items-center whitespace-nowrap", isDark ? "text-gray-300 hover:bg-white/5" : "text-gray-600 hover:bg-gray-100")}
                     >
                         <Copy className="w-4 h-4 mr-2" />
                         {copied ? "Copied" : "Copy link"}
@@ -288,7 +289,7 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
                             window.open(`/chat/${agent.share_token}?new=true`, '_blank');
                         }}
                         disabled={!selectedLlmId}
-                        className={cn("flex-1 md:flex-none justify-center px-4 py-2 text-sm font-bold rounded-lg transition-all flex items-center disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap", theme === 'dark' ? "bg-white/10 text-white hover:bg-white/20" : "bg-gray-200 text-gray-900 hover:bg-gray-300")}
+                        className={cn("flex-1 md:flex-none justify-center px-4 py-2 text-sm font-bold rounded-lg transition-all flex items-center disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap", isDark ? "bg-white/10 text-white hover:bg-white/20" : "bg-gray-200 text-gray-900 hover:bg-gray-300")}
                     >
                         Preview
                     </button>
@@ -296,15 +297,15 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
                     {/* Desktop Theme Toggle */}
                     <button
                         onClick={toggleTheme}
-                        className={cn("hidden md:flex p-2 rounded-lg transition-colors ml-2", theme === 'dark' ? "text-gray-400 hover:text-white hover:bg-white/5" : "text-gray-600 hover:text-gray-900 hover:bg-gray-100")}
+                        className={cn("hidden md:flex p-2 rounded-lg transition-colors ml-2", isDark ? "text-gray-400 hover:text-white hover:bg-white/5" : "text-gray-600 hover:text-gray-900 hover:bg-gray-100")}
                     >
-                        {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                        {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                     </button>
                 </div>
             </header>
 
             {/* Tabs */}
-            <div className="px-4 md:px-8 border-b border-gray-200 dark:border-gray-800 overflow-x-auto">
+            <div className={cn("px-4 md:px-8 border-b overflow-x-auto", isDark ? "border-white/10" : "border-gray-200")}>
                 <div className="flex space-x-6 min-w-max">
                     {tabs.map((tab) => (
                         <button
@@ -314,7 +315,7 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
                                 "py-3 text-sm font-medium border-b-2 transition-colors relative whitespace-nowrap",
                                 activeTab === tab.id
                                     ? "border-[#76B900] text-[#76B900]"
-                                    : "border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                                    : cn("border-transparent", isDark ? "text-gray-500 hover:text-gray-300" : "text-gray-500 hover:text-gray-700")
                             )}
                         >
                             {tab.label}
@@ -324,17 +325,17 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-gray-50 dark:bg-[#0A0A0A]">
+            <div className={cn("flex-1 overflow-y-auto p-4 md:p-8", isDark ? "bg-[#0A0A0A]" : "bg-gray-50")}>
                 <div className="max-w-6xl mx-auto">
                     {activeTab === "agent" && (
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                             {/* Left Column */}
                             <div className="lg:col-span-2 space-y-6">
                                 {/* System Prompt */}
-                                <div className="bg-white dark:bg-[#111] rounded-xl border border-gray-200 dark:border-gray-800 p-1 shadow-sm">
-                                    <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+                                <div className={cn("rounded-xl border p-1 shadow-sm", isDark ? "bg-[#111] border-white/10" : "bg-white border-gray-200")}>
+                                    <div className={cn("flex items-center justify-between px-4 py-3 border-b", isDark ? "border-white/10" : "border-gray-100")}>
                                         <div className="flex items-center space-x-2">
-                                            <span className="text-sm font-medium text-gray-900 dark:text-white">System Prompt</span>
+                                            <span className={cn("text-sm font-medium", isDark ? "text-white" : "text-gray-900")}>System Prompt</span>
                                         </div>
                                     </div>
                                     <div className="p-4">
@@ -342,10 +343,10 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
                                             value={systemPrompt}
                                             onChange={(e) => setSystemPrompt(e.target.value)}
                                             placeholder="Enter the system prompt for your agent..."
-                                            className="w-full h-64 bg-transparent border-none focus:ring-0 text-sm resize-none text-gray-800 dark:text-gray-200 placeholder-gray-400"
+                                            className={cn("w-full h-64 bg-transparent border-none focus:ring-0 text-sm resize-none placeholder-gray-400", isDark ? "text-gray-200" : "text-gray-800")}
                                         />
                                     </div>
-                                    <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between bg-gray-50/50 dark:bg-black/20 rounded-b-xl">
+                                    <div className={cn("px-4 py-3 border-t flex items-center justify-between rounded-b-xl", isDark ? "border-white/10 bg-black/20" : "border-gray-100 bg-gray-50/50")}>
                                         <div className="flex items-center space-x-2">
                                             <span className="text-xs text-gray-500">Type {"{{"} to add variables</span>
                                         </div>
@@ -354,18 +355,18 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
 
                                 {/* First Message */}
                                 <div className="space-y-2">
-                                    <h3 className="text-sm font-medium text-gray-900 dark:text-white">First message</h3>
+                                    <h3 className={cn("text-sm font-medium", isDark ? "text-white" : "text-gray-900")}>First message</h3>
                                     <p className="text-xs text-gray-500">The first message the agent will say. If empty, the agent will wait for the user to start the conversation.</p>
-                                    <div className="bg-white dark:bg-[#111] rounded-xl border border-gray-200 dark:border-gray-800 p-1 shadow-sm">
+                                    <div className={cn("rounded-xl border p-1 shadow-sm", isDark ? "bg-[#111] border-white/10" : "bg-white border-gray-200")}>
                                         <div className="p-4">
                                             <textarea
                                                 value={firstMessage}
                                                 onChange={(e) => setFirstMessage(e.target.value)}
                                                 placeholder="e.g. Hello, how can I help you today?"
-                                                className="w-full h-24 bg-transparent border-none focus:ring-0 text-sm resize-none text-gray-800 dark:text-gray-200 placeholder-gray-400"
+                                                className={cn("w-full h-24 bg-transparent border-none focus:ring-0 text-sm resize-none placeholder-gray-400", isDark ? "text-gray-200" : "text-gray-800")}
                                             />
                                         </div>
-                                        <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between bg-gray-50/50 dark:bg-black/20 rounded-b-xl">
+                                        <div className={cn("px-4 py-3 border-t flex items-center justify-between rounded-b-xl", isDark ? "border-white/10 bg-black/20" : "border-gray-100 bg-gray-50/50")}>
                                             <span className="text-xs text-gray-500">Type {"{{"} to add variables</span>
                                         </div>
                                     </div>
@@ -376,13 +377,13 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
                             <div className="space-y-6">
                                 {/* LLM Selection */}
                                 <div className="space-y-2">
-                                    <h3 className="text-sm font-medium text-gray-900 dark:text-white">LLM</h3>
+                                    <h3 className={cn("text-sm font-medium", isDark ? "text-white" : "text-gray-900")}>LLM</h3>
                                     <p className="text-xs text-gray-500">Select which provider and model to use for the LLM.</p>
-                                    <div className="bg-white dark:bg-[#111] rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+                                    <div className={cn("rounded-xl border overflow-hidden", isDark ? "bg-[#111] border-white/10" : "bg-white border-gray-200")}>
                                         <select
                                             value={selectedLlmId}
                                             onChange={(e) => setSelectedLlmId(e.target.value)}
-                                            className="w-full p-4 bg-transparent border-none focus:ring-0 text-sm text-gray-900 dark:text-white appearance-none cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
+                                            className={cn("w-full p-4 bg-transparent border-none focus:ring-0 text-sm appearance-none cursor-pointer transition-colors", isDark ? "text-white hover:bg-gray-900" : "text-gray-900 hover:bg-gray-50")}
                                         >
                                             <option value="" disabled>Select LLM Configuration</option>
                                             {llmConfigs.map((config) => (
@@ -391,7 +392,7 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
                                                 </option>
                                             ))}
                                         </select>
-                                        <div className="px-4 py-3 bg-gray-50/50 dark:bg-black/20 border-t border-gray-100 dark:border-gray-800">
+                                        <div className={cn("px-4 py-3 border-t", isDark ? "bg-black/20 border-white/10" : "bg-gray-50/50 border-gray-100")}>
                                             <Link href="/dashboard/llm" className="text-xs text-gray-500 hover:text-[#76B900] flex items-center">
                                                 <Plus className="w-3 h-3 mr-1" /> Add new LLM
                                             </Link>
@@ -405,7 +406,7 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
                     {activeTab === "knowledge" && (
                         <div className="space-y-8">
                             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                                <h2 className="text-lg font-bold text-gray-900 dark:text-white">Agent Knowledge Base</h2>
+                                <h2 className={cn("text-lg font-bold", isDark ? "text-white" : "text-gray-900")}>Agent Knowledge Base</h2>
                                 <button
                                     onClick={handleAddKB}
                                     className="w-full sm:w-auto px-4 py-2 bg-[#76B900] text-black text-sm font-bold rounded-lg hover:bg-[#6aa600] transition-colors flex items-center justify-center shadow-[0_0_15px_rgba(118,185,0,0.3)]"
@@ -414,24 +415,24 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
                                 </button>
                             </div>
 
-                            <div className="bg-white dark:bg-[#111] rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+                            <div className={cn("rounded-xl border overflow-hidden", isDark ? "bg-[#111] border-white/10" : "bg-white border-gray-200")}>
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-left text-sm">
                                         <thead>
-                                            <tr className="border-b border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-black/20">
+                                            <tr className={cn("border-b", isDark ? "border-white/10 bg-black/20" : "border-gray-200 bg-gray-50/50")}>
                                                 <th className="px-6 py-3 font-medium text-gray-500">Name</th>
                                                 <th className="px-6 py-3 font-medium text-gray-500">Type</th>
                                                 <th className="px-6 py-3 font-medium text-gray-500">Status</th>
                                                 <th className="px-6 py-3 font-medium text-gray-500 text-right">Actions</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
+                                        <tbody className={cn("divide-y", isDark ? "divide-white/10" : "divide-gray-200")}>
                                             {availableKBs.filter(kb => selectedKBs.includes(kb.id)).map((kb) => (
-                                                <tr key={kb.id} className="hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors">
+                                                <tr key={kb.id} className={cn("transition-colors", isDark ? "hover:bg-gray-900/50" : "hover:bg-gray-50")}>
                                                     <td className="px-6 py-4">
                                                         <div className="flex items-center">
                                                             <FileText className="w-4 h-4 text-gray-400 mr-3" />
-                                                            <span className="font-medium text-gray-900 dark:text-white">{kb.name || kb.filename}</span>
+                                                            <span className={cn("font-medium", isDark ? "text-white" : "text-gray-900")}>{kb.name || kb.filename}</span>
                                                         </div>
                                                     </td>
                                                     <td className="px-6 py-4 text-gray-500">{kb.file_type || "Document"}</td>
@@ -468,7 +469,7 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
                             {/* Database Connections Section */}
                             <div className="mt-8">
                                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
-                                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">Database Connections</h3>
+                                    <h3 className={cn("text-lg font-bold", isDark ? "text-white" : "text-gray-900")}>Database Connections</h3>
                                     <button
                                         onClick={handleAddDB}
                                         className="w-full sm:w-auto px-4 py-2 bg-[#76B900] text-black text-sm font-bold rounded-lg hover:bg-[#6aa600] transition-colors flex items-center justify-center shadow-[0_0_15px_rgba(118,185,0,0.3)]"
@@ -476,24 +477,24 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
                                         <Plus className="w-4 h-4 mr-2" /> Add Database
                                     </button>
                                 </div>
-                                <div className="bg-white dark:bg-[#111] rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+                                <div className={cn("rounded-xl border overflow-hidden", isDark ? "bg-[#111] border-white/10" : "bg-white border-gray-200")}>
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-left text-sm">
                                             <thead>
-                                                <tr className="border-b border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-black/20">
+                                                <tr className={cn("border-b", isDark ? "border-white/10 bg-black/20" : "border-gray-200 bg-gray-50/50")}>
                                                     <th className="px-6 py-3 font-medium text-gray-500">Name</th>
                                                     <th className="px-6 py-3 font-medium text-gray-500">Type</th>
                                                     <th className="px-6 py-3 font-medium text-gray-500">Host</th>
                                                     <th className="px-6 py-3 font-medium text-gray-500 text-right">Actions</th>
                                                 </tr>
                                             </thead>
-                                            <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
+                                            <tbody className={cn("divide-y", isDark ? "divide-white/10" : "divide-gray-200")}>
                                                 {availableDBs.filter(db => selectedDBs.includes(db.id)).map((db) => (
-                                                    <tr key={db.id} className="hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors">
+                                                    <tr key={db.id} className={cn("transition-colors", isDark ? "hover:bg-gray-900/50" : "hover:bg-gray-50")}>
                                                         <td className="px-6 py-4">
                                                             <div className="flex items-center">
                                                                 <Database className="w-4 h-4 text-gray-400 mr-3" />
-                                                                <span className="font-medium text-gray-900 dark:text-white">{db.name}</span>
+                                                                <span className={cn("font-medium", isDark ? "text-white" : "text-gray-900")}>{db.name}</span>
                                                             </div>
                                                         </td>
                                                         <td className="px-6 py-4 text-gray-500 uppercase">{db.type}</td>
@@ -525,9 +526,9 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
 
                     {activeTab === "advanced" && (
                         <div className="max-w-2xl mx-auto space-y-8">
-                            <div className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900 rounded-xl p-6">
-                                <h3 className="text-lg font-bold text-red-700 dark:text-red-400 mb-2">Danger Zone</h3>
-                                <p className="text-sm text-red-600 dark:text-red-300 mb-4">
+                            <div className={cn("border rounded-xl p-6", isDark ? "bg-red-900/10 border-red-900" : "bg-red-50 border-red-200")}>
+                                <h3 className={cn("text-lg font-bold mb-2", isDark ? "text-red-400" : "text-red-700")}>Danger Zone</h3>
+                                <p className={cn("text-sm mb-4", isDark ? "text-red-300" : "text-red-600")}>
                                     Deleting this agent will permanently remove it and all associated chat history. This action cannot be undone.
                                 </p>
                                 <button
