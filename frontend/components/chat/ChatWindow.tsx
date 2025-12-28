@@ -129,7 +129,7 @@ export default function ChatWindow({
                             <Bot className="w-5 h-5 text-black" />
                         </motion.div>
                         <div>
-                            <h2 className={cn("text-sm font-bold", theme === 'dark' ? "text-white" : "text-gray-900")}>
+                            <h2 className={cn("text-sm font-semibold", theme === 'dark' ? "text-white" : "text-gray-900")}>
                                 {agentName}
                             </h2>
                             <p className={cn("text-[10px]", theme === 'dark' ? "text-gray-400" : "text-gray-500")}>

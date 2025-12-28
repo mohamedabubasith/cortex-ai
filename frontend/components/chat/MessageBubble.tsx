@@ -181,13 +181,13 @@ function MessageBubbleBase({ message, isStreaming = false, isQuerying = false, h
                         )}
                     >
                         {isUser ? (
-                            <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+                            <p className="text-base md:text-sm leading-relaxed whitespace-pre-wrap break-words">
                                 {message.content}
                             </p>
                         ) : (
                             message.content ? (
                                 <div className={cn(
-                                    "prose prose-sm max-w-none",
+                                    "prose prose-base md:prose-sm max-w-none",
                                     theme === 'dark'
                                         ? "prose-invert prose-headings:text-gray-100 prose-p:text-gray-100 prose-strong:text-gray-100 prose-code:text-[#76B900]"
                                         : "prose-headings:text-gray-900 prose-p:text-gray-800 prose-strong:text-gray-900 prose-code:text-blue-600 prose-a:text-blue-600"

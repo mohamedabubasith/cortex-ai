@@ -241,7 +241,7 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
                         </Link>
                         <div>
                             <div className="flex items-center space-x-2">
-                                <h1 className={cn("text-xl font-bold truncate max-w-[150px] md:max-w-none", isDark ? "text-white" : "text-gray-900")}>{agent.name}</h1>
+                                <h1 className={cn("text-lg md:text-xl font-bold truncate max-w-[150px] md:max-w-none", isDark ? "text-white" : "text-gray-900")}>{agent.name}</h1>
                                 <span className={cn("px-2 py-0.5 text-[10px] font-medium rounded-full shrink-0", isDark ? "bg-gray-800 text-gray-400" : "bg-gray-100 text-gray-500")}>
                                     {agent.is_public ? "Public" : "Private"}
                                 </span>
@@ -312,7 +312,7 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
                             className={cn(
-                                "py-3 text-sm font-medium border-b-2 transition-colors relative whitespace-nowrap",
+                                "py-3 text-base md:text-sm font-medium border-b-2 transition-colors relative whitespace-nowrap",
                                 activeTab === tab.id
                                     ? "border-[#76B900] text-[#76B900]"
                                     : cn("border-transparent", isDark ? "text-gray-500 hover:text-gray-300" : "text-gray-500 hover:text-gray-700")
@@ -335,7 +335,7 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
                                 <div className={cn("rounded-xl border p-1 shadow-sm", isDark ? "bg-[#111] border-white/10" : "bg-white border-gray-200")}>
                                     <div className={cn("flex items-center justify-between px-4 py-3 border-b", isDark ? "border-white/10" : "border-gray-100")}>
                                         <div className="flex items-center space-x-2">
-                                            <span className={cn("text-sm font-medium", isDark ? "text-white" : "text-gray-900")}>System Prompt</span>
+                                            <span className={cn("text-base md:text-sm font-medium", isDark ? "text-white" : "text-gray-900")}>System Prompt</span>
                                         </div>
                                     </div>
                                     <div className="p-4">
@@ -355,7 +355,7 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
 
                                 {/* First Message */}
                                 <div className="space-y-2">
-                                    <h3 className={cn("text-sm font-medium", isDark ? "text-white" : "text-gray-900")}>First message</h3>
+                                    <h3 className={cn("text-base md:text-sm font-medium", isDark ? "text-white" : "text-gray-900")}>First message</h3>
                                     <p className="text-xs text-gray-500">The first message the agent will say. If empty, the agent will wait for the user to start the conversation.</p>
                                     <div className={cn("rounded-xl border p-1 shadow-sm", isDark ? "bg-[#111] border-white/10" : "bg-white border-gray-200")}>
                                         <div className="p-4">
@@ -377,7 +377,7 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
                             <div className="space-y-6">
                                 {/* LLM Selection */}
                                 <div className="space-y-2">
-                                    <h3 className={cn("text-sm font-medium", isDark ? "text-white" : "text-gray-900")}>LLM</h3>
+                                    <h3 className={cn("text-base md:text-sm font-medium", isDark ? "text-white" : "text-gray-900")}>LLM</h3>
                                     <p className="text-xs text-gray-500">Select which provider and model to use for the LLM.</p>
                                     <div className={cn("rounded-xl border overflow-hidden", isDark ? "bg-[#111] border-white/10" : "bg-white border-gray-200")}>
                                         <select
@@ -406,7 +406,7 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
                     {activeTab === "knowledge" && (
                         <div className="space-y-8">
                             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                                <h2 className={cn("text-lg font-bold", isDark ? "text-white" : "text-gray-900")}>Agent Knowledge Base</h2>
+                                <h2 className={cn("text-base md:text-lg font-bold", isDark ? "text-white" : "text-gray-900")}>Agent Knowledge Base</h2>
                                 <button
                                     onClick={handleAddKB}
                                     className="w-full sm:w-auto px-4 py-2 bg-[#76B900] text-black text-sm font-bold rounded-lg hover:bg-[#6aa600] transition-colors flex items-center justify-center shadow-[0_0_15px_rgba(118,185,0,0.3)]"
@@ -417,7 +417,7 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
 
                             <div className={cn("rounded-xl border overflow-hidden", isDark ? "bg-[#111] border-white/10" : "bg-white border-gray-200")}>
                                 <div className="overflow-x-auto">
-                                    <table className="w-full text-left text-sm">
+                                    <table className="w-full text-left text-xs md:text-sm">
                                         <thead>
                                             <tr className={cn("border-b", isDark ? "border-white/10 bg-black/20" : "border-gray-200 bg-gray-50/50")}>
                                                 <th className="px-6 py-3 font-medium text-gray-500">Name</th>
@@ -469,7 +469,7 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
                             {/* Database Connections Section */}
                             <div className="mt-8">
                                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
-                                    <h3 className={cn("text-lg font-bold", isDark ? "text-white" : "text-gray-900")}>Database Connections</h3>
+                                    <h3 className={cn("text-base md:text-lg font-bold", isDark ? "text-white" : "text-gray-900")}>Database Connections</h3>
                                     <button
                                         onClick={handleAddDB}
                                         className="w-full sm:w-auto px-4 py-2 bg-[#76B900] text-black text-sm font-bold rounded-lg hover:bg-[#6aa600] transition-colors flex items-center justify-center shadow-[0_0_15px_rgba(118,185,0,0.3)]"
@@ -479,7 +479,7 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
                                 </div>
                                 <div className={cn("rounded-xl border overflow-hidden", isDark ? "bg-[#111] border-white/10" : "bg-white border-gray-200")}>
                                     <div className="overflow-x-auto">
-                                        <table className="w-full text-left text-sm">
+                                        <table className="w-full text-left text-xs md:text-sm">
                                             <thead>
                                                 <tr className={cn("border-b", isDark ? "border-white/10 bg-black/20" : "border-gray-200 bg-gray-50/50")}>
                                                     <th className="px-6 py-3 font-medium text-gray-500">Name</th>
