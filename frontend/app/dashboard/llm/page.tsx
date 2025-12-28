@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/Toast";
 import Dialog from "@/components/ui/Dialog";
 import { useTheme } from "@/contexts/ThemeContext";
 import { cn } from "@/lib/utils";
+import CustomDropdown from "@/components/ui/CustomDropdown";
 
 interface LLMConfig {
     id: string;
@@ -239,16 +240,19 @@ export default function LLMPage() {
 
                     <div>
                         <label className="block text-sm font-medium text-gray-300 mb-1">Provider</label>
-                        <select
-                            className="w-full bg-black/50 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-nvidia-green focus:border-nvidia-green"
-                            value={newConfig.provider}
-                            onChange={e => setNewConfig({ ...newConfig, provider: e.target.value })}
-                        >
-                            <option value="openai">OpenAI</option>
-                            <option value="anthropic">Anthropic</option>
-                            <option value="azure">Azure OpenAI</option>
-                            <option value="ollama">Ollama (Local)</option>
-                        </select>
+                        <CustomDropdown
+                            options={[
+                                { id: "openai", name: "OpenAI" },
+                                { id: "anthropic", name: "Anthropic" },
+                                { id: "azure", name: "Azure OpenAI" },
+                                { id: "ollama", name: "Ollama (Local)" }
+                            ]}
+                            value={{ id: newConfig.provider || "openai", name: "" }} // Name is not used for value matching in this simple case, but needed for type
+                            onChange={(option) => setNewConfig({ ...newConfig, provider: option.id })}
+                            getLabel={(option) => option.name}
+                            getKey={(option) => option.id}
+                            placeholder="Select Provider"
+                        />
                     </div>
 
                     <div>

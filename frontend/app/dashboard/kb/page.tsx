@@ -11,6 +11,7 @@ import Dialog from "@/components/ui/Dialog";
 import SidePanel from "@/components/ui/SidePanel";
 import { useTheme } from "@/contexts/ThemeContext";
 import { cn } from "@/lib/utils";
+import CustomDropdown from "@/components/ui/CustomDropdown";
 
 interface KnowledgeBase {
     id: string;
@@ -538,14 +539,18 @@ export default function KnowledgeBasePage() {
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-300 mb-1">Type</label>
-                            <select
-                                className="w-full bg-black/50 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-nvidia-green focus:border-nvidia-green"
-                                value={newDb.type}
-                                onChange={e => setNewDb({ ...newDb, type: e.target.value })}
-                            >
-                                <option value="postgres">PostgreSQL</option>
-                                <option value="mysql">MySQL</option>
-                            </select>
+                            <CustomDropdown
+                                options={[
+                                    { id: "postgres", name: "PostgreSQL" },
+                                    { id: "mysql", name: "MySQL" },
+                                    { id: "sqlserver", name: "SQL Server" }
+                                ]}
+                                value={{ id: newDb.type || "postgres", name: "" }}
+                                onChange={(option) => setNewDb({ ...newDb, type: option.id })}
+                                getLabel={(option) => option.name}
+                                getKey={(option) => option.id}
+                                placeholder="Select Database Type"
+                            />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-300 mb-1">Port</label>

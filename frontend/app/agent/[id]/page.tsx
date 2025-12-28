@@ -15,6 +15,7 @@ import Link from "next/link";
 import api from "@/lib/api";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import CustomDropdown from "@/components/ui/CustomDropdown";
 import Dialog from "@/components/ui/Dialog";
 import { useToast } from "@/components/ui/Toast";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -380,18 +381,27 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
                                     <h3 className={cn("text-base md:text-sm font-medium", isDark ? "text-white" : "text-gray-900")}>LLM</h3>
                                     <p className="text-xs text-gray-500">Select which provider and model to use for the LLM.</p>
                                     <div className={cn("rounded-xl border overflow-hidden", isDark ? "bg-[#111] border-white/10" : "bg-white border-gray-200")}>
-                                        <select
-                                            value={selectedLlmId}
-                                            onChange={(e) => setSelectedLlmId(e.target.value)}
-                                            className={cn("w-full p-4 bg-transparent border-none focus:ring-0 text-base md:text-sm appearance-none cursor-pointer transition-colors", isDark ? "text-white hover:bg-gray-900" : "text-gray-900 hover:bg-gray-50")}
-                                        >
-                                            <option value="" disabled>Select LLM Configuration</option>
-                                            {llmConfigs.map((config) => (
-                                                <option key={config.id} value={config.id}>
-                                                    {config.name} ({config.model})
-                                                </option>
-                                            ))}
-                                        </select>
+                                        {llmConfigs.length > 0 ? (
+                                            <div className="p-1">
+                                                <CustomDropdown
+                                                    options={llmConfigs}
+                                                    value={llmConfigs.find(c => c.id === selectedLlmId) || null}
+                                                    onChange={(option) => setSelectedLlmId(option.id)}
+                                                    getLabel={(option) => option.name}
+                                                    getSubtitle={(option) => `${option.provider} - ${option.model}`}
+                                                    getKey={(option) => option.id}
+                                                    placeholder="Select an LLM Configuration"
+                                                    className="border-none"
+                                                />
+                                            </div>
+                                        ) : (
+                                            <div className="p-4 text-center">
+                                                <p className="text-sm text-gray-500 mb-2">No LLM configurations found.</p>
+                                                <Link href="/dashboard/llm" className="text-nvidia-green hover:underline text-sm font-medium">
+                                                    Create one here
+                                                </Link>
+                                            </div>
+                                        )}
                                         <div className={cn("px-4 py-3 border-t", isDark ? "bg-black/20 border-white/10" : "bg-gray-50/50 border-gray-100")}>
                                             <Link href="/dashboard/llm" className="text-xs text-gray-500 hover:text-[#76B900] flex items-center">
                                                 <Plus className="w-3 h-3 mr-1" /> Add new LLM
