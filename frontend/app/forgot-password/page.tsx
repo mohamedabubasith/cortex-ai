@@ -54,7 +54,7 @@ export default function ForgotPasswordPage() {
     };
 
     return (
-        <div className="min-h-screen bg-black flex items-center justify-center p-4 relative overflow-hidden">
+        <div className="min-h-screen bg-black flex items-center justify-center p-3 sm:p-4 relative overflow-hidden">
             {/* Background Effects */}
             <TubesBackground />
             <div className="absolute inset-0 z-0">
@@ -68,10 +68,10 @@ export default function ForgotPasswordPage() {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.5 }}
-                className="w-full max-w-md relative z-10"
+                className="w-full max-w-[380px] sm:max-w-md relative z-10"
             >
                 <div className="bg-nvidia-dark/80 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
-                    <div className="p-8">
+                    <div className="p-6 sm:p-8">
                         <div className="text-center mb-8">
                             <div className="inline-flex items-center justify-center mb-6">
                                 <Logo size="xl" />
