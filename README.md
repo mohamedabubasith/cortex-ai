@@ -106,6 +106,35 @@ For deploying to a cloud server (e.g., Google Compute Engine, AWS EC2):
 
 ---
 
+## 🏢 Organization & SaaS Setup
+
+To configure Cortex AI for your own organization or as a SaaS offering:
+
+### 1. Branding & Customization
+- **App Name**: Update the application name in `frontend/app/layout.tsx` (metadata title) and `frontend/components/chat/Sidebar.tsx`.
+- **Logo**: Replace the logo icon in `frontend/components/Logo.tsx` or `frontend/public/icon.png`.
+- **Theme Colors**: The application uses a distinct green accent (`#76B900`). To apply your brand color:
+  1. Update the `--nvidia-green` variable in `frontend/app/globals.css`.
+  2. Perform a global search and replace for the hex code `#76B900` in the `frontend/` directory with your brand's primary color.
+
+### 2. User Management & Access Control
+Cortex AI comes with built-in authentication and role-based access control (RBAC).
+- **Initial Admin**: The first user to register is just a standard user. You can manually promote users to superuser status in the database if needed for administrative features.
+- **Private Instance**: To restrict access to only your employees, you can disable the "Register" endpoint in `backend/app/routers/auth.py` or put the entire application behind a corporate VPN or SSO proxy (like Cloudflare Access).
+
+### 3. Production Database
+For a robust SaaS setup, **do not** use the default local Docker volume for the database if you expect high traffic or need high availability.
+- Connect the backend to a managed PostgreSQL instance (e.g., AWS RDS, Google Cloud SQL, Azure Database for PostgreSQL).
+- Update `DB_HOST`, `DB_USER`, `DB_PASSWORD` in your `.env` file to point to your managed instance.
+- **Requirement**: Ensure the managed database supports the `pgvector` extension (v0.5.0+).
+
+### 4. LLM Provider Configuration
+You can configure a global LLM provider for your organization or allow users to bring their own keys.
+- **Global Key**: Set `OPENAI_API_KEY` (or Anthropic/Azure keys) in the backend `.env`. This key will be used for system operations (like RAG indexing) and default agents.
+- **Multiple Models**: You can configure multiple models (GPT-4, Claude 3, Llama 3) in the "LLM Configurations" section of the dashboard, allowing different departments to use different models based on cost/performance needs.
+
+---
+
 ## 🧪 Development
 
 To run the project locally for development (with hot-reloading):
