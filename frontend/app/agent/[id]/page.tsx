@@ -582,17 +582,22 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Select Existing KB</label>
                         <CustomDropdown
-                            options={availableKBs.filter(kb => !selectedKBs.includes(kb.id))}
+                            options={availableKBs}
                             value={availableKBs.find(kb => kb.id === resourceToAdd) || null}
-                            onChange={(option) => setResourceToAdd(option.id)}
-                            getLabel={(option) => option.name || option.filename}
+                            onChange={(option) => {
+                                if (!selectedKBs.includes(option.id)) {
+                                    setResourceToAdd(option.id);
+                                }
+                            }}
+                            getLabel={(option) => {
+                                const label = option.name || option.filename;
+                                return selectedKBs.includes(option.id) ? `${label} (Already Linked)` : label;
+                            }}
                             getKey={(option) => option.id}
                             placeholder="Select a Knowledge Base..."
                         />
-                        {availableKBs.length === 0 ? (
+                        {availableKBs.length === 0 && (
                             <p className="text-xs text-red-400">No Knowledge Bases found. Please upload one first.</p>
-                        ) : availableKBs.filter(kb => !selectedKBs.includes(kb.id)).length === 0 && (
-                            <p className="text-xs text-gray-500">All available Knowledge Bases are already linked.</p>
                         )}
                     </div>
 
