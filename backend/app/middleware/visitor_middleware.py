@@ -33,13 +33,19 @@ class VisitorMiddleware(BaseHTTPMiddleware):
             else:
                 ip = client_host
             
-            # De-duplication: Check if IP visited in last 30 minutes
+            # De-duplication: Check if IP+User visited in last 30 minutes
+            auth_header = headers.get("Authorization", "anon")
+            # Use a hash or just the string if it's not too long. Tokens are long.
+            # Let's use the first 50 chars of auth header to distinguish users
+            auth_key = auth_header[:50] if auth_header else "anon"
+            dedup_key = f"{ip}:{auth_key}"
+            
             now = time.time()
-            last_visit = self._recent_ips.get(ip)
+            last_visit = self._recent_ips.get(dedup_key)
             if last_visit and now - last_visit < 1800: # 30 minutes
                 return
             
-            self._recent_ips[ip] = now
+            self._recent_ips[dedup_key] = now
             
             user_agent = headers.get("User-Agent")
             
