@@ -388,7 +388,7 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
                                                     value={llmConfigs.find(c => c.id === selectedLlmId) || null}
                                                     onChange={(option) => setSelectedLlmId(option.id)}
                                                     getLabel={(option) => option.name}
-                                                    getSubtitle={(option) => `${option.provider} - ${option.model}`}
+                                                    getSubtitle={(option) => option.model}
                                                     getKey={(option) => option.id}
                                                     placeholder="Select an LLM Configuration"
                                                     className="border-none"
