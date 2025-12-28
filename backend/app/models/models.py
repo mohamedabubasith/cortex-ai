@@ -196,7 +196,7 @@ class AgentAuditLog(Base):
     
     id = Column(String, primary_key=True, default=generate_uuid)
     user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    agent_id = Column(String, ForeignKey("agents.id", ondelete="SET NULL"), nullable=True)
+    agent_id = Column(String, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True)
     session_id = Column(String, nullable=True)
     
     # LLM Details
