@@ -73,7 +73,7 @@ class VisitorMiddleware(BaseHTTPMiddleware):
                         "path": path,
                         "method": method
                     },
-                    meta_data={
+                    metadata={
                         "ip": ip,
                         "user_agent": user_agent,
                         "country": country
