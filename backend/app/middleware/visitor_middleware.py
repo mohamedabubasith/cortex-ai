@@ -18,8 +18,11 @@ class VisitorMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
         
-        # Only log API requests, skip health checks and static files
-        if request.url.path.startswith("/api/v1") and not request.url.path.endswith("/health"):
+        # Only log API requests, skip health checks, static files, and chat endpoints
+        # Chat endpoints use streaming responses which conflict with database logging
+        if (request.url.path.startswith("/api/v1") and 
+            not request.url.path.endswith("/health") and
+            not request.url.path.startswith("/api/v1/chat/")):
             # Fire and forget logging using asyncio.create_task
             asyncio.create_task(self.log_visit(request.headers, request.client.host, request.url.path, request.method))
             
