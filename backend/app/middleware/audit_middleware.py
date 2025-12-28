@@ -32,10 +32,11 @@ class AuditMiddleware(BaseHTTPMiddleware):
         
         response = await call_next(request)
         
-        # Only log API requests (skip health checks, static files, and auth endpoints)
+        # Only log API requests (skip health checks, static files, auth endpoints, and public chat)
         if (request.url.path.startswith("/api/v1") and 
             not request.url.path.endswith("/health") and
-            not request.url.path.startswith("/api/v1/auth/")):
+            not request.url.path.startswith("/api/v1/auth/") and
+            not request.url.path.startswith("/api/v1/chat/public/")):
             
             # Fire and forget logging
             asyncio.create_task(self.log_audit(request, response.status_code, request_body))
