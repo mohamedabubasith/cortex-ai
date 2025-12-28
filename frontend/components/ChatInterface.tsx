@@ -81,7 +81,7 @@ export default function ChatInterface({
 
     return (
         <div className={cn(
-            "flex h-screen font-sans overflow-hidden relative transition-colors duration-300",
+            "flex h-[100dvh] font-sans overflow-hidden relative transition-colors duration-300",
             theme === 'dark' ? "bg-[#05070A] text-white" : "bg-gray-50 text-gray-900",
             className
         )}>

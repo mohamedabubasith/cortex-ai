@@ -226,7 +226,7 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
 
     return (
         <div className={cn(
-            "flex flex-col h-screen font-sans transition-colors duration-300",
+            "flex flex-col h-[100dvh] font-sans transition-colors duration-300 overflow-hidden",
             isDark ? "bg-black text-white" : "bg-white text-gray-900"
         )}>
             {/* Header */}
@@ -343,7 +343,7 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
                                             value={systemPrompt}
                                             onChange={(e) => setSystemPrompt(e.target.value)}
                                             placeholder="Enter the system prompt for your agent..."
-                                            className={cn("w-full h-64 bg-transparent border-none focus:ring-0 text-sm resize-none placeholder-gray-400", isDark ? "text-gray-200" : "text-gray-800")}
+                                            className={cn("w-full h-64 bg-transparent border-none focus:ring-0 text-base md:text-sm resize-none placeholder-gray-400", isDark ? "text-gray-200" : "text-gray-800")}
                                         />
                                     </div>
                                     <div className={cn("px-4 py-3 border-t flex items-center justify-between rounded-b-xl", isDark ? "border-white/10 bg-black/20" : "border-gray-100 bg-gray-50/50")}>
@@ -363,7 +363,7 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
                                                 value={firstMessage}
                                                 onChange={(e) => setFirstMessage(e.target.value)}
                                                 placeholder="e.g. Hello, how can I help you today?"
-                                                className={cn("w-full h-24 bg-transparent border-none focus:ring-0 text-sm resize-none placeholder-gray-400", isDark ? "text-gray-200" : "text-gray-800")}
+                                                className={cn("w-full h-24 bg-transparent border-none focus:ring-0 text-base md:text-sm resize-none placeholder-gray-400", isDark ? "text-gray-200" : "text-gray-800")}
                                             />
                                         </div>
                                         <div className={cn("px-4 py-3 border-t flex items-center justify-between rounded-b-xl", isDark ? "border-white/10 bg-black/20" : "border-gray-100 bg-gray-50/50")}>
@@ -383,7 +383,7 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
                                         <select
                                             value={selectedLlmId}
                                             onChange={(e) => setSelectedLlmId(e.target.value)}
-                                            className={cn("w-full p-4 bg-transparent border-none focus:ring-0 text-sm appearance-none cursor-pointer transition-colors", isDark ? "text-white hover:bg-gray-900" : "text-gray-900 hover:bg-gray-50")}
+                                            className={cn("w-full p-4 bg-transparent border-none focus:ring-0 text-base md:text-sm appearance-none cursor-pointer transition-colors", isDark ? "text-white hover:bg-gray-900" : "text-gray-900 hover:bg-gray-50")}
                                         >
                                             <option value="" disabled>Select LLM Configuration</option>
                                             {llmConfigs.map((config) => (

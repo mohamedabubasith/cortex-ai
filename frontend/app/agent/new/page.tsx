@@ -45,8 +45,8 @@ export default function NewAgentPage() {
     };
 
     return (
-        <div className={cn("min-h-screen flex flex-col transition-colors duration-300", isDark ? "bg-black text-white" : "bg-gray-50 text-gray-900")}>
-            <nav className={cn("border-b backdrop-blur-md", isDark ? "border-white/10 bg-nvidia-dark/50" : "border-gray-200 bg-white/80")}>
+        <div className={cn("h-[100dvh] flex flex-col transition-colors duration-300 overflow-hidden", isDark ? "bg-black text-white" : "bg-gray-50 text-gray-900")}>
+            <nav className={cn("border-b backdrop-blur-md shrink-0", isDark ? "border-white/10 bg-nvidia-dark/50" : "border-gray-200 bg-white/80")}>
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between h-16">
                         <div className="flex items-center">
@@ -62,7 +62,7 @@ export default function NewAgentPage() {
                 </div>
             </nav>
 
-            <main className="flex-1 flex items-center justify-center p-4">
+            <main className="flex-1 flex items-center justify-center p-4 overflow-y-auto">
                 <div className="w-full max-w-md space-y-8">
                     <div className="text-center">
                         <div className={cn("mx-auto h-12 w-12 rounded-xl flex items-center justify-center mb-4", isDark ? "bg-nvidia-green/10" : "bg-nvidia-green/10")}>
@@ -92,7 +92,7 @@ export default function NewAgentPage() {
                                         name="name"
                                         id="name"
                                         required
-                                        className={cn("block w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-nvidia-green focus:border-transparent transition-all", isDark ? "bg-black/50 border-gray-700 text-white placeholder-gray-500" : "bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400")}
+                                        className={cn("block w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-nvidia-green focus:border-transparent transition-all text-base md:text-sm", isDark ? "bg-black/50 border-gray-700 text-white placeholder-gray-500" : "bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400")}
                                         placeholder="e.g., Customer Support Bot"
                                         value={formData.name}
                                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -109,7 +109,7 @@ export default function NewAgentPage() {
                                         id="description"
                                         name="description"
                                         rows={3}
-                                        className={cn("block w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-nvidia-green focus:border-transparent transition-all", isDark ? "bg-black/50 border-gray-700 text-white placeholder-gray-500" : "bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400")}
+                                        className={cn("block w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-nvidia-green focus:border-transparent transition-all text-base md:text-sm", isDark ? "bg-black/50 border-gray-700 text-white placeholder-gray-500" : "bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400")}
                                         placeholder="What does this agent do?"
                                         value={formData.description}
                                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
