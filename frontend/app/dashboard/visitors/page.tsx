@@ -6,9 +6,10 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useState } from "react";
 import { useTheme } from "@/contexts/ThemeContext";
 import api from "@/lib/api";
-import { Loader2, Globe, Clock, MapPin, Monitor, Trash2 } from "lucide-react";
+import { Loader2, Globe, Clock, MapPin, Monitor, Trash2, Info } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
+import Dialog from "@/components/ui/Dialog";
 
 export default function VisitorsPage() {
     const { theme } = useTheme();
@@ -16,6 +17,7 @@ export default function VisitorsPage() {
     const [visitors, setVisitors] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [selectedVisitor, setSelectedVisitor] = useState<any>(null);
 
     const fetchVisitors = async () => {
         try {
@@ -31,8 +33,6 @@ export default function VisitorsPage() {
 
     useEffect(() => {
         fetchVisitors();
-
-        // Refresh every 30s
         const interval = setInterval(fetchVisitors, 30000);
         return () => clearInterval(interval);
     }, []);
@@ -95,7 +95,11 @@ export default function VisitorsPage() {
                         </thead>
                         <tbody className={`divide-y ${isDark ? "divide-white/5" : "divide-gray-100"}`}>
                             {visitors.map((visitor) => (
-                                <tr key={visitor.id} className={`transition-colors ${isDark ? "hover:bg-white/5" : "hover:bg-gray-50"}`}>
+                                <tr
+                                    key={visitor.id}
+                                    onClick={() => setSelectedVisitor(visitor)}
+                                    className={`transition-colors cursor-pointer ${isDark ? "hover:bg-white/5" : "hover:bg-gray-50"}`}
+                                >
                                     <td className="px-6 py-4 whitespace-nowrap text-gray-500">
                                         <div className="flex items-center gap-2">
                                             <Clock className="w-4 h-4" />
@@ -133,6 +137,58 @@ export default function VisitorsPage() {
                     </table>
                 </div>
             </div>
+
+            {/* Visitor Details Modal */}
+            <Dialog
+                isOpen={!!selectedVisitor}
+                onClose={() => setSelectedVisitor(null)}
+                title="Visitor Details"
+            >
+                {selectedVisitor && (
+                    <div className="space-y-6">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="col-span-2 p-3 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10">
+                                <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">IP Address</label>
+                                <div className="font-mono text-lg">{selectedVisitor.meta_data?.ip}</div>
+                                {selectedVisitor.meta_data?.isp && (
+                                    <div className="text-sm text-gray-400 mt-1">{selectedVisitor.meta_data.isp}</div>
+                                )}
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Location</label>
+                                <div className="font-medium">{selectedVisitor.meta_data?.city || "Unknown"}, {selectedVisitor.meta_data?.regionName || ""}</div>
+                                <div className="text-sm text-gray-400">{selectedVisitor.meta_data?.country}</div>
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Coordinates</label>
+                                <div className="font-mono text-sm">
+                                    {selectedVisitor.meta_data?.lat ? `${selectedVisitor.meta_data.lat}, ${selectedVisitor.meta_data.lon}` : "N/A"}
+                                </div>
+                                <div className="text-sm text-gray-400">{selectedVisitor.meta_data?.timezone}</div>
+                            </div>
+
+                            <div className="col-span-2">
+                                <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">User Agent</label>
+                                <div className="text-sm font-mono break-all bg-gray-50 dark:bg-black p-2 rounded border border-gray-100 dark:border-white/10 mt-1">
+                                    {selectedVisitor.meta_data?.user_agent}
+                                </div>
+                            </div>
+
+                            <div className="col-span-2">
+                                <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Request</label>
+                                <div className="text-sm font-mono text-nvidia-green mt-1">
+                                    {selectedVisitor.event_data?.method} {selectedVisitor.event_data?.path}
+                                </div>
+                                <div className="text-xs text-gray-500 mt-1">
+                                    {new Date(selectedVisitor.created_at).toLocaleString()}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </Dialog>
         </div>
     );
 }

@@ -48,14 +48,16 @@ class VisitorMiddleware(BaseHTTPMiddleware):
             
             user_agent = headers.get("User-Agent")
             
-            # Resolve Country
+            # Resolve Country and Details
             country = "Unknown"
+            location_data = {}
             
             # Check if IP is private/local
             try:
                 ip_obj = ipaddress.ip_address(ip)
                 if ip_obj.is_private:
                     country = "Local Network"
+                    location_data = {"country": "Local Network", "city": "Local", "isp": "Internal"}
             except ValueError:
                 pass
 
@@ -67,6 +69,7 @@ class VisitorMiddleware(BaseHTTPMiddleware):
                             data = resp.json()
                             if data.get("status") == "success":
                                 country = data.get("country", "Unknown")
+                                location_data = data
                 except Exception as e:
                     # logger.warning(f"Failed to resolve country for {ip}: {e}")
                     pass
@@ -76,17 +79,21 @@ class VisitorMiddleware(BaseHTTPMiddleware):
                 repo = AnalyticsRepository(session)
                 service = AnalyticsService(repo)
                 
+                # Merge location data into metadata
+                meta = {
+                    "ip": ip,
+                    "user_agent": user_agent,
+                    "country": country,
+                    **location_data
+                }
+                
                 await service.log_event(
                     event_type="api_hit",
                     event_data={
                         "path": path,
                         "method": method
                     },
-                    metadata={
-                        "ip": ip,
-                        "user_agent": user_agent,
-                        "country": country
-                    }
+                    metadata=meta
                 )
                 await session.commit()
                 
