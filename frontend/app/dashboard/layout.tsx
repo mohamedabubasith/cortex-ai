@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Cpu, Database, Bot, LogOut, Menu, X, Sun, Moon, Users } from "lucide-react";
+import { LayoutDashboard, Cpu, Database, Bot, LogOut, Menu, X, Sun, Moon, Users, FileText } from "lucide-react";
 import Logo from "@/components/Logo";
 import { useTheme } from "@/contexts/ThemeContext";
 import api from "@/lib/api";
@@ -30,6 +30,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     if (user?.is_superuser) {
         navigation.push({ name: "Visitors", href: "/dashboard/visitors", icon: Users });
+        navigation.push({ name: "Audit Logs", href: "/dashboard/audit", icon: FileText });
     }
 
     return (

@@ -65,6 +65,9 @@ app.add_middleware(
 from app.middleware.visitor_middleware import VisitorMiddleware
 app.add_middleware(VisitorMiddleware)
 
+from app.middleware.audit_middleware import AuditMiddleware
+app.add_middleware(AuditMiddleware)
+
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi import Request
