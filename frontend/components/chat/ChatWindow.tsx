@@ -94,7 +94,7 @@ export default function ChatWindow({
             {/* Header */}
             <motion.div
                 className={cn(
-                    "border-b backdrop-blur-xl px-4 py-3 flex items-center justify-between sticky top-0 z-10 transition-colors duration-300",
+                    "border-b backdrop-blur-xl px-4 py-3 flex items-center justify-between z-10 transition-colors duration-300 shrink-0",
                     theme === 'dark' ? "bg-[#05070A]/80 border-white/5" : "bg-white/90 border-gray-200"
                 )}
                 initial={{ opacity: 0, y: -20 }}
@@ -160,7 +160,7 @@ export default function ChatWindow({
             <div
                 ref={messagesContainerRef}
                 className={cn(
-                    "flex-1 overflow-y-auto transition-colors duration-300",
+                    "flex-1 overflow-y-auto transition-colors duration-300 overscroll-behavior-y-none",
                     theme === 'dark' ? "bg-[#05070A]" : "bg-gray-50"
                 )}
             >
@@ -186,7 +186,7 @@ export default function ChatWindow({
 
             {/* Input Area */}
             <div className={cn(
-                "border-t backdrop-blur-xl p-3 md:p-4 sticky bottom-0 transition-colors duration-300",
+                "border-t backdrop-blur-xl p-3 md:p-4 transition-colors duration-300 shrink-0 pb-safe",
                 theme === 'dark' ? "bg-[#05070A]/80 border-white/5" : "bg-white/90 border-gray-200"
             )}>
                 <div className="max-w-3xl mx-auto">
