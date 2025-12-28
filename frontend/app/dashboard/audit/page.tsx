@@ -171,10 +171,10 @@ export default function AuditLogsPage() {
                                     </td>
                                     <td className="px-6 py-4">
                                         <span className={`px-2 py-1 rounded-md text-xs font-medium ${log.details?.status_code >= 200 && log.details?.status_code < 300
-                                                ? "bg-green-500/10 text-green-500"
-                                                : log.details?.status_code >= 400
-                                                    ? "bg-red-500/10 text-red-500"
-                                                    : "bg-gray-500/10 text-gray-500"
+                                            ? "bg-green-500/10 text-green-500"
+                                            : log.details?.status_code >= 400
+                                                ? "bg-red-500/10 text-red-500"
+                                                : "bg-gray-500/10 text-gray-500"
                                             }`}>
                                             {log.details?.status_code || "N/A"}
                                         </span>
@@ -203,10 +203,10 @@ export default function AuditLogsPage() {
                                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                                 disabled={currentPage === 1}
                                 className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${currentPage === 1
-                                        ? "opacity-50 cursor-not-allowed"
-                                        : isDark
-                                            ? "bg-white/10 hover:bg-white/20"
-                                            : "bg-gray-100 hover:bg-gray-200"
+                                    ? "opacity-50 cursor-not-allowed"
+                                    : isDark
+                                        ? "bg-white/10 hover:bg-white/20"
+                                        : "bg-gray-100 hover:bg-gray-200"
                                     }`}
                             >
                                 <ChevronLeft className="w-4 h-4" />
@@ -215,10 +215,10 @@ export default function AuditLogsPage() {
                                 onClick={() => setCurrentPage(p => p + 1)}
                                 disabled={logs.length < PAGE_SIZE}
                                 className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${logs.length < PAGE_SIZE
-                                        ? "opacity-50 cursor-not-allowed"
-                                        : isDark
-                                            ? "bg-white/10 hover:bg-white/20"
-                                            : "bg-gray-100 hover:bg-gray-200"
+                                    ? "opacity-50 cursor-not-allowed"
+                                    : isDark
+                                        ? "bg-white/10 hover:bg-white/20"
+                                        : "bg-gray-100 hover:bg-gray-200"
                                     }`}
                             >
                                 <ChevronRight className="w-4 h-4" />
@@ -297,6 +297,15 @@ export default function AuditLogsPage() {
                                     <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Query Parameters</label>
                                     <div className="text-sm font-mono bg-gray-50 dark:bg-black p-2 rounded border border-gray-100 dark:border-white/10 mt-1">
                                         {JSON.stringify(selectedLog.details.query_params, null, 2)}
+                                    </div>
+                                </div>
+                            )}
+
+                            {selectedLog.details?.response_body && (
+                                <div className="col-span-2">
+                                    <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Response Body</label>
+                                    <div className="text-sm font-mono break-all bg-gray-50 dark:bg-black p-2 rounded border border-gray-100 dark:border-white/10 mt-1 max-h-40 overflow-y-auto">
+                                        {selectedLog.details.response_body}
                                     </div>
                                 </div>
                             )}

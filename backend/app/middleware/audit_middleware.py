@@ -1,4 +1,5 @@
-from fastapi import Request
+from fastapi import Request, Response
+from fastapi.responses import StreamingResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from app.core.database import AsyncSessionLocal
 from app.repositories.audit_repository import AuditLogRepository
@@ -9,6 +10,7 @@ from app.core.config import settings
 import logging
 import asyncio
 import ipaddress
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -30,17 +32,40 @@ class AuditMiddleware(BaseHTTPMiddleware):
         
         response = await call_next(request)
         
+        # Capture response body
+        response_body = None
+        if isinstance(response, StreamingResponse):
+            # For streaming responses, we need to consume and re-create the stream
+            response_body_bytes = b""
+            async for chunk in response.body_iterator:
+                response_body_bytes += chunk
+            
+            # Limit response body to 1000 chars
+            if response_body_bytes:
+                try:
+                    response_body = response_body_bytes.decode('utf-8')[:1000]
+                except:
+                    response_body = str(response_body_bytes)[:1000]
+            
+            # Re-create response with captured body
+            response = Response(
+                content=response_body_bytes,
+                status_code=response.status_code,
+                headers=dict(response.headers),
+                media_type=response.media_type
+            )
+        
         # Only log API requests (skip health checks, static files, and auth endpoints)
         if (request.url.path.startswith("/api/v1") and 
             not request.url.path.endswith("/health") and
             not request.url.path.startswith("/api/v1/auth/")):
             
             # Fire and forget logging
-            asyncio.create_task(self.log_audit(request, response.status_code, request_body))
+            asyncio.create_task(self.log_audit(request, response.status_code, request_body, response_body))
             
         return response
 
-    async def log_audit(self, request: Request, status_code: int, request_body: str = None):
+    async def log_audit(self, request: Request, status_code: int, request_body: str = None, response_body: str = None):
         try:
             # Extract user from token
             user_id = None
@@ -117,7 +142,8 @@ class AuditMiddleware(BaseHTTPMiddleware):
                         "status_code": status_code,
                         "user_email": user_email,
                         "request_body": request_body[:1000] if request_body else None,  # Limit to 1000 chars
-                        "query_params": dict(request.query_params) if request.query_params else None
+                        "query_params": dict(request.query_params) if request.query_params else None,
+                        "response_body": response_body  # Already limited to 1000 chars
                     },
                     ip_address=ip,
                     user_agent=user_agent
