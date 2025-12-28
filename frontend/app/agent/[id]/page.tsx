@@ -134,11 +134,36 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
 
     const handleSaveAgent = () => saveChanges();
 
-    const copyToClipboard = () => {
+    const copyToClipboard = async () => {
+        if (!agent.share_token) {
+            toast("Share token not available", "error");
+            return;
+        }
         const url = `${window.location.origin}/chat/${agent.share_token}`;
-        navigator.clipboard.writeText(url);
-        setCopied(true);
-        toast("Link copied to clipboard", "success");
+
+        try {
+            await navigator.clipboard.writeText(url);
+            setCopied(true);
+            toast("Link copied to clipboard", "success");
+        } catch (err) {
+            console.error('Failed to copy: ', err);
+            // Fallback
+            const textArea = document.createElement("textarea");
+            textArea.value = url;
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                setCopied(true);
+                toast("Link copied to clipboard", "success");
+            } catch (err) {
+                console.error('Fallback: Oops, unable to copy', err);
+                toast("Failed to copy link", "error");
+            }
+            document.body.removeChild(textArea);
+        }
+
         setTimeout(() => setCopied(false), 2000);
     };
 
