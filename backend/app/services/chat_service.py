@@ -9,8 +9,11 @@ from app.repositories.analytics_repository import AnalyticsRepository
 from app.services.llm_service import llm_service
 from app.services.kb_service import KBService
 from app.repositories.kb_repository import KBRepository
+from app.repositories.agent_audit_repository import AgentAuditLogRepository
+from app.services.agent_audit_service import AgentAuditService
 import logging
 import tiktoken
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +22,9 @@ class ChatService:
         self.chat_repo = ChatRepository(models.ChatSession, db)
         self.agent_repo = AgentRepository(models.Agent, db)
         self.analytics_repo = AnalyticsRepository(db)
+        # Initialize Agent Audit Service
+        audit_repo = AgentAuditLogRepository(db)
+        self.audit_service = AgentAuditService(audit_repo)
         self.db = db
 
     def _count_tokens(self, text: str, model: str = "gpt-4o") -> int:
@@ -169,6 +175,7 @@ class ChatService:
             full_response = ""
             full_thinking = ""
             is_thinking = False
+            start_time = time.time()
             
             async for chunk in llm_service.stream_chat(agent, messages):
                 if chunk == "<THINK>":
@@ -183,6 +190,8 @@ class ChatService:
                     else:
                         full_response += chunk
                     yield chunk
+
+            latency_ms = int((time.time() - start_time) * 1000)
 
             # 6. Save Assistant Message
             await self.chat_repo.add_message(session_id, "assistant", full_response, thinking=full_thinking if full_thinking else None)
@@ -204,7 +213,40 @@ class ChatService:
                     "has_kb": len(agent.knowledge_bases) > 0 if agent.knowledge_bases else False
                 }
             )
+
+            # 8. Log Detailed Agent Audit
+            try:
+                await self.audit_service.log_interaction(
+                    user_id=agent.owner_id,
+                    agent_id=agent.id,
+                    session_id=session_id,
+                    model_name=agent.llm_config.model,
+                    prompt_tokens=token_usage.get("prompt_tokens", 0),
+                    completion_tokens=token_usage.get("completion_tokens", 0),
+                    total_tokens=token_usage.get("total_tokens", 0),
+                    latency_ms=latency_ms,
+                    user_message=message,
+                    llm_response=full_response,
+                    rag_context={"context_parts": context_parts} if context_parts else None,
+                    status="success"
+                )
+            except Exception as audit_err:
+                logger.error(f"Failed to log agent audit: {audit_err}")
             
         except Exception as e:
-            print(f"Error in process_chat: {e}")
+            logger.error(f"Error in process_chat: {e}")
+            # Log failure if we have enough info
+            try:
+                if agent and session_id:
+                    await self.audit_service.log_interaction(
+                        user_id=agent.owner_id,
+                        agent_id=agent.id,
+                        session_id=session_id,
+                        model_name=agent.llm_config.model if agent.llm_config else "unknown",
+                        user_message=message,
+                        status="error",
+                        error_message=str(e)
+                    )
+            except:
+                pass
             yield f"Error: An internal error occurred: {str(e)}"
