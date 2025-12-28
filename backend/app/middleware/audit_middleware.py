@@ -30,21 +30,27 @@ class AuditMiddleware(BaseHTTPMiddleware):
         try:
             # Extract user from token
             user_id = None
+            user_email = None
+            
             token = await oauth2_scheme(request)
             if token:
                 try:
                     payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
-                    # We have email in token, but we need user_id
-                    # For now, we'll store email in details
                     user_email = payload.get("sub")
+                    
+                    # Fetch user_id from database
+                    if user_email:
+                        async with AsyncSessionLocal() as session:
+                            from app.models import models
+                            from sqlalchemy import select
+                            result = await session.execute(
+                                select(models.User).where(models.User.email == user_email)
+                            )
+                            user = result.scalar_one_or_none()
+                            if user:
+                                user_id = user.id
                 except JWTError:
-                    user_email = None
-            else:
-                user_email = None
-            
-            # If we have a user email, we should fetch user_id from DB
-            # But to avoid extra DB queries, we'll just log the email in details
-            # Alternatively, we can store user_id in the token payload
+                    pass
             
             # Extract IP
             ip = None

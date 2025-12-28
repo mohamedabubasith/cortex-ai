@@ -53,15 +53,25 @@ async def get_live_analytics(
 async def get_audit_logs(
     resource_type: Optional[str] = Query(None),
     action: Optional[str] = Query(None),
-    hours: Optional[int] = Query(24),
+    hours: Optional[int] = Query(None),
     limit: int = Query(100, le=1000),
     current_user: models.User = Depends(get_current_active_user),
     audit_service: AuditService = Depends(get_audit_service)
 ):
-    """Get audit logs"""
-    if hours:
-        return await audit_service.get_recent_logs(hours=hours, limit=limit)
+    """Get audit logs - admins see all, users see only their own"""
+    # Admin users see all logs, regular users see only their own
+    if current_user.is_superuser:
+        # Admin: show all logs
+        if hours:
+            return await audit_service.get_recent_logs(hours=hours, limit=limit)
+        else:
+            return await audit_service.get_logs(
+                resource_type=resource_type,
+                action=action,
+                limit=limit
+            )
     else:
+        # Regular user: show only their own logs
         return await audit_service.get_logs(
             user_id=current_user.id,
             resource_type=resource_type,

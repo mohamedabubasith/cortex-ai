@@ -26,11 +26,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         { name: "LLM", href: "/dashboard/llm", icon: Cpu },
         { name: "Knowledge Base", href: "/dashboard/kb", icon: Database },
         { name: "Agents", href: "/dashboard/agents", icon: Bot },
+        { name: "Audit Logs", href: "/dashboard/audit", icon: FileText },
     ];
 
     if (user?.is_superuser) {
         navigation.push({ name: "Visitors", href: "/dashboard/visitors", icon: Users });
-        navigation.push({ name: "Audit Logs", href: "/dashboard/audit", icon: FileText });
     }
 
     return (

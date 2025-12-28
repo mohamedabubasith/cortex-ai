@@ -17,9 +17,16 @@ export default function AuditLogsPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [selectedLog, setSelectedLog] = useState<any>(null);
+    const [user, setUser] = useState<any>(null);
+
+    useEffect(() => {
+        // Fetch current user
+        api.get("/auth/me").then(res => setUser(res.data)).catch(console.error);
+    }, []);
 
     const fetchLogs = async () => {
         try {
+            // Admin users see all logs, regular users see only their own
             const response = await api.get("/analytics/audit/logs?limit=100");
             setLogs(response.data);
         } catch (err: any) {
@@ -31,10 +38,12 @@ export default function AuditLogsPage() {
     };
 
     useEffect(() => {
-        fetchLogs();
-        const interval = setInterval(fetchLogs, 30000);
-        return () => clearInterval(interval);
-    }, []);
+        if (user) {
+            fetchLogs();
+            const interval = setInterval(fetchLogs, 30000);
+            return () => clearInterval(interval);
+        }
+    }, [user]);
 
     const getActionColor = (action: string) => {
         const colors: any = {
@@ -130,10 +139,10 @@ export default function AuditLogsPage() {
                                     </td>
                                     <td className="px-6 py-4">
                                         <span className={`px-2 py-1 rounded-md text-xs font-medium ${log.details?.status_code >= 200 && log.details?.status_code < 300
-                                                ? "bg-green-500/10 text-green-500"
-                                                : log.details?.status_code >= 400
-                                                    ? "bg-red-500/10 text-red-500"
-                                                    : "bg-gray-500/10 text-gray-500"
+                                            ? "bg-green-500/10 text-green-500"
+                                            : log.details?.status_code >= 400
+                                                ? "bg-red-500/10 text-red-500"
+                                                : "bg-gray-500/10 text-gray-500"
                                             }`}>
                                             {log.details?.status_code || "N/A"}
                                         </span>
