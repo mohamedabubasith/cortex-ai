@@ -1,7 +1,7 @@
 """Add agent audit logs table
 
 Revision ID: add_agent_audit_logs
-Revises: add_analytics_audit
+Revises: 4363540a392a
 Create Date: 2025-12-28
 
 """
@@ -11,7 +11,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = 'add_agent_audit_logs'
-down_revision = 'add_analytics_audit'
+down_revision = '4363540a392a'
 branch_labels = None
 depends_on = None
 
