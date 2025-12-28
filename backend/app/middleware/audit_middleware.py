@@ -14,6 +14,20 @@ logger = logging.getLogger(__name__)
 
 class AuditMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+        # Capture request body
+        request_body = None
+        if request.method in ["POST", "PUT", "PATCH"]:
+            try:
+                body_bytes = await request.body()
+                if body_bytes:
+                    request_body = body_bytes.decode('utf-8')
+                # Re-create request with body for downstream
+                async def receive():
+                    return {"type": "http.request", "body": body_bytes}
+                request._receive = receive
+            except Exception:
+                pass
+        
         response = await call_next(request)
         
         # Only log API requests (skip health checks, static files, and auth endpoints)
@@ -22,11 +36,11 @@ class AuditMiddleware(BaseHTTPMiddleware):
             not request.url.path.startswith("/api/v1/auth/")):
             
             # Fire and forget logging
-            asyncio.create_task(self.log_audit(request, response.status_code))
+            asyncio.create_task(self.log_audit(request, response.status_code, request_body))
             
         return response
 
-    async def log_audit(self, request: Request, status_code: int):
+    async def log_audit(self, request: Request, status_code: int, request_body: str = None):
         try:
             # Extract user from token
             user_id = None
@@ -95,13 +109,15 @@ class AuditMiddleware(BaseHTTPMiddleware):
                 await service.log_action(
                     action=action,
                     resource_type=resource_type,
-                    user_id=user_id,  # Will be None for now, can be improved
+                    user_id=user_id,
                     resource_id=resource_id,
                     details={
                         "method": method,
                         "path": request.url.path,
                         "status_code": status_code,
-                        "user_email": user_email
+                        "user_email": user_email,
+                        "request_body": request_body[:1000] if request_body else None,  # Limit to 1000 chars
+                        "query_params": dict(request.query_params) if request.query_params else None
                     },
                     ip_address=ip,
                     user_agent=user_agent

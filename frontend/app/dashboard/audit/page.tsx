@@ -6,9 +6,12 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useState } from "react";
 import { useTheme } from "@/contexts/ThemeContext";
 import api from "@/lib/api";
-import { Loader2, Clock, User, Activity, Globe, FileText } from "lucide-react";
+import { Loader2, Clock, User, Activity, Globe, FileText, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { toast } from "sonner";
 import Dialog from "@/components/ui/Dialog";
+
+const PAGE_SIZE = 20;
 
 export default function AuditLogsPage() {
     const { theme } = useTheme();
@@ -18,17 +21,22 @@ export default function AuditLogsPage() {
     const [error, setError] = useState("");
     const [selectedLog, setSelectedLog] = useState<any>(null);
     const [user, setUser] = useState<any>(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalLogs, setTotalLogs] = useState(0);
 
     useEffect(() => {
         // Fetch current user
         api.get("/auth/me").then(res => setUser(res.data)).catch(console.error);
     }, []);
 
-    const fetchLogs = async () => {
+    const fetchLogs = async (page: number = 1) => {
         try {
-            // Admin users see all logs, regular users see only their own
-            const response = await api.get("/analytics/audit/logs?limit=100");
+            setLoading(true);
+            const offset = (page - 1) * PAGE_SIZE;
+            const response = await api.get(`/analytics/audit/logs?limit=${PAGE_SIZE}&offset=${offset}`);
             setLogs(response.data);
+            // Note: Backend doesn't return total count, so we estimate
+            setTotalLogs(response.data.length === PAGE_SIZE ? page * PAGE_SIZE + 1 : (page - 1) * PAGE_SIZE + response.data.length);
         } catch (err: any) {
             console.error(err);
             setError("Failed to load audit logs. You might not be authorized.");
@@ -39,11 +47,22 @@ export default function AuditLogsPage() {
 
     useEffect(() => {
         if (user) {
-            fetchLogs();
-            const interval = setInterval(fetchLogs, 30000);
-            return () => clearInterval(interval);
+            fetchLogs(currentPage);
         }
-    }, [user]);
+    }, [user, currentPage]);
+
+    const handleClearLogs = async () => {
+        if (!confirm("Are you sure you want to clear all your audit logs? This action cannot be undone.")) return;
+        try {
+            await api.delete("/analytics/audit/logs");
+            setLogs([]);
+            setCurrentPage(1);
+            toast.success("Audit logs cleared");
+        } catch (err) {
+            console.error(err);
+            toast.error("Failed to clear logs");
+        }
+    };
 
     const getActionColor = (action: string) => {
         const colors: any = {
@@ -65,7 +84,9 @@ export default function AuditLogsPage() {
         return badges[action] || "bg-gray-500/10 text-gray-500 border-gray-500/20";
     };
 
-    if (loading) {
+    const totalPages = Math.ceil(totalLogs / PAGE_SIZE);
+
+    if (loading && currentPage === 1) {
         return (
             <div className={`flex h-full items-center justify-center ${isDark ? "bg-black text-[#76B900]" : "bg-white text-[#76B900]"}`}>
                 <Loader2 className="w-8 h-8 animate-spin" />
@@ -83,9 +104,20 @@ export default function AuditLogsPage() {
 
     return (
         <div className={`min-h-full ${isDark ? "text-white" : "text-gray-900"}`}>
-            <div className="mb-8">
-                <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-2">Audit Logs</h1>
-                <p className={isDark ? "text-gray-400" : "text-gray-600"}>Complete history of all user actions and API requests.</p>
+            <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-2">Audit Logs</h1>
+                    <p className={isDark ? "text-gray-400" : "text-gray-600"}>
+                        {user?.is_superuser ? "Complete history of all user actions and API requests." : "Your activity history and API requests."}
+                    </p>
+                </div>
+                <button
+                    onClick={handleClearLogs}
+                    className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors ${isDark ? "bg-red-900/20 text-red-400 hover:bg-red-900/40" : "bg-red-50 text-red-600 hover:bg-red-100"}`}
+                >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Clear Logs
+                </button>
             </div>
 
             <div className={`rounded-2xl border overflow-hidden ${isDark ? "bg-nvidia-dark/50 border-white/10" : "bg-white border-gray-200 shadow-sm"}`}>
@@ -139,10 +171,10 @@ export default function AuditLogsPage() {
                                     </td>
                                     <td className="px-6 py-4">
                                         <span className={`px-2 py-1 rounded-md text-xs font-medium ${log.details?.status_code >= 200 && log.details?.status_code < 300
-                                            ? "bg-green-500/10 text-green-500"
-                                            : log.details?.status_code >= 400
-                                                ? "bg-red-500/10 text-red-500"
-                                                : "bg-gray-500/10 text-gray-500"
+                                                ? "bg-green-500/10 text-green-500"
+                                                : log.details?.status_code >= 400
+                                                    ? "bg-red-500/10 text-red-500"
+                                                    : "bg-gray-500/10 text-gray-500"
                                             }`}>
                                             {log.details?.status_code || "N/A"}
                                         </span>
@@ -159,6 +191,41 @@ export default function AuditLogsPage() {
                         </tbody>
                     </table>
                 </div>
+
+                {/* Pagination */}
+                {logs.length > 0 && (
+                    <div className={`px-6 py-4 border-t flex items-center justify-between ${isDark ? "border-white/10" : "border-gray-200"}`}>
+                        <div className="text-sm text-gray-500">
+                            Page {currentPage} of {totalPages || 1}
+                        </div>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${currentPage === 1
+                                        ? "opacity-50 cursor-not-allowed"
+                                        : isDark
+                                            ? "bg-white/10 hover:bg-white/20"
+                                            : "bg-gray-100 hover:bg-gray-200"
+                                    }`}
+                            >
+                                <ChevronLeft className="w-4 h-4" />
+                            </button>
+                            <button
+                                onClick={() => setCurrentPage(p => p + 1)}
+                                disabled={logs.length < PAGE_SIZE}
+                                className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${logs.length < PAGE_SIZE
+                                        ? "opacity-50 cursor-not-allowed"
+                                        : isDark
+                                            ? "bg-white/10 hover:bg-white/20"
+                                            : "bg-gray-100 hover:bg-gray-200"
+                                    }`}
+                            >
+                                <ChevronRight className="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Audit Log Details Modal */}
@@ -215,6 +282,24 @@ export default function AuditLogsPage() {
                                     {selectedLog.details?.method} {selectedLog.details?.path}
                                 </div>
                             </div>
+
+                            {selectedLog.details?.request_body && (
+                                <div className="col-span-2">
+                                    <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Request Body</label>
+                                    <div className="text-sm font-mono break-all bg-gray-50 dark:bg-black p-2 rounded border border-gray-100 dark:border-white/10 mt-1 max-h-40 overflow-y-auto">
+                                        {selectedLog.details.request_body}
+                                    </div>
+                                </div>
+                            )}
+
+                            {selectedLog.details?.query_params && Object.keys(selectedLog.details.query_params).length > 0 && (
+                                <div className="col-span-2">
+                                    <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Query Parameters</label>
+                                    <div className="text-sm font-mono bg-gray-50 dark:bg-black p-2 rounded border border-gray-100 dark:border-white/10 mt-1">
+                                        {JSON.stringify(selectedLog.details.query_params, null, 2)}
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="col-span-2">
                                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">User Agent</label>

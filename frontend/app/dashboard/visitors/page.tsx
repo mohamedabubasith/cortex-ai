@@ -6,10 +6,12 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useState } from "react";
 import { useTheme } from "@/contexts/ThemeContext";
 import api from "@/lib/api";
-import { Loader2, Globe, Clock, MapPin, Monitor, Trash2, Info } from "lucide-react";
+import { Loader2, Globe, Clock, MapPin, Monitor, Trash2, Info, ChevronLeft, ChevronRight } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import Dialog from "@/components/ui/Dialog";
+
+const PAGE_SIZE = 20;
 
 export default function VisitorsPage() {
     const { theme } = useTheme();
@@ -18,10 +20,13 @@ export default function VisitorsPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [selectedVisitor, setSelectedVisitor] = useState<any>(null);
+    const [currentPage, setCurrentPage] = useState(1);
 
-    const fetchVisitors = async () => {
+    const fetchVisitors = async (page: number = 1) => {
         try {
-            const response = await api.get("/admin/visitors/list?limit=100");
+            setLoading(true);
+            const offset = (page - 1) * PAGE_SIZE;
+            const response = await api.get(`/admin/visitors/list?limit=${PAGE_SIZE}&offset=${offset}`);
             setVisitors(response.data);
         } catch (err: any) {
             console.error(err);
@@ -32,16 +37,15 @@ export default function VisitorsPage() {
     };
 
     useEffect(() => {
-        fetchVisitors();
-        const interval = setInterval(fetchVisitors, 30000);
-        return () => clearInterval(interval);
-    }, []);
+        fetchVisitors(currentPage);
+    }, [currentPage]);
 
     const handleClearLogs = async () => {
         if (!confirm("Are you sure you want to clear all visitor logs?")) return;
         try {
             await api.delete("/admin/visitors/list");
             setVisitors([]);
+            setCurrentPage(1);
             toast.success("Visitor logs cleared");
         } catch (err) {
             console.error(err);
@@ -136,6 +140,41 @@ export default function VisitorsPage() {
                         </tbody>
                     </table>
                 </div>
+
+                {/* Pagination */}
+                {visitors.length > 0 && (
+                    <div className={`px-6 py-4 border-t flex items-center justify-between ${isDark ? "border-white/10" : "border-gray-200"}`}>
+                        <div className="text-sm text-gray-500">
+                            Page {currentPage}
+                        </div>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${currentPage === 1
+                                        ? "opacity-50 cursor-not-allowed"
+                                        : isDark
+                                            ? "bg-white/10 hover:bg-white/20"
+                                            : "bg-gray-100 hover:bg-gray-200"
+                                    }`}
+                            >
+                                <ChevronLeft className="w-4 h-4" />
+                            </button>
+                            <button
+                                onClick={() => setCurrentPage(p => p + 1)}
+                                disabled={visitors.length < PAGE_SIZE}
+                                className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${visitors.length < PAGE_SIZE
+                                        ? "opacity-50 cursor-not-allowed"
+                                        : isDark
+                                            ? "bg-white/10 hover:bg-white/20"
+                                            : "bg-gray-100 hover:bg-gray-200"
+                                    }`}
+                            >
+                                <ChevronRight className="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Visitor Details Modal */}

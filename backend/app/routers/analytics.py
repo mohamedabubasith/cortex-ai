@@ -79,6 +79,26 @@ async def get_audit_logs(
             limit=limit
         )
 
+@router.delete("/audit/logs")
+async def clear_audit_logs(
+    current_user: models.User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Clear audit logs - users clear their own, admins clear all"""
+    from sqlalchemy import delete
+    
+    if current_user.is_superuser:
+        # Admin: clear all logs
+        stmt = delete(models.AuditLog)
+    else:
+        # Regular user: clear only their own logs
+        stmt = delete(models.AuditLog).where(models.AuditLog.user_id == current_user.id)
+    
+    await db.execute(stmt)
+    await db.commit()
+    
+    return {"message": "Audit logs cleared"}
+
 @router.get("/audit/live")
 async def get_live_audit_logs(
     limit: int = Query(50, le=100),
