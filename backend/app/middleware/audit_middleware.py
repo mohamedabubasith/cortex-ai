@@ -34,26 +34,38 @@ class AuditMiddleware(BaseHTTPMiddleware):
         
         # Capture response body
         response_body = None
-        if isinstance(response, StreamingResponse):
-            # For streaming responses, we need to consume and re-create the stream
-            response_body_bytes = b""
-            async for chunk in response.body_iterator:
-                response_body_bytes += chunk
-            
-            # Limit response body to 1000 chars
-            if response_body_bytes:
+        try:
+            if isinstance(response, StreamingResponse):
+                # For streaming responses, consume and re-create the stream
+                response_body_bytes = b""
+                async for chunk in response.body_iterator:
+                    response_body_bytes += chunk
+                
+                # Limit response body to 1000 chars
+                if response_body_bytes:
+                    try:
+                        response_body = response_body_bytes.decode('utf-8')[:1000]
+                    except:
+                        response_body = str(response_body_bytes)[:1000]
+                
+                # Re-create response with captured body
+                response = Response(
+                    content=response_body_bytes,
+                    status_code=response.status_code,
+                    headers=dict(response.headers),
+                    media_type=response.media_type
+                )
+            elif hasattr(response, 'body'):
+                # Regular Response object
                 try:
-                    response_body = response_body_bytes.decode('utf-8')[:1000]
+                    if isinstance(response.body, bytes):
+                        response_body = response.body.decode('utf-8')[:1000]
+                    else:
+                        response_body = str(response.body)[:1000]
                 except:
-                    response_body = str(response_body_bytes)[:1000]
-            
-            # Re-create response with captured body
-            response = Response(
-                content=response_body_bytes,
-                status_code=response.status_code,
-                headers=dict(response.headers),
-                media_type=response.media_type
-            )
+                    pass
+        except Exception as e:
+            logger.error(f"Error capturing response body: {e}")
         
         # Only log API requests (skip health checks, static files, and auth endpoints)
         if (request.url.path.startswith("/api/v1") and 

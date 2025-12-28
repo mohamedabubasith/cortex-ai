@@ -190,3 +190,37 @@ class AuditLog(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     user = relationship("User")
+
+class AgentAuditLog(Base):
+    __tablename__ = "agent_audit_logs"
+    
+    id = Column(String, primary_key=True, default=generate_uuid)
+    user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    agent_id = Column(String, ForeignKey("agents.id", ondelete="SET NULL"), nullable=True)
+    session_id = Column(String, nullable=True)
+    
+    # LLM Details
+    model_name = Column(String, nullable=True)
+    prompt_tokens = Column(Integer, default=0)
+    completion_tokens = Column(Integer, default=0)
+    total_tokens = Column(Integer, default=0)
+    latency_ms = Column(Integer, default=0)
+    
+    # Input/Output
+    user_message = Column(Text, nullable=True)
+    llm_response = Column(Text, nullable=True)
+    
+    # Tool Calls
+    tool_calls = Column(JSON, default=[])  # [{name, args, result}]
+    
+    # Context
+    rag_context = Column(JSON, default={})  # KB sources used
+    
+    # Metadata
+    ip_address = Column(String, nullable=True)
+    status = Column(String, default="success")  # success, error
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    user = relationship("User")
+    agent = relationship("Agent")

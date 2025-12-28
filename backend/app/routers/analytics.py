@@ -8,8 +8,10 @@ from app.models import models
 from app.schemas import schemas
 from app.repositories.analytics_repository import AnalyticsRepository
 from app.repositories.audit_repository import AuditLogRepository
+from app.repositories.agent_audit_repository import AgentAuditLogRepository
 from app.services.analytics_service import AnalyticsService
 from app.services.audit_service import AuditService
+from app.services.agent_audit_service import AgentAuditService
 from app.services.auth_service import get_current_active_user
 
 router = APIRouter()
@@ -19,6 +21,9 @@ def get_analytics_service(db: AsyncSession = Depends(get_db)) -> AnalyticsServic
 
 def get_audit_service(db: AsyncSession = Depends(get_db)) -> AuditService:
     return AuditService(AuditLogRepository(db))
+
+def get_agent_audit_service(db: AsyncSession = Depends(get_db)) -> AgentAuditService:
+    return AgentAuditService(AgentAuditLogRepository(db))
 
 @router.get("/events")
 async def get_analytics_events(
@@ -141,3 +146,47 @@ async def get_stats_overview(
         "token_usage": tokens,
         "period_hours": hours
     }
+
+# Agent Audit Log Endpoints
+@router.get("/agent-audit/logs")
+async def get_agent_audit_logs(
+    agent_id: Optional[str] = Query(None),
+    session_id: Optional[str] = Query(None),
+    limit: int = Query(100, le=1000),
+    offset: int = Query(0, ge=0),
+    current_user: models.User = Depends(get_current_active_user),
+    agent_audit_service: AgentAuditService = Depends(get_agent_audit_service)
+):
+    """Get agent audit logs - users see their own, admins see all"""
+    if current_user.is_superuser:
+        # Admin: show all logs
+        return await agent_audit_service.get_logs(
+            agent_id=agent_id,
+            session_id=session_id,
+            limit=limit,
+            offset=offset
+        )
+    else:
+        # Regular user: show only their own logs
+        return await agent_audit_service.get_logs(
+            user_id=current_user.id,
+            agent_id=agent_id,
+            session_id=session_id,
+            limit=limit,
+            offset=offset
+        )
+
+@router.delete("/agent-audit/logs")
+async def clear_agent_audit_logs(
+    current_user: models.User = Depends(get_current_active_user),
+    agent_audit_service: AgentAuditService = Depends(get_agent_audit_service)
+):
+    """Clear agent audit logs - users clear their own, admins clear all"""
+    if current_user.is_superuser:
+        # Admin: clear all logs
+        await agent_audit_service.delete_logs()
+    else:
+        # Regular user: clear only their own logs
+        await agent_audit_service.delete_logs(user_id=current_user.id)
+    
+    return {"message": "Agent audit logs cleared"}
