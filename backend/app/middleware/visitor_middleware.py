@@ -8,6 +8,7 @@ import logging
 import asyncio
 
 import time
+import ipaddress
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +36,6 @@ class VisitorMiddleware(BaseHTTPMiddleware):
             
             # De-duplication: Check if IP+User visited in last 30 minutes
             auth_header = headers.get("Authorization", "anon")
-            # Use a hash or just the string if it's not too long. Tokens are long.
-            # Let's use the first 50 chars of auth header to distinguish users
             auth_key = auth_header[:50] if auth_header else "anon"
             dedup_key = f"{ip}:{auth_key}"
             
@@ -51,13 +50,23 @@ class VisitorMiddleware(BaseHTTPMiddleware):
             
             # Resolve Country
             country = "Unknown"
-            if ip and ip not in ["127.0.0.1", "::1", "localhost"]:
+            
+            # Check if IP is private/local
+            try:
+                ip_obj = ipaddress.ip_address(ip)
+                if ip_obj.is_private:
+                    country = "Local Network"
+            except ValueError:
+                pass
+
+            if country == "Unknown" and ip and ip not in ["127.0.0.1", "::1", "localhost"]:
                 try:
                     async with httpx.AsyncClient(timeout=2.0) as client:
                         resp = await client.get(f"http://ip-api.com/json/{ip}")
                         if resp.status_code == 200:
                             data = resp.json()
-                            country = data.get("country", "Unknown")
+                            if data.get("status") == "success":
+                                country = data.get("country", "Unknown")
                 except Exception as e:
                     # logger.warning(f"Failed to resolve country for {ip}: {e}")
                     pass
