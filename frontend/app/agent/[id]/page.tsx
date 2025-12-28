@@ -1,5 +1,8 @@
 "use client";
 
+// Disable static generation for authenticated pages
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import {

@@ -1,5 +1,8 @@
 "use client";
 
+// Disable static generation for authenticated pages
+export const dynamic = 'force-dynamic';
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Bot, Loader2 } from "lucide-react";
