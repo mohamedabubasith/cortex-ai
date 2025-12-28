@@ -24,7 +24,7 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
     const [agent, setAgent] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const { theme } = useTheme();
+    const { theme, toggleTheme } = useTheme();
 
     // Form State
     const [systemPrompt, setSystemPrompt] = useState("");
@@ -226,38 +226,55 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
             theme === 'dark' ? "bg-black text-white" : "bg-white text-gray-900"
         )}>
             {/* Header */}
-            <header className="flex flex-col md:flex-row items-start md:items-center justify-between px-4 md:px-8 py-4 border-b border-gray-200 dark:border-gray-800 bg-black/50 backdrop-blur-sm sticky top-0 z-10 gap-4">
-                <div className="flex items-center space-x-4 w-full md:w-auto">
-                    <Link href="/dashboard/agents" className="text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors">
-                        <ArrowLeft className="w-5 h-5" />
-                    </Link>
-                    <div>
-                        <div className="flex items-center space-x-2">
-                            <h1 className="text-xl font-bold truncate max-w-[200px] md:max-w-none">{agent.name}</h1>
-                            <span className="px-2 py-0.5 text-[10px] font-medium bg-gray-100 dark:bg-gray-800 text-gray-500 rounded-full shrink-0">
-                                {agent.is_public ? "Public" : "Private"}
-                            </span>
+            <header className={cn(
+                "flex flex-col md:flex-row items-start md:items-center justify-between px-4 md:px-8 py-4 border-b sticky top-0 z-10 gap-4 transition-colors duration-300",
+                theme === 'dark' ? "bg-black/50 border-white/10 backdrop-blur-md" : "bg-white/80 border-gray-200 backdrop-blur-md"
+            )}>
+                <div className="flex items-center justify-between w-full md:w-auto">
+                    <div className="flex items-center space-x-4">
+                        <Link href="/dashboard/agents" className={cn("transition-colors", theme === 'dark' ? "text-gray-400 hover:text-white" : "text-gray-600 hover:text-gray-900")}>
+                            <ArrowLeft className="w-5 h-5" />
+                        </Link>
+                        <div>
+                            <div className="flex items-center space-x-2">
+                                <h1 className={cn("text-xl font-bold truncate max-w-[150px] md:max-w-none", theme === 'dark' ? "text-white" : "text-gray-900")}>{agent.name}</h1>
+                                <span className={cn("px-2 py-0.5 text-[10px] font-medium rounded-full shrink-0", theme === 'dark' ? "bg-gray-800 text-gray-400" : "bg-gray-100 text-gray-500")}>
+                                    {agent.is_public ? "Public" : "Private"}
+                                </span>
+                            </div>
+                            <p className="text-[10px] text-gray-500 font-mono mt-0.5">agent_{agent.id}</p>
                         </div>
-                        <p className="text-xs text-gray-500 font-mono mt-0.5">agent_{agent.id}</p>
                     </div>
+
+                    {/* Mobile Theme Toggle */}
+                    <button
+                        onClick={toggleTheme}
+                        className={cn("md:hidden p-2 rounded-lg transition-colors", theme === 'dark' ? "text-gray-400 hover:text-white hover:bg-white/5" : "text-gray-600 hover:text-gray-900 hover:bg-gray-100")}
+                    >
+                        {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                    </button>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+
+                <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
                     <button
                         onClick={handleSaveAgent}
                         disabled={saving}
-                        className="flex-1 md:flex-none justify-center px-4 py-2 bg-[#76B900] text-black text-sm font-bold rounded-lg hover:bg-[#6aa600] transition-all flex items-center shadow-[0_0_15px_rgba(118,185,0,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex-1 md:flex-none justify-center px-4 py-2 bg-[#76B900] text-black text-sm font-bold rounded-lg hover:bg-[#6aa600] transition-all flex items-center shadow-[0_0_15px_rgba(118,185,0,0.3)] disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                     >
                         {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                         {saving ? "Saving..." : "Save Changes"}
                     </button>
-                    <div className="hidden md:block h-6 w-px bg-gray-800 mx-2"></div>
+
+                    <div className={cn("hidden md:block h-6 w-px mx-2", theme === 'dark' ? "bg-white/10" : "bg-gray-200")}></div>
+
                     <button
                         onClick={copyToClipboard}
-                        className="flex-1 md:flex-none justify-center px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors flex items-center"
+                        className={cn("flex-1 md:flex-none justify-center px-3 py-2 text-sm font-medium rounded-lg transition-colors flex items-center whitespace-nowrap", theme === 'dark' ? "text-gray-300 hover:bg-white/5" : "text-gray-600 hover:bg-gray-100")}
                     >
                         <Copy className="w-4 h-4 mr-2" />
                         {copied ? "Copied" : "Copy link"}
                     </button>
+
                     <button
                         onClick={() => {
                             if (!selectedLlmId) {
@@ -268,9 +285,17 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
                             window.open(`/chat/${agent.share_token}?new=true`, '_blank');
                         }}
                         disabled={!selectedLlmId}
-                        className="flex-1 md:flex-none justify-center px-4 py-1.5 bg-white/10 text-white text-sm font-bold rounded-lg hover:bg-white/20 transition-all flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                        className={cn("flex-1 md:flex-none justify-center px-4 py-2 text-sm font-bold rounded-lg transition-all flex items-center disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap", theme === 'dark' ? "bg-white/10 text-white hover:bg-white/20" : "bg-gray-200 text-gray-900 hover:bg-gray-300")}
                     >
                         Preview
+                    </button>
+
+                    {/* Desktop Theme Toggle */}
+                    <button
+                        onClick={toggleTheme}
+                        className={cn("hidden md:flex p-2 rounded-lg transition-colors ml-2", theme === 'dark' ? "text-gray-400 hover:text-white hover:bg-white/5" : "text-gray-600 hover:text-gray-900 hover:bg-gray-100")}
+                    >
+                        {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                     </button>
                 </div>
             </header>

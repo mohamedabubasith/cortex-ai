@@ -104,12 +104,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         <Logo size="sm" />
                         <span className={`text-lg font-bold ${isDark ? "text-white" : "text-gray-900"}`}>Cortex AI</span>
                     </div>
-                    <button
-                        onClick={() => setIsMobileMenuOpen(true)}
-                        className={`p-2 ${isDark ? "text-gray-400 hover:text-white" : "text-gray-600 hover:text-gray-900"}`}
-                    >
-                        <Menu className="w-6 h-6" />
-                    </button>
+                    <div className="flex items-center space-x-2">
+                        <button
+                            onClick={toggleTheme}
+                            className={`p-2 rounded-lg ${isDark ? "text-gray-400 hover:text-white hover:bg-white/5" : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"}`}
+                        >
+                            {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                        </button>
+                        <button
+                            onClick={() => setIsMobileMenuOpen(true)}
+                            className={`p-2 ${isDark ? "text-gray-400 hover:text-white" : "text-gray-600 hover:text-gray-900"}`}
+                        >
+                            <Menu className="w-6 h-6" />
+                        </button>
+                    </div>
                 </div>
 
 
