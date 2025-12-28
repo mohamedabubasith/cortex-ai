@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080  # 7 days
     
+    # Admin Security
+    ADMIN_SECRET_KEY: str = "ec49d476-0757-46c5-a4de-9c0b5a87a20a" # Default secret, change in production
+    
     # Keycloak (Example config)
     KEYCLOAK_URL: str = "http://localhost:8080"
     KEYCLOAK_REALM: str = "master"

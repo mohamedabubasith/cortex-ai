@@ -3,16 +3,23 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Cpu, Database, Bot, LogOut, Menu, X, Sun, Moon } from "lucide-react";
+import { LayoutDashboard, Cpu, Database, Bot, LogOut, Menu, X, Sun, Moon, Users } from "lucide-react";
 import Logo from "@/components/Logo";
 import { useTheme } from "@/contexts/ThemeContext";
+import api from "@/lib/api";
+import { useEffect } from "react";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [user, setUser] = useState<any>(null);
 
     const { theme, toggleTheme } = useTheme();
     const isDark = theme === "dark";
+
+    useEffect(() => {
+        api.get("/auth/me").then(res => setUser(res.data)).catch(console.error);
+    }, []);
 
     const navigation = [
         { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -20,6 +27,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         { name: "Knowledge Base", href: "/dashboard/kb", icon: Database },
         { name: "Agents", href: "/dashboard/agents", icon: Bot },
     ];
+
+    if (user?.is_superuser) {
+        navigation.push({ name: "Visitors", href: "/dashboard/visitors", icon: Users });
+    }
 
     return (
         <div className={`h-[100dvh] flex overflow-hidden ${isDark ? "bg-black" : "bg-gray-50"}`}>

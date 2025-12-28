@@ -222,3 +222,13 @@ class ForgotPasswordRequest(BaseModel):
 class NewPassword(BaseModel):
     token: str
     new_password: str
+
+class AnalyticsEvent(BaseModel):
+    id: str
+    event_type: str
+    event_data: Optional[dict] = {}
+    meta_data: Optional[dict] = {}
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
