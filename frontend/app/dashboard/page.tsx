@@ -116,7 +116,7 @@ export default function DashboardPage() {
                 )}
             </div>
             <h3 className={`text-sm font-medium mb-1 ${isDark ? "text-gray-400" : "text-gray-600"}`}>{title}</h3>
-            <p className={`text-3xl font-bold tracking-tight ${isDark ? "text-white" : "text-gray-900"}`}>{value}</p>
+            <p className={`text-2xl md:text-3xl font-bold tracking-tight ${isDark ? "text-white" : "text-gray-900"}`}>{value}</p>
         </div>
     ));
     StatCard.displayName = "StatCard";
@@ -141,7 +141,7 @@ export default function DashboardPage() {
     return (
         <div className="space-y-8">
             <div>
-                <h1 className={`text-3xl font-bold tracking-tight mb-2 ${isDark ? "text-white" : "text-gray-900"}`}>Dashboard Overview</h1>
+                <h1 className={`text-2xl md:text-3xl font-bold tracking-tight mb-2 ${isDark ? "text-white" : "text-gray-900"}`}>Dashboard Overview</h1>
                 <p className={isDark ? "text-gray-400" : "text-gray-600"}>Real-time analytics and system status.</p>
             </div>
 
@@ -186,7 +186,7 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Usage Analytics Chart */}
                 <div className={`border rounded-2xl p-6 ${isDark ? "bg-nvidia-dark/30 border-white/10" : "bg-white border-gray-200 shadow-sm"}`}>
-                    <h3 className={`font-semibold mb-4 flex items-center gap-2 ${isDark ? "text-white" : "text-gray-900"}`}>
+                    <h3 className={`text-sm md:text-base font-semibold mb-4 flex items-center gap-2 ${isDark ? "text-white" : "text-gray-900"}`}>
                         <Activity className="w-5 h-5 text-nvidia-green" />
                         Usage Analytics (Last 12 Hours)
                     </h3>
@@ -221,7 +221,7 @@ export default function DashboardPage() {
 
                 {/* Agent Performance Chart */}
                 <div className={`border rounded-2xl p-6 ${isDark ? "bg-nvidia-dark/30 border-white/10" : "bg-white border-gray-200 shadow-sm"}`}>
-                    <h3 className={`font-semibold mb-4 flex items-center gap-2 ${isDark ? "text-white" : "text-gray-900"}`}>
+                    <h3 className={`text-sm md:text-base font-semibold mb-4 flex items-center gap-2 ${isDark ? "text-white" : "text-gray-900"}`}>
                         <TrendingUp className="w-5 h-5 text-blue-400" />
                         Agent Token Usage (Top 5)
                     </h3>

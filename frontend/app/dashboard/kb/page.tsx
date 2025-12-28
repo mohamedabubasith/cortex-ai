@@ -348,7 +348,7 @@ export default function KnowledgeBasePage() {
         <div className="space-y-8 relative">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className={cn("text-3xl font-bold tracking-tight mb-2", isDark ? "text-white" : "text-gray-900")}>Knowledge Base</h1>
+                    <h1 className={cn("text-2xl md:text-3xl font-bold tracking-tight mb-2", isDark ? "text-white" : "text-gray-900")}>Knowledge Base</h1>
                     <p className={isDark ? "text-gray-400" : "text-gray-600"}>Manage documents and database connections.</p>
                 </div>
                 <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3 w-full md:w-auto">
@@ -373,7 +373,7 @@ export default function KnowledgeBasePage() {
             <div className={cn("flex space-x-6 border-b overflow-x-auto whitespace-nowrap pb-1", isDark ? "border-white/10" : "border-gray-200")}>
                 <button
                     onClick={() => setActiveTab('documents')}
-                    className={`pb-4 text-sm font-bold transition-colors relative ${activeTab === 'documents' ? 'text-nvidia-green' : 'text-gray-400 hover:text-white'}`}
+                    className={`pb-4 text-base md:text-sm font-bold transition-colors relative ${activeTab === 'documents' ? 'text-nvidia-green' : 'text-gray-400 hover:text-white'}`}
                 >
                     Documents
                     {activeTab === 'documents' && (
@@ -382,7 +382,7 @@ export default function KnowledgeBasePage() {
                 </button>
                 <button
                     onClick={() => setActiveTab('databases')}
-                    className={`pb-4 text-sm font-bold transition-colors relative ${activeTab === 'databases' ? 'text-nvidia-green' : isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}
+                    className={`pb-4 text-base md:text-sm font-bold transition-colors relative ${activeTab === 'databases' ? 'text-nvidia-green' : isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}
                 >
                     Databases
                     {activeTab === 'databases' && (
@@ -422,7 +422,7 @@ export default function KnowledgeBasePage() {
                                             </button>
                                         </div>
                                     </div>
-                                    <h3 className={cn("text-lg font-bold mb-1 truncate", isDark ? "text-white" : "text-gray-900")} title={file.name}>{file.name}</h3>
+                                    <h3 className={cn("text-base md:text-lg font-bold mb-1 truncate", isDark ? "text-white" : "text-gray-900")} title={file.name}>{file.name}</h3>
                                     <div className="flex justify-between items-center mt-4">
                                         <span className="text-xs text-gray-400 uppercase">{file.file_type}</span>
                                         <span className={`text-xs font-bold px-2 py-1 rounded uppercase ${file.status === 'indexed' ? 'text-nvidia-green bg-nvidia-green/10' :
@@ -464,7 +464,7 @@ export default function KnowledgeBasePage() {
                                             <Trash2 className="w-5 h-5" />
                                         </button>
                                     </div>
-                                    <h3 className={cn("text-lg font-bold mb-1", isDark ? "text-white" : "text-gray-900")}>{db.name}</h3>
+                                    <h3 className={cn("text-base md:text-lg font-bold mb-1", isDark ? "text-white" : "text-gray-900")}>{db.name}</h3>
                                     <p className="text-sm text-gray-400 mb-4">{db.database_name} @ {db.host}</p>
                                     <div className="flex flex-wrap gap-2">
                                         <span className="text-xs font-bold text-black bg-nvidia-green px-2 py-1 rounded uppercase">

@@ -68,7 +68,7 @@ export default function AgentsPage() {
         <div className="space-y-8 relative">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className={cn("text-3xl font-bold tracking-tight mb-2", isDark ? "text-white" : "text-gray-900")}>Agents</h1>
+                    <h1 className={cn("text-2xl md:text-3xl font-bold tracking-tight mb-2", isDark ? "text-white" : "text-gray-900")}>Agents</h1>
                     <p className={isDark ? "text-gray-400" : "text-gray-600"}>Create and manage your AI agents.</p>
                 </div>
                 <Link
@@ -93,7 +93,7 @@ export default function AgentsPage() {
                             className={cn("group backdrop-blur-sm rounded-xl p-6 border transition-all duration-300 hover:shadow-[0_0_30px_rgba(118,185,0,0.1)] hover:-translate-y-1 cursor-pointer", isDark ? "bg-nvidia-dark/80 border-white/10 hover:border-nvidia-green/50" : "bg-white border-gray-200 hover:border-nvidia-green/50 shadow-sm")}
                         >
                             <div className="flex justify-between items-start mb-4">
-                                <h3 className={cn("text-xl font-bold group-hover:text-nvidia-green transition-colors", isDark ? "text-white" : "text-gray-900")}>
+                                <h3 className={cn("text-lg md:text-xl font-bold group-hover:text-nvidia-green transition-colors", isDark ? "text-white" : "text-gray-900")}>
                                     {agent.name}
                                 </h3>
                                 <span className="px-3 py-1 text-xs font-bold rounded-full border bg-nvidia-green/10 text-nvidia-green border-nvidia-green/20">

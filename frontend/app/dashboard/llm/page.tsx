@@ -146,7 +146,7 @@ export default function LLMPage() {
         <div className="space-y-8 relative">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className={cn("text-3xl font-bold tracking-tight mb-2", isDark ? "text-white" : "text-gray-900")}>LLM Configurations</h1>
+                    <h1 className={cn("text-2xl md:text-3xl font-bold tracking-tight mb-2", isDark ? "text-white" : "text-gray-900")}>LLM Configurations</h1>
                     <p className={isDark ? "text-gray-400" : "text-gray-600"}>Manage your Large Language Model connections.</p>
                 </div>
                 <button
@@ -188,7 +188,7 @@ export default function LLMPage() {
                                         </button>
                                     </div>
                                 </div>
-                                <h3 className={cn("text-lg font-bold mb-2", isDark ? "text-white" : "text-gray-900")}>{config.name}</h3>
+                                <h3 className={cn("text-base md:text-lg font-bold mb-2", isDark ? "text-white" : "text-gray-900")}>{config.name}</h3>
                                 <div className="flex flex-wrap gap-2">
                                     <span className={cn("text-xs px-2 py-1 rounded font-mono border", isDark ? "text-gray-300 bg-white/10 border-white/5" : "text-gray-600 bg-gray-100 border-gray-200")}>
                                         {config.model}
