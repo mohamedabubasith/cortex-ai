@@ -1,4 +1,4 @@
-from fastapi import Request, Response
+from fastapi import Request, Response, HTTPException
 from fastapi.responses import StreamingResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from app.core.database import AsyncSessionLocal
@@ -49,25 +49,29 @@ class AuditMiddleware(BaseHTTPMiddleware):
             user_id = None
             user_email = None
             
-            token = await oauth2_scheme(request)
-            if token:
-                try:
-                    payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
-                    user_email = payload.get("sub")
-                    
-                    # Fetch user_id from database
-                    if user_email:
-                        async with AsyncSessionLocal() as session:
-                            from app.models import models
-                            from sqlalchemy import select
-                            result = await session.execute(
-                                select(models.User).where(models.User.email == user_email)
-                            )
-                            user = result.scalar_one_or_none()
-                            if user:
-                                user_id = user.id
-                except JWTError:
-                    pass
+            try:
+                token = await oauth2_scheme(request)
+                if token:
+                    try:
+                        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+                        user_email = payload.get("sub")
+                        
+                        # Fetch user_id from database
+                        if user_email:
+                            async with AsyncSessionLocal() as session:
+                                from app.models import models
+                                from sqlalchemy import select
+                                result = await session.execute(
+                                    select(models.User).where(models.User.email == user_email)
+                                )
+                                user = result.scalar_one_or_none()
+                                if user:
+                                    user_id = user.id
+                    except JWTError:
+                        pass
+            except HTTPException:
+                # No authentication token - this is fine for public endpoints
+                pass
             
             # Extract IP
             ip = None
