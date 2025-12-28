@@ -20,7 +20,7 @@ class AnalyticsService:
             user_id=user_id,
             agent_id=agent_id,
             event_data=event_data,
-            metadata=metadata
+            meta_data=metadata
         )
     
     async def get_events(
