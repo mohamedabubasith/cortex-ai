@@ -105,4 +105,29 @@ async def get_visitors_authenticated(
     result = await db.execute(stmt)
     events = result.scalars().all()
     
+    
     return events
+
+from sqlalchemy import delete
+
+@router.delete("/visitors/list")
+async def clear_visitors_authenticated(
+    current_user: models.User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Clear visitor statistics for authenticated superusers.
+    """
+    if not current_user.is_superuser:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized"
+        )
+    
+    stmt = delete(models.Analytics).where(
+        models.Analytics.event_type == "api_hit"
+    )
+    await db.execute(stmt)
+    await db.commit()
+    
+    return {"message": "Visitor logs cleared"}

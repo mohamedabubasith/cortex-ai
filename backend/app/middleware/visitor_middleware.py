@@ -7,9 +7,13 @@ import httpx
 import logging
 import asyncio
 
+import time
+
 logger = logging.getLogger(__name__)
 
 class VisitorMiddleware(BaseHTTPMiddleware):
+    _recent_ips = {}
+
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
         
@@ -28,6 +32,14 @@ class VisitorMiddleware(BaseHTTPMiddleware):
                 ip = forwarded.split(",")[0]
             else:
                 ip = client_host
+            
+            # De-duplication: Check if IP visited in last 30 minutes
+            now = time.time()
+            last_visit = self._recent_ips.get(ip)
+            if last_visit and now - last_visit < 1800: # 30 minutes
+                return
+            
+            self._recent_ips[ip] = now
             
             user_agent = headers.get("User-Agent")
             
@@ -55,7 +67,7 @@ class VisitorMiddleware(BaseHTTPMiddleware):
                         "path": path,
                         "method": method
                     },
-                    metadata={
+                    meta_data={
                         "ip": ip,
                         "user_agent": user_agent,
                         "country": country

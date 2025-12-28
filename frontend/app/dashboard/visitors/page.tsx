@@ -6,8 +6,9 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useState } from "react";
 import { useTheme } from "@/contexts/ThemeContext";
 import api from "@/lib/api";
-import { Loader2, Globe, Clock, MapPin, Monitor } from "lucide-react";
+import { Loader2, Globe, Clock, MapPin, Monitor, Trash2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { toast } from "sonner";
 
 export default function VisitorsPage() {
     const { theme } = useTheme();
@@ -16,25 +17,37 @@ export default function VisitorsPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
-    useEffect(() => {
-        const fetchVisitors = async () => {
-            try {
-                const response = await api.get("/admin/visitors/list?limit=100");
-                setVisitors(response.data);
-            } catch (err: any) {
-                console.error(err);
-                setError("Failed to load visitors. You might not be authorized.");
-            } finally {
-                setLoading(false);
-            }
-        };
+    const fetchVisitors = async () => {
+        try {
+            const response = await api.get("/admin/visitors/list?limit=100");
+            setVisitors(response.data);
+        } catch (err: any) {
+            console.error(err);
+            setError("Failed to load visitors. You might not be authorized.");
+        } finally {
+            setLoading(false);
+        }
+    };
 
+    useEffect(() => {
         fetchVisitors();
 
         // Refresh every 30s
         const interval = setInterval(fetchVisitors, 30000);
         return () => clearInterval(interval);
     }, []);
+
+    const handleClearLogs = async () => {
+        if (!confirm("Are you sure you want to clear all visitor logs?")) return;
+        try {
+            await api.delete("/admin/visitors/list");
+            setVisitors([]);
+            toast.success("Visitor logs cleared");
+        } catch (err) {
+            console.error(err);
+            toast.error("Failed to clear logs");
+        }
+    };
 
     if (loading) {
         return (
@@ -54,9 +67,18 @@ export default function VisitorsPage() {
 
     return (
         <div className={`min-h-full ${isDark ? "text-white" : "text-gray-900"}`}>
-            <div className="mb-8">
-                <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-2">Visitor Traffic</h1>
-                <p className={isDark ? "text-gray-400" : "text-gray-600"}>Real-time monitoring of API traffic and visitor locations.</p>
+            <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-2">Visitor Traffic</h1>
+                    <p className={isDark ? "text-gray-400" : "text-gray-600"}>Real-time monitoring of API traffic and visitor locations.</p>
+                </div>
+                <button
+                    onClick={handleClearLogs}
+                    className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors ${isDark ? "bg-red-900/20 text-red-400 hover:bg-red-900/40" : "bg-red-50 text-red-600 hover:bg-red-100"}`}
+                >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Clear Logs
+                </button>
             </div>
 
             <div className={`rounded-2xl border overflow-hidden ${isDark ? "bg-nvidia-dark/50 border-white/10" : "bg-white border-gray-200 shadow-sm"}`}>
