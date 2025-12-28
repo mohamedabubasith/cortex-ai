@@ -27,12 +27,28 @@ class VisitorMiddleware(BaseHTTPMiddleware):
 
     async def log_visit(self, headers, client_host, path, method):
         try:
-            # Extract IP
+            # Extract Real Client IP (handling reverse proxies)
+            # Priority: X-Forwarded-For > X-Real-IP > client.host
+            ip = None
+            
+            # X-Forwarded-For can contain multiple IPs: "client, proxy1, proxy2"
+            # We want the FIRST one (the original client)
             forwarded = headers.get("X-Forwarded-For")
             if forwarded:
-                ip = forwarded.split(",")[0]
-            else:
+                # Take the first IP in the list
+                ip = forwarded.split(",")[0].strip()
+            
+            # Fallback to X-Real-IP
+            if not ip:
+                ip = headers.get("X-Real-IP")
+            
+            # Final fallback to direct connection IP
+            if not ip:
                 ip = client_host
+            
+            # Skip if we still don't have a valid IP
+            if not ip:
+                return
             
             # De-duplication: Check if IP+User visited in last 30 minutes
             auth_header = headers.get("Authorization", "anon")
