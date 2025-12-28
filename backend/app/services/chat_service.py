@@ -14,6 +14,7 @@ from app.services.agent_audit_service import AgentAuditService
 import logging
 import tiktoken
 import time
+from app.core.utils import count_tokens
 
 logger = logging.getLogger(__name__)
 
@@ -28,11 +29,7 @@ class ChatService:
         self.db = db
 
     def _count_tokens(self, text: str, model: str = "gpt-4o") -> int:
-        try:
-            encoding = tiktoken.encoding_for_model(model)
-        except KeyError:
-            encoding = tiktoken.get_encoding("cl100k_base")
-        return len(encoding.encode(text))
+        return count_tokens(text, model)
 
     async def get_public_agent(self, share_token: str) -> models.Agent:
         agent = await self.agent_repo.get_by_share_token(share_token)

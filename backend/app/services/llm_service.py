@@ -8,6 +8,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 logger = logging.getLogger(__name__)
 
 from app.services.tools_service import tools_service
+from app.core.utils import extract_usage_from_chunk
 import json
 
 class LLMService:
@@ -71,7 +72,8 @@ class LLMService:
                     messages=full_messages,
                     tools=tools if tools else None,
                     tool_choice="auto" if tools else None,
-                    stream=True
+                    stream=True,
+                    stream_options={"include_usage": True}
                 )
                 
                 tool_calls = []
@@ -79,6 +81,15 @@ class LLMService:
                 has_started_thinking = False
                 
                 async for chunk in stream:
+                    # Capture Usage data if available (robust extraction)
+                    usage_data = extract_usage_from_chunk(chunk)
+                    if usage_data:
+                        self.last_token_usage = usage_data
+                        continue
+
+                    if not hasattr(chunk, 'choices') or not chunk.choices:
+                        continue
+
                     chunk_count += 1
                     delta = chunk.choices[0].delta
                     
