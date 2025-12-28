@@ -589,8 +589,10 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
                             getKey={(option) => option.id}
                             placeholder="Select a Knowledge Base..."
                         />
-                        {availableKBs.filter(kb => !selectedKBs.includes(kb.id)).length === 0 && (
-                            <p className="text-xs text-gray-500">No unlinked knowledge bases available.</p>
+                        {availableKBs.length === 0 ? (
+                            <p className="text-xs text-red-400">No Knowledge Bases found. Please upload one first.</p>
+                        ) : availableKBs.filter(kb => !selectedKBs.includes(kb.id)).length === 0 && (
+                            <p className="text-xs text-gray-500">All available Knowledge Bases are already linked.</p>
                         )}
                     </div>
 
@@ -626,8 +628,10 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
                             getKey={(option) => option.id}
                             placeholder="Select a Database..."
                         />
-                        {availableDBs.filter(db => !selectedDBs.includes(db.id)).length === 0 && (
-                            <p className="text-xs text-gray-500">No unlinked database connections available.</p>
+                        {availableDBs.length === 0 ? (
+                            <p className="text-xs text-red-400">No Database Connections found. Please create one first.</p>
+                        ) : availableDBs.filter(db => !selectedDBs.includes(db.id)).length === 0 && (
+                            <p className="text-xs text-gray-500">All available Database Connections are already linked.</p>
                         )}
                     </div>
 
