@@ -581,16 +581,14 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
                     {/* Select Existing */}
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Select Existing KB</label>
-                        <select
-                            value={resourceToAdd}
-                            onChange={(e) => setResourceToAdd(e.target.value)}
-                            className="w-full p-3 bg-gray-50 dark:bg-black/50 border border-gray-200 dark:border-gray-800 rounded-xl text-sm focus:ring-2 focus:ring-[#76B900] outline-none"
-                        >
-                            <option value="">Select a Knowledge Base...</option>
-                            {availableKBs.filter(kb => !selectedKBs.includes(kb.id)).map(kb => (
-                                <option key={kb.id} value={kb.id}>{kb.name || kb.filename}</option>
-                            ))}
-                        </select>
+                        <CustomDropdown
+                            options={availableKBs.filter(kb => !selectedKBs.includes(kb.id))}
+                            value={availableKBs.find(kb => kb.id === resourceToAdd) || null}
+                            onChange={(option) => setResourceToAdd(option.id)}
+                            getLabel={(option) => option.name || option.filename}
+                            getKey={(option) => option.id}
+                            placeholder="Select a Knowledge Base..."
+                        />
                         {availableKBs.filter(kb => !selectedKBs.includes(kb.id)).length === 0 && (
                             <p className="text-xs text-gray-500">No unlinked knowledge bases available.</p>
                         )}
@@ -619,16 +617,15 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
                 <div className="space-y-6">
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Select Existing Connection</label>
-                        <select
-                            value={resourceToAdd}
-                            onChange={(e) => setResourceToAdd(e.target.value)}
-                            className="w-full p-3 bg-gray-50 dark:bg-black/50 border border-gray-200 dark:border-gray-800 rounded-xl text-sm focus:ring-2 focus:ring-[#76B900] outline-none"
-                        >
-                            <option value="">Select a Database...</option>
-                            {availableDBs.filter(db => !selectedDBs.includes(db.id)).map(db => (
-                                <option key={db.id} value={db.id}>{db.name} ({db.type})</option>
-                            ))}
-                        </select>
+                        <CustomDropdown
+                            options={availableDBs.filter(db => !selectedDBs.includes(db.id))}
+                            value={availableDBs.find(db => db.id === resourceToAdd) || null}
+                            onChange={(option) => setResourceToAdd(option.id)}
+                            getLabel={(option) => option.name}
+                            getSubtitle={(option) => option.type}
+                            getKey={(option) => option.id}
+                            placeholder="Select a Database..."
+                        />
                         {availableDBs.filter(db => !selectedDBs.includes(db.id)).length === 0 && (
                             <p className="text-xs text-gray-500">No unlinked database connections available.</p>
                         )}
