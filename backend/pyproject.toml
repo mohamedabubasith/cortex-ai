@@ -31,6 +31,8 @@ dependencies = [
     "python-pptx>=1.0.2",
     "unstructured[all-docs]>=0.16.11",
     "fastmcp>=2.14.2",
+    "beautifulsoup4>=4.12.3",
+    "duckduckgo-search>=6.3.3",
 ]
 
 [tool.uv]
