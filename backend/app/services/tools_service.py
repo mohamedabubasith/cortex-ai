@@ -1,7 +1,18 @@
-import datetime
-import httpx
 import json
-from typing import List, Dict, Any, Callable, Optional
+import logging
+import asyncio
+from typing import List, Dict, Any, Callable
+
+# Import new tools
+from app.services.tools.time_tool import TimeTool
+from app.services.tools.network_tool import NetworkTool
+from app.services.tools.weather_tool import WeatherTool
+from app.services.tools.location_tool import LocationTool
+from app.services.tools.database_tool import DatabaseTool
+from app.services.tools.search_tool import SearchTool
+from app.services.tools.website_reader_tool import WebsiteReaderTool
+
+logger = logging.getLogger(__name__)
 
 class ToolsService:
     def __init__(self):
@@ -9,117 +20,128 @@ class ToolsService:
         self.register_default_tools()
         # Agent-specific context
         self.current_agent_db_connections = []
+        self.current_agent_mcp_connections = []
         self.database_service = None
 
-    def set_agent_context(self, db_connections: List[Any], database_service: Any):
-        """Set the current agent's database connections for this tool execution context"""
+    def set_agent_context(self, db_connections: List[Any], mcp_connections: List[Any], database_service: Any):
+        """Set the current agent's context for this tool execution context"""
         self.current_agent_db_connections = db_connections
+        self.current_agent_mcp_connections = mcp_connections
         self.database_service = database_service
 
-    def register_tool(self, name: str, func: Callable, schema: Dict[str, Any]):
-        self.tools_registry[name] = {
-            "func": func,
-            "schema": schema
-        }
+    def register_tool(self, tool_instance):
+        """Register a tool instance"""
+        self.tools_registry[tool_instance.name] = tool_instance
 
     def register_default_tools(self):
-        # 1. Current Date and Time
-        self.register_tool(
-            "get_current_datetime",
-            self.get_current_datetime,
-            {
-                "type": "function",
-                "function": {
-                    "name": "get_current_datetime",
-                    "description": "Get the current date and time. Use this when the user asks for the time or date.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {},
-                        "required": []
-                    }
-                }
-            }
-        )
+        # Register standard tools
+        self.register_tool(TimeTool())
+        self.register_tool(NetworkTool())
+        self.register_tool(WeatherTool())
+        self.register_tool(LocationTool())
+        self.register_tool(SearchTool())
+        self.register_tool(WebsiteReaderTool())
 
-        # 2. Get Public IP
-        self.register_tool(
-            "get_public_ip",
-            self.get_public_ip,
-            {
-                "type": "function",
-                "function": {
-                    "name": "get_public_ip",
-                    "description": "Get the public IP address of the server running this bot.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {},
-                        "required": []
-                    }
-                }
-            }
-        )
-
-    def get_agent_specific_tools(self, db_connections: List[Any]) -> List[Dict[str, Any]]:
-        """Get tool definitions including database tools for the specific agent"""
-        tools = self.get_tool_definitions()
+    def get_agent_specific_tools(self, db_connections: List[Any], mcp_connections: List[Any]) -> List[Dict[str, Any]]:
+        """Get tool definitions including database tools and MCP tools for the specific agent"""
+        # Get standard tools schemas
+        tools_schemas = self.get_tool_definitions()
         
         # Add database query tool if agent has database connections
         if db_connections and len(db_connections) > 0:
-            # Build description with available databases
-            db_list = ", ".join([f'"{db.name}" ({db.type} database at {db.host})' for db in db_connections])
+            db_tool = DatabaseTool(db_connections, self.database_service)
+            tools_schemas.append(db_tool.schema)
             
-            tools.append({
-                "type": "function",
-                "function": {
-                    "name": "query_database",
-                    "description": f"Execute SQL SELECT queries to retrieve data from databases. Available databases: {db_list}. Use this tool whenever the user asks about tables, columns, data, records, or wants to query/search database information. You MUST use this tool to get actual data - do not make up or guess data.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "database_name": {
-                                "type": "string",
-                                "description": f"The name of the database to query. Must be one of: {', '.join([db.name for db in db_connections])}",
-                                "enum": [db.name for db in db_connections]
-                            },
-                            "query": {
-                                "type": "string",
-                                "description": "The SQL SELECT query to execute. Must start with 'SELECT'. Examples: 'SELECT * FROM information_schema.tables', 'SELECT column_name FROM information_schema.columns WHERE table_name = \\'users\\'', 'SELECT * FROM products LIMIT 10'"
+        # Add MCP tools
+        if mcp_connections:
+            for mcp in mcp_connections:
+                if mcp.tools_metadata:
+                    for tool in mcp.tools_metadata:
+                        # Prefix tool name to ensure uniqueness and routing
+                        # We modify the local copy of the schema
+                        tooled_schema = {
+                            "type": "function",
+                            "function": {
+                                "name": f"mcp_{mcp.id}_{tool['name']}",
+                                "description": tool.get("description", ""),
+                                "parameters": tool.get("inputSchema", {})
                             }
-                        },
-                        "required": ["database_name", "query"]
-                    }
-                }
-            })
+                        }
+                        tools_schemas.append(tooled_schema)
         
-        return tools
+        return tools_schemas
 
     def get_tool_definitions(self) -> List[Dict[str, Any]]:
-        return [tool["schema"] for tool in self.tools_registry.values()]
+        return [tool.schema for tool in self.tools_registry.values()]
 
     async def execute_tool(self, name: str, arguments: str) -> str:
-        # Handle database query tool specially
+        # Handle database query tool specially as it relies on context not in registry
         if name == "query_database":
-            return await self.query_database_tool(arguments)
+            # Re-create the tool used for schema generation context (or use context if stored)
+            if self.current_agent_db_connections and self.database_service:
+                db_tool = DatabaseTool(self.current_agent_db_connections, self.database_service)
+                kwargs = json.loads(arguments) if arguments else {}
+                result = await db_tool.execute(**kwargs)
+                return json.dumps(result, default=self.json_serializer)
+            else:
+                return json.dumps({"error": "Database context not initialized"})
+
+        # Handle MCP Tools
+        if name.startswith("mcp_"):
+            try:
+                # Format: mcp_{connection_id}_{tool_name}
+                parts = name.split("_", 2) # Limit split to 2 to keep tool name intact if it has underscores
+                if len(parts) >= 3:
+                    mcp_id = parts[1]
+                    original_tool_name = parts[2]
+                    
+                    # Find the connection
+                    mcp_conn = next((c for c in self.current_agent_mcp_connections if str(c.id) == mcp_id), None)
+                    
+                    if mcp_conn:
+                        from app.services.mcp_service import mcp_service
+                        kwargs = json.loads(arguments) if arguments else {}
+                        
+                        # Decrypt headers if needed (reuse logic or assume helper exists)
+                        auth_headers = {}
+                        if mcp_conn.auth_headers:
+                            # TODO: Decrypt logic. For now assuming plain text or handled inside call
+                             try:
+                                auth_headers = json.loads(mcp_conn.auth_headers)
+                             except:
+                                pass # Or handle encryption properly
+                                
+                        result = await mcp_service.call_mcp_tool(
+                            server_url=mcp_conn.server_url,
+                            tool_name=original_tool_name,
+                            arguments=kwargs,
+                            auth_headers=auth_headers
+                        )
+                        return json.dumps(result, default=self.json_serializer)
+                    else:
+                        return json.dumps({"error": f"MCP Connection {mcp_id} not active"})
+            except Exception as e:
+                logger.error(f"MCP Tool execution failed: {e}")
+                return json.dumps({"error": f"MCP execution error: {str(e)}"})
         
         if name not in self.tools_registry:
             return json.dumps({"error": f"Tool {name} not found"})
         
         try:
-            func = self.tools_registry[name]["func"]
+            tool = self.tools_registry[name]
             # Parse arguments if they are JSON string
             kwargs = json.loads(arguments) if arguments else {}
             
-            if asyncio.iscoroutinefunction(func):
-                result = await func(**kwargs)
-            else:
-                result = func(**kwargs)
+            result = await tool.execute(**kwargs)
             
-            return json.dumps(result)
+            return json.dumps(result, default=self.json_serializer)
         except Exception as e:
+            logger.error(f"Error executing tool {name}: {e}")
             return json.dumps({"error": str(e)})
 
     def json_serializer(self, obj):
         """JSON serializer for objects not serializable by default json code"""
+        import datetime
         if isinstance(obj, (datetime.datetime, datetime.date)):
             return obj.isoformat()
         import uuid
@@ -130,90 +152,4 @@ class ToolsService:
             return float(obj)
         return str(obj)
 
-    async def query_database_tool(self, arguments: str) -> str:
-        """Execute a database query tool call"""
-        try:
-            args = json.loads(arguments) if arguments else {}
-            database_name = args.get("database_name")
-            query = args.get("query", "").strip()
-            
-            if not database_name or not query:
-                return json.dumps({"error": "Both database_name and query are required"})
-            
-            # Validate it's a SELECT query for safety
-            if not query.lower().strip().startswith("select"):
-                return json.dumps({"error": "Only SELECT queries are allowed for safety"})
-            
-            # Find the database connection
-            db_conn = None
-            for conn in self.current_agent_db_connections:
-                if conn.name == database_name:
-                    db_conn = conn
-                    break
-            
-            if not db_conn:
-                available = ", ".join([db.name for db in self.current_agent_db_connections])
-                return json.dumps({"error": f"Database '{database_name}' not found. Available: {available}"})
-            
-            # Execute the query
-            if self.database_service:
-                results = await self.database_service.execute_query(db_conn, query)
-                
-                if isinstance(results, dict) and "error" in results:
-                    return json.dumps(results)
-                
-                # Format results nicely
-                # Truncate if too many rows to prevent context overflow
-                MAX_ROWS = 50
-                MAX_CHARS = 8000
-                
-                if isinstance(results, list) and len(results) > MAX_ROWS:
-                    results = results[:MAX_ROWS]
-                    truncated = True
-                else:
-                    truncated = False
-                
-                result_json = json.dumps({
-                    "success": True,
-                    "rows": results,
-                    "row_count": len(results),
-                    "truncated": truncated,
-                    "note": "Results truncated to 50 rows for performance" if truncated else ""
-                }, default=self.json_serializer)
-                
-                if len(result_json) > MAX_CHARS:
-                    return json.dumps({
-                        "success": True,
-                        "rows": [],
-                        "row_count": 0,
-                        "error": "Result too large for chat context. Please refine query with LIMIT or specific columns."
-                    })
-                    
-                return result_json
-            else:
-                return json.dumps({"error": "Database service not available"})
-                
-        except Exception as e:
-            return json.dumps({"error": f"Database query failed: {str(e)}"})
-
-    # Tool Implementations
-    def get_current_datetime(self):
-        now = datetime.datetime.now()
-        return {
-            "current_datetime": now.isoformat(),
-            "day_of_week": now.strftime("%A"),
-            "timezone": str(now.astimezone().tzinfo)
-        }
-
-    async def get_public_ip(self):
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get("https://api.ipify.org?format=json", timeout=5.0)
-                if response.status_code == 200:
-                    return response.json()
-                return {"error": "Failed to retrieve IP"}
-        except Exception as e:
-            return {"error": f"Failed to retrieve IP: {str(e)}"}
-
-import asyncio
 tools_service = ToolsService()

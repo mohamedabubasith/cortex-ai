@@ -13,7 +13,9 @@ class AgentRepository(BaseRepository[Agent]):
             .options(
                 selectinload(self.model.llm_config),
                 selectinload(self.model.knowledge_bases),
-                selectinload(self.model.database_connections)
+                selectinload(self.model.database_connections),
+                selectinload(self.model.mcp_connections),
+                selectinload(self.model.owner)
             )
             .offset(skip)
             .limit(limit)
@@ -27,7 +29,9 @@ class AgentRepository(BaseRepository[Agent]):
             .options(
                 selectinload(self.model.llm_config),
                 selectinload(self.model.knowledge_bases),
-                selectinload(self.model.database_connections)
+                selectinload(self.model.database_connections),
+                selectinload(self.model.mcp_connections),
+                selectinload(self.model.owner)
             )
         )
         return result.scalars().first()
@@ -40,6 +44,7 @@ class AgentRepository(BaseRepository[Agent]):
                 selectinload(self.model.llm_config),
                 selectinload(self.model.knowledge_bases),
                 selectinload(self.model.database_connections),
+                selectinload(self.model.mcp_connections),
                 selectinload(self.model.owner)  # Load owner for email access
             )
         )

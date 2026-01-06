@@ -9,7 +9,7 @@ import {
     Save, Copy, Check, Database,
     Bot, FileText, Share2, ArrowLeft, Upload, Trash2, Play,
     Settings, MessageSquare, Sun, Moon, ChevronRight, Loader2,
-    MoreHorizontal, Search, Plus, X
+    MoreHorizontal, Search, Plus, X, Server
 } from "lucide-react";
 import Link from "next/link";
 import api from "@/lib/api";
@@ -37,11 +37,13 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
     const [selectedLlmId, setSelectedLlmId] = useState("");
     const [selectedKBs, setSelectedKBs] = useState<string[]>([]);
     const [selectedDBs, setSelectedDBs] = useState<string[]>([]);
+    const [selectedMCPs, setSelectedMCPs] = useState<string[]>([]);
 
     // Resources State
     const [llmConfigs, setLlmConfigs] = useState<any[]>([]);
     const [availableKBs, setAvailableKBs] = useState<any[]>([]);
     const [availableDBs, setAvailableDBs] = useState<any[]>([]);
+    const [availableMCPs, setAvailableMCPs] = useState<any[]>([]);
 
     // Dialog State
     const [dialogOpen, setDialogOpen] = useState(false);
@@ -72,17 +74,19 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
 
     const fetchAgentData = async () => {
         try {
-            const [agentRes, llmRes, kbRes, dbRes] = await Promise.all([
+            const [agentRes, llmRes, kbRes, dbRes, mcpRes] = await Promise.all([
                 api.get(`/agents/${params.id}`),
                 api.get("/llm"),
                 api.get("/kb"),
-                api.get("/resources/databases")
+                api.get("/resources/databases"),
+                api.get("/resources/mcp")
             ]);
 
             setAgent(agentRes.data);
             setLlmConfigs(llmRes.data);
             setAvailableKBs(kbRes.data);
             setAvailableDBs(dbRes.data);
+            setAvailableMCPs(mcpRes.data);
 
             // Set initial form state
             setSystemPrompt(agentRes.data.system_prompt || "You are a helpful AI assistant.");
@@ -90,6 +94,7 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
             setSelectedLlmId(agentRes.data.llm_config_id || "");
             setSelectedKBs(agentRes.data.knowledge_bases?.map((kb: any) => kb.id) || []);
             setSelectedDBs(agentRes.data.database_connections?.map((db: any) => db.id) || []);
+            setSelectedMCPs(agentRes.data.mcp_connections?.map((mcp: any) => mcp.id) || []);
 
         } catch (error) {
             console.error("Failed to load agent", error);
@@ -114,6 +119,7 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
                 llm_config_id: selectedLlmId,
                 kb_ids: selectedKBs,
                 db_connection_ids: selectedDBs,
+                mcp_connection_ids: selectedMCPs,
                 ...updates
             };
 
@@ -122,6 +128,7 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
             // Update local state if needed (for auto-saves that pass updates)
             if (updates.kb_ids) setSelectedKBs(updates.kb_ids);
             if (updates.db_connection_ids) setSelectedDBs(updates.db_connection_ids);
+            if (updates.mcp_connection_ids) setSelectedMCPs(updates.mcp_connection_ids);
 
             if (showToast) toast("Changes saved successfully", "success");
         } catch (error) {
@@ -211,6 +218,27 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
         await saveChanges({ db_connection_ids: newDBs });
     };
 
+    const [addMCPDialogOpen, setAddMCPDialogOpen] = useState(false);
+
+    const handleAddMCP = () => {
+        const unselectedMCPs = availableMCPs.filter(mcp => !selectedMCPs.includes(mcp.id));
+        setResourceToAdd(unselectedMCPs.length > 0 ? unselectedMCPs[0].id : "");
+        setAddMCPDialogOpen(true);
+    };
+
+    const confirmAddMCP = async () => {
+        if (resourceToAdd) {
+            const newMCPs = [...selectedMCPs, resourceToAdd];
+            await saveChanges({ mcp_connection_ids: newMCPs });
+            setAddMCPDialogOpen(false);
+            setResourceToAdd("");
+        }
+    };
+
+    const removeMCP = async (id: string) => {
+        const newMCPs = selectedMCPs.filter(mcpId => mcpId !== id);
+        await saveChanges({ mcp_connection_ids: newMCPs });
+    };
 
     const handleDeleteAgent = async () => {
         showDialog(
@@ -240,6 +268,7 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
 
     const tabs = [
         { id: "agent", label: "Agent" },
+        { id: "providers", label: "Providers" },
         { id: "knowledge", label: "Knowledge Base" },
         { id: "advanced", label: "Advanced" },
     ];
@@ -354,84 +383,141 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
             <div className={cn("flex-1 overflow-y-auto p-4 md:p-8", isDark ? "bg-[#0A0A0A]" : "bg-gray-50")}>
                 <div className="max-w-6xl mx-auto">
                     {activeTab === "agent" && (
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                            {/* Left Column */}
-                            <div className="lg:col-span-2 space-y-6">
-                                {/* System Prompt */}
-                                <div className={cn("rounded-xl border p-1 shadow-sm", isDark ? "bg-[#111] border-white/10" : "bg-white border-gray-200")}>
-                                    <div className={cn("flex items-center justify-between px-4 py-3 border-b", isDark ? "border-white/10" : "border-gray-100")}>
-                                        <div className="flex items-center space-x-2">
-                                            <span className={cn("text-base md:text-sm font-medium", isDark ? "text-white" : "text-gray-900")}>System Prompt</span>
-                                        </div>
-                                    </div>
-                                    <div className="p-4">
-                                        <textarea
-                                            value={systemPrompt}
-                                            onChange={(e) => setSystemPrompt(e.target.value)}
-                                            placeholder="Enter the system prompt for your agent..."
-                                            className={cn("w-full h-64 bg-transparent border-none focus:ring-0 text-base md:text-sm resize-none placeholder-gray-400", isDark ? "text-gray-200" : "text-gray-800")}
-                                        />
-                                    </div>
-                                    <div className={cn("px-4 py-3 border-t flex items-center justify-between rounded-b-xl", isDark ? "border-white/10 bg-black/20" : "border-gray-100 bg-gray-50/50")}>
-                                        <div className="flex items-center space-x-2">
-                                            <span className="text-xs text-gray-500">Type {"{{"} to add variables</span>
-                                        </div>
+                        <div className="max-w-4xl mx-auto space-y-6">
+                            {/* System Prompt */}
+                            <div className={cn("rounded-xl border p-1 shadow-sm", isDark ? "bg-[#111] border-white/10" : "bg-white border-gray-200")}>
+                                <div className={cn("flex items-center justify-between px-4 py-3 border-b", isDark ? "border-white/10" : "border-gray-100")}>
+                                    <div className="flex items-center space-x-2">
+                                        <span className={cn("text-base md:text-sm font-medium", isDark ? "text-white" : "text-gray-900")}>System Prompt</span>
                                     </div>
                                 </div>
-
-                                {/* First Message */}
-                                <div className="space-y-2">
-                                    <h3 className={cn("text-base md:text-sm font-medium", isDark ? "text-white" : "text-gray-900")}>First message</h3>
-                                    <p className="text-xs text-gray-500">The first message the agent will say. If empty, the agent will wait for the user to start the conversation.</p>
-                                    <div className={cn("rounded-xl border p-1 shadow-sm", isDark ? "bg-[#111] border-white/10" : "bg-white border-gray-200")}>
-                                        <div className="p-4">
-                                            <textarea
-                                                value={firstMessage}
-                                                onChange={(e) => setFirstMessage(e.target.value)}
-                                                placeholder="e.g. Hello, how can I help you today?"
-                                                className={cn("w-full h-24 bg-transparent border-none focus:ring-0 text-base md:text-sm resize-none placeholder-gray-400", isDark ? "text-gray-200" : "text-gray-800")}
-                                            />
-                                        </div>
-                                        <div className={cn("px-4 py-3 border-t flex items-center justify-between rounded-b-xl", isDark ? "border-white/10 bg-black/20" : "border-gray-100 bg-gray-50/50")}>
-                                            <span className="text-xs text-gray-500">Type {"{{"} to add variables</span>
-                                        </div>
+                                <div className="p-4">
+                                    <textarea
+                                        value={systemPrompt}
+                                        onChange={(e) => setSystemPrompt(e.target.value)}
+                                        placeholder="Enter the system prompt for your agent..."
+                                        className={cn("w-full h-64 bg-transparent border-none focus:ring-0 text-base md:text-sm resize-none placeholder-gray-400", isDark ? "text-gray-200" : "text-gray-800")}
+                                    />
+                                </div>
+                                <div className={cn("px-4 py-3 border-t flex items-center justify-between rounded-b-xl", isDark ? "border-white/10 bg-black/20" : "border-gray-100 bg-gray-50/50")}>
+                                    <div className="flex items-center space-x-2">
+                                        <span className="text-xs text-gray-500">Type {"{{"} to add variables</span>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Right Column */}
-                            <div className="space-y-6">
-                                {/* LLM Selection */}
-                                <div className="space-y-2">
-                                    <h3 className={cn("text-base md:text-sm font-medium", isDark ? "text-white" : "text-gray-900")}>LLM</h3>
-                                    <p className="text-xs text-gray-500">Select which provider and model to use for the LLM.</p>
-                                    <div className={cn("rounded-xl border", isDark ? "bg-[#111] border-white/10" : "bg-white border-gray-200")}>
-                                        {llmConfigs.length > 0 ? (
-                                            <div className="p-1">
-                                                <CustomDropdown
-                                                    options={llmConfigs}
-                                                    value={llmConfigs.find(c => c.id === selectedLlmId) || null}
-                                                    onChange={(option) => setSelectedLlmId(option.id)}
-                                                    getLabel={(option) => option.name}
-                                                    getSubtitle={(option) => option.model}
-                                                    getKey={(option) => option.id}
-                                                    placeholder="Select an LLM Configuration"
-                                                    className="border-none"
-                                                />
-                                            </div>
-                                        ) : (
-                                            <div className="p-4 text-center">
-                                                <p className="text-sm text-gray-500 mb-2">No LLM configurations found.</p>
-                                                <Link href="/dashboard/llm" className="text-nvidia-green hover:underline text-sm font-medium">
-                                                    Create one here
-                                                </Link>
-                                            </div>
-                                        )}
-                                        <div className={cn("px-4 py-3 border-t", isDark ? "bg-black/20 border-white/10" : "bg-gray-50/50 border-gray-100")}>
-                                            <Link href="/dashboard/llm" className="text-xs text-gray-500 hover:text-[#76B900] flex items-center">
-                                                <Plus className="w-3 h-3 mr-1" /> Add new LLM
+                            {/* First Message */}
+                            <div className="space-y-2">
+                                <h3 className={cn("text-base md:text-sm font-medium", isDark ? "text-white" : "text-gray-900")}>First message</h3>
+                                <p className="text-xs text-gray-500">The first message the agent will say. If empty, the agent will wait for the user to start the conversation.</p>
+                                <div className={cn("rounded-xl border p-1 shadow-sm", isDark ? "bg-[#111] border-white/10" : "bg-white border-gray-200")}>
+                                    <div className="p-4">
+                                        <textarea
+                                            value={firstMessage}
+                                            onChange={(e) => setFirstMessage(e.target.value)}
+                                            placeholder="e.g. Hello, how can I help you today?"
+                                            className={cn("w-full h-24 bg-transparent border-none focus:ring-0 text-base md:text-sm resize-none placeholder-gray-400", isDark ? "text-gray-200" : "text-gray-800")}
+                                        />
+                                    </div>
+                                    <div className={cn("px-4 py-3 border-t flex items-center justify-between rounded-b-xl", isDark ? "border-white/10 bg-black/20" : "border-gray-100 bg-gray-50/50")}>
+                                        <span className="text-xs text-gray-500">Type {"{{"} to add variables</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === "providers" && (
+                        <div className="max-w-4xl mx-auto space-y-8">
+                            {/* LLM Selection */}
+                            <div className="space-y-4">
+                                <h3 className={cn("text-base md:text-lg font-bold", isDark ? "text-white" : "text-gray-900")}>Large Language Model</h3>
+                                <p className="text-sm text-gray-500">Select which provider and model to use for the agent's core intelligence.</p>
+                                <div className={cn("rounded-xl border", isDark ? "bg-[#111] border-white/10" : "bg-white border-gray-200")}>
+                                    {llmConfigs.length > 0 ? (
+                                        <div className="p-1">
+                                            <CustomDropdown
+                                                options={llmConfigs}
+                                                value={llmConfigs.find(c => c.id === selectedLlmId) || null}
+                                                onChange={(option) => setSelectedLlmId(option.id)}
+                                                getLabel={(option) => option.name}
+                                                getSubtitle={(option) => option.model}
+                                                getKey={(option) => option.id}
+                                                placeholder="Select an LLM Configuration"
+                                                className="border-none"
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="p-4 text-center">
+                                            <p className="text-sm text-gray-500 mb-2">No LLM configurations found.</p>
+                                            <Link href="/dashboard/llm" className="text-nvidia-green hover:underline text-sm font-medium">
+                                                Create one here
                                             </Link>
                                         </div>
+                                    )}
+                                    <div className={cn("px-4 py-3 border-t", isDark ? "bg-black/20 border-white/10" : "bg-gray-50/50 border-gray-100")}>
+                                        <Link href="/dashboard/llm" className="text-xs text-gray-500 hover:text-[#76B900] flex items-center">
+                                            <Plus className="w-3 h-3 mr-1" /> Add new LLM
+                                        </Link>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* MCP Connections Section */}
+                            <div className="space-y-4">
+                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                    <div>
+                                        <h3 className={cn("text-base md:text-lg font-bold", isDark ? "text-white" : "text-gray-900")}>MCP Connections</h3>
+                                        <p className="text-sm text-gray-500 mt-1">Link Model Context Protocol (MCP) servers to give the agent distinct tools and capabilities.</p>
+                                    </div>
+                                    <button
+                                        onClick={handleAddMCP}
+                                        className="w-full sm:w-auto px-4 py-2 bg-[#76B900] text-black text-sm font-bold rounded-lg hover:bg-[#6aa600] transition-colors flex items-center justify-center shadow-[0_0_15px_rgba(118,185,0,0.3)]"
+                                    >
+                                        <Plus className="w-4 h-4 mr-2" /> Add MCP Server
+                                    </button>
+                                </div>
+                                <div className={cn("rounded-xl border overflow-hidden", isDark ? "bg-[#111] border-white/10" : "bg-white border-gray-200")}>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left text-xs md:text-sm">
+                                            <thead>
+                                                <tr className={cn("border-b", isDark ? "border-white/10 bg-black/20" : "border-gray-200 bg-gray-50/50")}>
+                                                    <th className="px-6 py-3 font-medium text-gray-500">Name</th>
+                                                    <th className="px-6 py-3 font-medium text-gray-500">URL</th>
+                                                    <th className="px-6 py-3 font-medium text-gray-500">Protocol</th>
+                                                    <th className="px-6 py-3 font-medium text-gray-500 text-right">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className={cn("divide-y", isDark ? "divide-white/10" : "divide-gray-200")}>
+                                                {availableMCPs.filter(mcp => selectedMCPs.includes(mcp.id)).map((mcp) => (
+                                                    <tr key={mcp.id} className={cn("transition-colors", isDark ? "hover:bg-gray-900/50" : "hover:bg-gray-50")}>
+                                                        <td className="px-6 py-4">
+                                                            <div className="flex items-center">
+                                                                <Server className="w-4 h-4 text-gray-400 mr-3" />
+                                                                <span className={cn("font-medium", isDark ? "text-white" : "text-gray-900")}>{mcp.name}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-4 text-gray-500">{mcp.server_url}</td>
+                                                        <td className="px-6 py-4 text-gray-500 uppercase">{mcp.protocol || 'SSE'}</td>
+                                                        <td className="px-6 py-4 text-right">
+                                                            <button
+                                                                onClick={() => removeMCP(mcp.id)}
+                                                                className="text-gray-400 hover:text-red-500 transition-colors"
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                                {selectedMCPs.length === 0 && (
+                                                    <tr>
+                                                        <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                                                            No MCP servers linked. Click "Add MCP Server" to link one.
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </tbody>
+                                        </table>
                                     </div>
                                 </div>
                             </div>
@@ -668,6 +754,49 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
                     <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-xl">
                         <p className="text-sm text-blue-600 dark:text-blue-400">
                             To create a new database connection, please visit the <Link href="/dashboard/kb" className="underline font-bold">Knowledge Base</Link> section.
+                        </p>
+                    </div>
+                </div>
+            </Dialog>
+
+            {/* Add MCP Dialog */}
+            <Dialog
+                isOpen={addMCPDialogOpen}
+                onClose={() => setAddMCPDialogOpen(false)}
+                title="Add MCP Connection"
+                description="Link an existing MCP Server."
+                theme={theme}
+                buttons={[
+                    { label: "Add Selected", onClick: confirmAddMCP, variant: "primary" },
+                    { label: "Cancel", onClick: () => setAddMCPDialogOpen(false), variant: "outline" }
+                ]}
+            >
+                <div className="space-y-6">
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Select Existing Connection</label>
+                        <CustomDropdown
+                            options={availableMCPs.filter(mcp => !selectedMCPs.includes(mcp.id))}
+                            value={availableMCPs.find(mcp => mcp.id === resourceToAdd) || null}
+                            onChange={(option) => setResourceToAdd(option.id)}
+                            getLabel={(option) => option.name || "Unnamed Connection"}
+                            getSubtitle={(option) => {
+                                const toolCount = option.tools_metadata ? option.tools_metadata.length : 0;
+                                return `${option.protocol || 'SSE'} • ${toolCount} tool${toolCount !== 1 ? 's' : ''}`;
+                            }}
+                            getKey={(option) => option.id}
+                            placeholder="Select an MCP Server..."
+                            theme={theme}
+                        />
+                        {availableMCPs.length === 0 ? (
+                            <p className="text-xs text-red-400">No MCP Connections found. Please create one first.</p>
+                        ) : availableMCPs.filter(mcp => !selectedMCPs.includes(mcp.id)).length === 0 && (
+                            <p className="text-xs text-gray-500">All available MCP Connections are already linked.</p>
+                        )}
+                    </div>
+
+                    <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-xl">
+                        <p className="text-sm text-blue-600 dark:text-blue-400">
+                            To create a new MCP connection, please visit the <Link href="/dashboard/providers" className="underline font-bold">Providers</Link> section.
                         </p>
                     </div>
                 </div>

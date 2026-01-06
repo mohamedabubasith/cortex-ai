@@ -28,7 +28,8 @@ class TokenData(BaseModel):
 # LLM Configuration Schemas
 class LLMConfigurationBase(BaseModel):
     name: str
-    base_url: str
+    provider: str = "openai"
+    base_url: Optional[str] = None
     api_key: str
     model: str
 
@@ -37,6 +38,7 @@ class LLMConfigurationCreate(LLMConfigurationBase):
 
 class LLMConfigurationUpdate(BaseModel):
     name: Optional[str] = None
+    provider: Optional[str] = None
     base_url: Optional[str] = None
     api_key: Optional[str] = None
     model: Optional[str] = None
@@ -98,6 +100,39 @@ class DatabaseConnectionResponse(DatabaseConnectionBase):
     class Config:
         from_attributes = True
 
+# MCP Schemas
+class MCPConnectionBase(BaseModel):
+    name: str
+    server_url: str
+    protocol: str = "sse"
+
+class MCPConnectionCreate(MCPConnectionBase):
+    auth_headers: Optional[dict] = None
+
+class MCPConnectionUpdate(BaseModel):
+    name: Optional[str] = None
+    server_url: Optional[str] = None
+    protocol: Optional[str] = None
+    auth_headers: Optional[dict] = None
+    
+    class Config:
+        from_attributes = True
+
+class MCPConfig(BaseModel):
+    server_url: str
+    enabled: bool = True
+    custom_headers: Optional[dict] = None
+    auth_headers: Optional[dict] = None
+
+class MCPConnectionResponse(MCPConnectionBase):
+    id: str
+    user_id: str
+    summary: Optional[str] = None
+    tools_metadata: Optional[List[dict]] = None
+    
+    class Config:
+        from_attributes = True
+
 # Agent Schemas
 class AgentBase(BaseModel):
     name: str
@@ -111,6 +146,7 @@ class AgentBase(BaseModel):
 class AgentCreate(AgentBase):
     kb_ids: Optional[List[str]] = []
     db_connection_ids: Optional[List[str]] = []
+    mcp_connection_ids: Optional[List[str]] = []
 
 class AgentUpdate(BaseModel):
     name: Optional[str] = None
@@ -120,6 +156,7 @@ class AgentUpdate(BaseModel):
     llm_config_id: Optional[str] = None
     kb_ids: Optional[List[str]] = None
     db_connection_ids: Optional[List[str]] = None
+    mcp_connection_ids: Optional[List[str]] = None
     mcp_config: Optional[dict] = None
     is_public: Optional[bool] = None
 
@@ -134,6 +171,7 @@ class Agent(AgentBase):
     llm_config: Optional[LLMConfiguration] = None
     knowledge_bases: List[KnowledgeBase] = []
     database_connections: List[DatabaseConnectionResponse] = []
+    mcp_connections: List[MCPConnectionResponse] = []
     
     class Config:
         from_attributes = True
@@ -185,8 +223,10 @@ class LLMConnectionTestRequest(BaseModel):
     base_url: Optional[str] = None
 
 # MCP Schemas
-class MCPConfig(BaseModel):
-    server_url: str
+
+
+class SyncMCPRequest(BaseModel):
+    id: str
 
 class SearchQuery(BaseModel):
     query: str

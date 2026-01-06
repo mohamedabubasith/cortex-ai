@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, T
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
+from app.models.mcp_connection import MCPConnection
 import uuid
 
 def generate_uuid():
@@ -22,6 +23,13 @@ agent_database_connections = Table(
     Column('db_connection_id', String, ForeignKey('database_connections.id', ondelete="CASCADE"))
 )
 
+agent_mcp_connections = Table(
+    'agent_mcp_connections',
+    Base.metadata,
+    Column('agent_id', String, ForeignKey('projects.id', ondelete="CASCADE")),
+    Column('mcp_connection_id', String, ForeignKey('mcp_connections.id', ondelete="CASCADE"))
+)
+
 class User(Base):
     __tablename__ = "users"
     
@@ -36,6 +44,7 @@ class User(Base):
     llm_configs = relationship("LLMConfiguration", back_populates="owner")
     knowledge_bases = relationship("KnowledgeBase", back_populates="owner")
     database_connections = relationship("DatabaseConnection", back_populates="owner")
+    mcp_connections = relationship("MCPConnection", back_populates="user")
 
 class LLMConfiguration(Base):
     __tablename__ = "llm_configurations"
@@ -43,6 +52,7 @@ class LLMConfiguration(Base):
     id = Column(String, primary_key=True, default=generate_uuid)
     user_id = Column(String, ForeignKey("users.id"))
     name = Column(String)
+    provider = Column(String, default="openai")
     base_url = Column(String)
     api_key = Column(String)
     model = Column(String)
@@ -81,6 +91,7 @@ class Agent(Base):
     # Many-to-Many Relationships
     knowledge_bases = relationship("KnowledgeBase", secondary=agent_knowledge_bases, back_populates="agents")
     database_connections = relationship("DatabaseConnection", secondary=agent_database_connections, back_populates="agents")
+    mcp_connections = relationship("MCPConnection", secondary=agent_mcp_connections, back_populates="agents")
     
     chat_sessions = relationship("ChatSession", back_populates="agent", cascade="all, delete-orphan")
     members = relationship("AgentMember", back_populates="agent", cascade="all, delete-orphan")

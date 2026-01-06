@@ -12,11 +12,12 @@ export default function NotFound() {
         <div className="min-h-screen bg-black flex items-center justify-center p-4 relative overflow-hidden font-sans text-white">
             {/* Background Effects */}
             <TubesBackground />
-
-            {/* Ambient Glow */}
-            <div className="absolute inset-0 z-0 pointer-events-none">
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-nvidia-green/5 rounded-full blur-[150px] animate-pulse-slow" />
+            <div className="absolute inset-0 z-0">
+                <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-[#76B900]/10 rounded-full blur-[120px] animate-pulse" />
+                <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-[#76B900]/5 rounded-full blur-[100px] animate-pulse delay-1000" />
             </div>
+            {/* Background Pattern */}
+            <div className="absolute inset-0 z-0 opacity-20 pointer-events-none" style={{ backgroundImage: "radial-gradient(circle at 50% 50%, #1a1a1a 1px, transparent 1px)", backgroundSize: "24px 24px" }}></div>
 
             {/* Content */}
             <div className="relative z-10 text-center max-w-2xl mx-auto">

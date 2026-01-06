@@ -7,6 +7,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 logger = logging.getLogger(__name__)
 
+from app.models.models import LLMConfiguration
 from app.services.tools_service import tools_service
 from app.core.utils import extract_usage_from_chunk
 import json
@@ -34,20 +35,23 @@ class LLMService:
                 return
             
             # Log configuration (without revealing full key)
-            logger.info(f"Attempting LLM request - Model: {agent.llm_config.model}, Base URL: {agent.llm_config.base_url}")
+            logger.info(f"Attempting LLM request - Model: {agent.llm_config.model}, Provider: {agent.llm_config.provider}")
             
-            client_kwargs = {"api_key": agent.llm_config.api_key, "timeout": 300.0}
-            if agent.llm_config.base_url:
-                client_kwargs["base_url"] = agent.llm_config.base_url
+            # --- MODULAR PROVIDER USAGE ---
+            from app.services.llm.factory import LLMProviderFactory
             
-            client = AsyncOpenAI(**client_kwargs)
+            # Get provider from config (default to openai if missing)
+            provider_type = getattr(agent.llm_config, 'provider', 'openai')
+            provider = LLMProviderFactory.get_provider(provider_type)
             
             # Add system prompt
             full_messages = []
             
-            # Get available tools (including agent-specific database tools)
+            # Get available tools (including agent-specific database tools and MCP tools)
             db_connections = agent.database_connections if hasattr(agent, 'database_connections') else []
-            logger.info(f"LLM Service: Found {len(db_connections)} DB connections for agent {agent.id}")
+            mcp_connections = agent.mcp_connections if hasattr(agent, 'mcp_connections') else []
+            
+            logger.info(f"LLM Service: Found {len(db_connections)} DB connections and {len(mcp_connections)} MCP connections for agent {agent.id}")
             
             # Build System Prompt using PromptService
             from app.services.prompt_service import prompt_service
@@ -56,24 +60,24 @@ class LLMService:
             full_messages.append({"role": "system", "content": system_prompt})
             full_messages.extend(messages)
             
-            tools = tools_service.get_agent_specific_tools(db_connections)
+            tools = tools_service.get_agent_specific_tools(db_connections, mcp_connections)
             
             # Set agent context for tool execution (database service needs to be passed from chat_service)
             from app.services.database_service import database_service
-            tools_service.set_agent_context(db_connections, database_service)
+            tools_service.set_agent_context(db_connections, mcp_connections, database_service)
             
-            # Loop for handling tool calls (max depth 3 to prevent infinite loops)
-            for loop_index in range(3):
+            # Loop for handling tool calls (max depth 10 to allow complex chains)
+            MAX_LOOPS = 10
+            for loop_index in range(MAX_LOOPS):
                 logger.info(f"Sending request to {agent.llm_config.model} (Loop {loop_index})")
                 
-                # Create stream
-                stream = await client.chat.completions.create(
+                # Create stream via Provider
+                stream = await provider.chat(
+                    api_key=agent.llm_config.api_key,
                     model=agent.llm_config.model,
                     messages=full_messages,
                     tools=tools if tools else None,
-                    tool_choice="auto" if tools else None,
-                    stream=True,
-                    stream_options={"include_usage": True}
+                    base_url=agent.llm_config.base_url
                 )
                 
                 tool_calls = []
@@ -155,8 +159,10 @@ class LLMService:
                     
                     # Execute tool (No visible output to user)
                     try:
+                        logger.info(f"Calling tools_service.execute_tool for {func_name}...")
                         # Add timeout to prevent hanging
                         tool_result = await asyncio.wait_for(tools_service.execute_tool(func_name, func_args), timeout=30.0)
+                        logger.info(f"Tool {func_name} execution completed. Result length: {len(tool_result)}")
                     except asyncio.TimeoutError:
                         logger.error(f"Tool {func_name} timed out")
                         tool_result = json.dumps({"error": "Tool execution timed out (30s limit)."})
@@ -172,6 +178,11 @@ class LLMService:
                     })
                 
                 # Loop continues to send tool results back to LLM
+            
+            # Check if we exited due to max loops
+            if loop_index == MAX_LOOPS - 1:
+                logger.warning(f"LLM reached max loop depth ({MAX_LOOPS}). Terminating chain.")
+                yield f"\n\n[System Note: Agent stopped after {MAX_LOOPS} steps to prevent infinite loops. The task might be too complex or the agent got stuck.]"
                     
         except asyncio.TimeoutError:
             error_msg = "Request timed out - response took too long"
@@ -199,5 +210,36 @@ class LLMService:
     def get_last_token_usage(self) -> Dict[str, int]:
         """Get token usage from last request"""
         return getattr(self, 'last_token_usage', {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0})
+
+    async def generate_text(self, prompt: str, llm_config: LLMConfiguration) -> str:
+        """Generate a single text response (non-streaming usage)"""
+        try:
+            from app.services.llm.factory import LLMProviderFactory
+            
+            provider_type = getattr(llm_config, 'provider', 'openai')
+            provider = LLMProviderFactory.get_provider(provider_type)
+            
+            messages = [{"role": "user", "content": prompt}]
+            
+            # Using stream method and collecting result for simplicity as providers implement stream
+            stream = await provider.chat(
+                api_key=llm_config.api_key,
+                model=llm_config.model,
+                messages=messages,
+                base_url=llm_config.base_url
+            )
+            
+            response_text = ""
+            async for chunk in stream:
+                 # Check for choices and delta in standard OpenAI format or similar
+                 if hasattr(chunk, 'choices') and chunk.choices:
+                     delta = chunk.choices[0].delta
+                     if delta.content:
+                         response_text += delta.content
+            
+            return response_text
+        except Exception as e:
+            logger.error(f"Generate text failed: {e}")
+            raise e
 
 llm_service = LLMService()

@@ -37,7 +37,8 @@ class DatabaseService:
                 password=password,
                 database=connection.database_name,
                 host=connection.host,
-                port=connection.port
+                port=connection.port,
+                timeout=5
             )
             await conn.close()
             return True
@@ -50,6 +51,9 @@ class DatabaseService:
         
         try:
             if connection.type == "postgres":
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.info(f"Connecting to Postgres: {connection.host}:{connection.port}/{connection.database_name}")
                 conn = await asyncpg.connect(
                     user=connection.username,
                     password=password,
@@ -58,9 +62,12 @@ class DatabaseService:
                     port=connection.port,
                     timeout=5
                 )
+                logger.info("Connected to Postgres successfully")
                 try:
                     # Fetch results
+                    logger.info(f"Executing query: {query}")
                     rows = await conn.fetch(query)
+                    logger.info(f"Query returned {len(rows)} rows")
                     # Convert to list of dicts
                     results = [dict(row) for row in rows]
                     

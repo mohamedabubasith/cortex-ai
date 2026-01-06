@@ -10,11 +10,17 @@ from app.repositories.llm_repository import LLMRepository
 from app.services.llm_config_service import LLMConfigService
 from app.services.auth_service import get_current_active_user
 
+from app.services.llm_provider_service import LLMProviderService
+
 router = APIRouter()
 
 def get_llm_service(db: AsyncSession = Depends(get_db)) -> LLMConfigService:
     """Dependency injection for LLM service"""
     return LLMConfigService(LLMRepository(db))
+
+def get_llm_provider_service() -> LLMProviderService:
+    """Dependency injection for LLM provider service"""
+    return LLMProviderService()
 
 @router.post("", response_model=schemas.LLMConfiguration)
 async def create_llm_config(
@@ -26,6 +32,7 @@ async def create_llm_config(
     return await llm_service.create_config(
         user_id=current_user.id,
         name=config.name,
+        provider=config.provider,
         api_key=config.api_key,
         model=config.model,
         base_url=config.base_url
@@ -65,6 +72,7 @@ async def update_llm_config(
         llm_id=llm_id,
         user_id=current_user.id,
         name=config.name,
+        provider=config.provider,
         api_key=config.api_key,
         model=config.model,
         base_url=config.base_url
@@ -90,6 +98,7 @@ async def delete_llm_config(
     return result
 
 class LLMTestRequest(BaseModel):
+    provider: str
     api_key: str
     base_url: str = None
     model: str
@@ -97,47 +106,21 @@ class LLMTestRequest(BaseModel):
 @router.post("/test")
 async def test_llm_connection(
     request: LLMTestRequest,
-    current_user: models.User = Depends(get_current_active_user)
+    current_user: models.User = Depends(get_current_active_user),
+    provider_service: LLMProviderService = Depends(get_llm_provider_service)
 ):
     """Test LLM connection with actual chat completion"""
     try:
-        from openai import AsyncOpenAI
-        
-        client_kwargs = {"api_key": request.api_key}
-        if request.base_url:
-            client_kwargs["base_url"] = request.base_url
-        
-        client = AsyncOpenAI(**client_kwargs)
-        
-        # IMPORTANT: Test with actual chat completion, not just models.list()
-        # This validates API key, base URL, AND model access
-        response = await client.chat.completions.create(
+        return await provider_service.test_connection(
+            provider=request.provider,
+            api_key=request.api_key,
             model=request.model,
-            messages=[{"role": "user", "content": "test"}],
-            max_tokens=5
+            base_url=request.base_url
         )
-        
-        return {
-            "status": "success", 
-            "message": f"Connection successful! Model '{request.model}' is accessible.",
-            "test_response": response.choices[0].message.content if response.choices else None
-        }
+    except HTTPException:
+        raise
     except Exception as e:
-        error_msg = str(e)
-        status_code = 400
-        
-        # Provide specific error messages
-        if "401" in error_msg or "Unauthorized" in error_msg:
-            detail = "API key is invalid or expired"
-            status_code = 401
-        elif "403" in error_msg or "Forbidden" in error_msg:
-            detail = f"API key doesn't have access to model '{request.model}'"
-            status_code = 403
-        elif "404" in error_msg:
-            detail = f"Model '{request.model}' not found"
-            status_code = 404
-        else:
-            detail = f"Connection failed: {error_msg}"
-        
-        raise HTTPException(status_code=status_code, detail=detail)
+        # Fallback for unexpected errors
+        print(f"Unexpected error in test_llm_connection: {e}")
+        raise HTTPException(status_code=500, detail=f"Internal server error during connection test: {str(e)}")
 

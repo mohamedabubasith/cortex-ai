@@ -239,6 +239,21 @@ function MessageBubbleBase({ message, isStreaming = false, isQuerying = false, h
                                                     </code>
                                                 );
                                             },
+                                            a({ node, children, ...props }: any) {
+                                                return (
+                                                    <a
+                                                        {...props}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className={cn(
+                                                            "underline transition-colors hover:text-[#76B900]",
+                                                            theme === 'dark' ? "text-blue-400" : "text-blue-600"
+                                                        )}
+                                                    >
+                                                        {children}
+                                                    </a>
+                                                );
+                                            }
                                         }}
                                     >
                                         {message.content}

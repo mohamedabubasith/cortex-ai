@@ -22,3 +22,6 @@ openpyxl
 pandas
 python-pptx
 unstructured[all-docs]
+fastmcp
+beautifulsoup4
+duckduckgo-search

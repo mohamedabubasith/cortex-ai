@@ -16,6 +16,7 @@ interface CustomDropdownProps<T> {
     placeholder?: string;
     className?: string;
     disabled?: boolean;
+    theme?: "dark" | "light";
 }
 
 export default function CustomDropdown<T>({
@@ -27,11 +28,13 @@ export default function CustomDropdown<T>({
     getKey,
     placeholder = "Select an option",
     className,
-    disabled = false
+    disabled = false,
+    theme: propTheme
 }: CustomDropdownProps<T>) {
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
-    const { theme } = useTheme();
+    const { theme: globalTheme } = useTheme();
+    const theme = propTheme || globalTheme;
     const isDark = theme === "dark";
 
     // Close on click outside
@@ -61,7 +64,7 @@ export default function CustomDropdown<T>({
                     "w-full flex items-center justify-between px-4 py-2.5 rounded-xl border transition-all duration-200 text-left",
                     isDark
                         ? "bg-black/50 border-gray-700 text-white hover:border-nvidia-green/50 focus:border-nvidia-green"
-                        : "bg-white border-gray-200 text-gray-900 hover:border-nvidia-green/50 focus:border-nvidia-green",
+                        : "bg-white border-gray-200 text-black hover:border-nvidia-green/50 focus:border-nvidia-green",
                     disabled && "opacity-50 cursor-not-allowed",
                     isOpen && "ring-2 ring-nvidia-green/20 border-nvidia-green"
                 )}
@@ -85,10 +88,10 @@ export default function CustomDropdown<T>({
                         exit={{ opacity: 0, y: 5, scale: 0.95 }}
                         transition={{ duration: 0.1, ease: "easeOut" }}
                         className={cn(
-                            "absolute z-[100] w-full mt-2 rounded-xl border shadow-xl overflow-hidden max-h-60 overflow-y-auto",
+                            "absolute z-[9999] w-full mt-2 rounded-xl border shadow-xl overflow-hidden max-h-60 overflow-y-auto",
                             isDark
-                                ? "bg-[#1a1a1a] border-gray-700"
-                                : "bg-white border-gray-200"
+                                ? "bg-[#1a1a1a] border-gray-700 text-white"
+                                : "bg-white border-gray-200 text-black"
                         )}
                     >
                         <div className="p-1">
@@ -100,13 +103,14 @@ export default function CustomDropdown<T>({
                                             key={getKey(option)}
                                             type="button"
                                             onClick={() => handleSelect(option)}
+                                            style={{ color: isSelected ? undefined : (isDark ? 'white' : 'black') }}
                                             className={cn(
                                                 "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors",
                                                 isSelected
                                                     ? "bg-nvidia-green/10 text-nvidia-green font-medium"
                                                     : isDark
-                                                        ? "text-gray-300 hover:bg-white/5 hover:text-white"
-                                                        : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                                                        ? "hover:bg-white/10"
+                                                        : "hover:bg-gray-100"
                                             )}
                                         >
                                             <div className="flex flex-col items-start overflow-hidden">

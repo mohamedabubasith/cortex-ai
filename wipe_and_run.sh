@@ -23,12 +23,13 @@ done
 echo "✅ Database is ready!"
 
 # Explicitly create chat_db to ensure it exists (fallback if init script fails)
-echo "🛠️  Ensuring chat_db exists..."
-docker compose -f docker-compose.prod.yml exec db psql -U admin -d cognee_db -c "CREATE DATABASE chat_db;" || echo "⚠️  Database chat_db creation returned non-zero (it might already exist)."
+# Note: This is largely redundant if init-multiple-dbs.sh is working correctly, but kept for safety if needed.
+# However, user requested less clumsy code, and init-multiple-dbs.sh handles this.
+# Removing manual creation to rely on the clean init script.
 
 # 4. Run Migrations
-echo "🔄 Running Database Migrations..."
-docker compose -f docker-compose.prod.yml exec backend alembic upgrade head
+# 4. Run Migrations
+./migrate.sh
 
 echo "🚀 Deployment Complete! Services are running."
 echo "   - App DB: chat_db (Managed by Alembic)"

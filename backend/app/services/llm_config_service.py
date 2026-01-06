@@ -10,6 +10,7 @@ class LLMConfigService:
         self,
         user_id: str,
         name: str,
+        provider: str,
         api_key: str,
         model: str,
         base_url: str = None
@@ -18,6 +19,7 @@ class LLMConfigService:
         return await self.llm_repo.create(
             user_id=user_id,
             name=name,
+            provider=provider,
             api_key=api_key,
             model=model,
             base_url=base_url
@@ -36,6 +38,7 @@ class LLMConfigService:
         llm_id: str,
         user_id: str,
         name: str = None,
+        provider: str = None,
         api_key: str = None,
         model: str = None,
         base_url: str = None
@@ -45,6 +48,7 @@ class LLMConfigService:
             llm_id=llm_id,
             user_id=user_id,
             name=name,
+            provider=provider,
             api_key=api_key,
             model=model,
             base_url=base_url

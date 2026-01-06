@@ -4,7 +4,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState } from "react";
-import { Database, FileText, Trash2, Loader2, Plus, Upload, Search, X } from "lucide-react";
+import { Database, FileText, Trash2, Loader2, Plus, Upload, Search, X, Edit, Check, AlertTriangle, Server, RefreshCw, Link } from "lucide-react";
 import api from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
 import Dialog from "@/components/ui/Dialog";
@@ -12,6 +12,10 @@ import SidePanel from "@/components/ui/SidePanel";
 import { useTheme } from "@/contexts/ThemeContext";
 import { cn } from "@/lib/utils";
 import CustomDropdown from "@/components/ui/CustomDropdown";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
+import { Textarea } from "@/components/ui/Textarea";
+import { Label } from "@/components/ui/Label";
 
 interface KnowledgeBase {
     id: string;
@@ -26,7 +30,19 @@ interface DatabaseConnection {
     name: string;
     type: string;
     host: string;
+    port: number;
+    username: string;
     database_name: string;
+    status: string;
+    ssl_mode?: string;
+}
+
+interface MCPConnection {
+    id: string;
+    name: string;
+    server_url: string;
+    summary: string;
+    status?: string;
 }
 
 export default function KnowledgeBasePage() {
@@ -48,11 +64,7 @@ export default function KnowledgeBasePage() {
     const [connecting, setConnecting] = useState(false);
     const [testing, setTesting] = useState(false);
     const [testResult, setTestResult] = useState<{ status: string; message: string } | null>(null);
-    const [selectedDb, setSelectedDb] = useState<any>(null);
-    const [isDbDetailsOpen, setIsDbDetailsOpen] = useState(false);
-    const [isEditingDb, setIsEditingDb] = useState(false);
-    const [editedDb, setEditedDb] = useState<any>(null);
-    const [newDb, setNewDb] = useState({
+    const [currentDb, setCurrentDb] = useState<any>({
         name: "",
         type: "postgres",
         host: "localhost",
@@ -82,29 +94,26 @@ export default function KnowledgeBasePage() {
         fetchLLMs();
     }, []);
 
-    // Polling for status updates
+    const [processingFiles, setProcessingFiles] = useState<Set<string>>(new Set());
+
+    // Polling for status updates with exponential backoff
     useEffect(() => {
-        const processingFiles = kbFiles.filter(f =>
-            ['pending', 'processing', 'initiated', 'unknown'].includes(f.status) || !f.status
+        const filesToPoll = kbFiles.filter(f =>
+            ['pending', 'processing', 'initiated', 'unknown'].includes(f.status || '') || !f.status
         );
 
-        if (processingFiles.length === 0) return;
+        if (filesToPoll.length === 0) return;
 
-        const interval = setInterval(async () => {
+        let timeoutId: NodeJS.Timeout;
+
+        const poll = async () => {
             let updated = false;
             const newFiles = [...kbFiles];
 
-            for (const file of processingFiles) {
+            await Promise.all(filesToPoll.map(async (file) => {
                 try {
                     const res = await api.get(`/kb/${file.id}/status`);
-                    // Backend now returns mapped status: indexed, processing, failed, initiated
-                    // Handle empty or undefined status by defaulting to 'processing'
-                    let newStatus = res.data?.status;
-
-                    // If status is empty/undefined/null, default to 'processing'
-                    if (!newStatus || newStatus === 'unknown') {
-                        newStatus = 'processing';
-                    }
+                    const newStatus = res.data?.status || 'processing';
 
                     if (newStatus !== file.status) {
                         const index = newFiles.findIndex(f => f.id === file.id);
@@ -115,22 +124,27 @@ export default function KnowledgeBasePage() {
                     }
                 } catch (error) {
                     console.error(`Failed to poll status for ${file.id}`, error);
-                    // On error, set to 'processing' if it's not already failed
-                    const index = newFiles.findIndex(f => f.id === file.id);
-                    if (index !== -1 && !['indexed', 'failed'].includes(newFiles[index].status)) {
-                        newFiles[index] = { ...newFiles[index], status: 'processing' };
-                        updated = true;
-                    }
                 }
-            }
+            }));
 
             if (updated) {
                 setKbFiles(newFiles);
             }
-        }, 2000);
 
-        return () => clearInterval(interval);
-    }, [kbFiles]);
+            // Continue polling only if there are still processing files
+            const stillProcessing = newFiles.some(f =>
+                ['pending', 'processing', 'initiated', 'unknown'].includes(f.status || '') || !f.status
+            );
+
+            if (stillProcessing) {
+                timeoutId = setTimeout(poll, 3000); // Poll every 3 seconds
+            }
+        };
+
+        poll();
+
+        return () => clearTimeout(timeoutId);
+    }, [kbFiles.length]); // Only reset polling when file count changes (e.g. new upload)
 
     const fetchLLMs = async () => {
         try {
@@ -161,19 +175,22 @@ export default function KnowledgeBasePage() {
     };
 
     const handleUpload = async (e: React.FormEvent) => {
-        e.preventDefault(); // Keep for form submission if triggered by enter
+        e.preventDefault();
         if (!selectedFile) return;
 
         setUploading(true);
         const formData = new FormData();
         formData.append("file", selectedFile);
+        if (selectedLlmId) {
+            formData.append("llm_config_id", selectedLlmId);
+        }
 
         try {
             await api.post("/kb/upload", formData);
             toast("File uploaded successfully. Processing started.", "success");
             setIsUploadOpen(false);
             setSelectedFile(null);
-            fetchResources();
+            fetchResources(); // This triggers the polling effect
         } catch (error: any) {
             console.error("Upload failed", error);
             const errorMessage = error.response?.data?.detail || error.message || "Upload failed. Please try again.";
@@ -183,28 +200,38 @@ export default function KnowledgeBasePage() {
         }
     };
 
+    const handleOpenDbDialog = (db: any = null) => {
+        if (db) {
+            // Edit mode: populate with existing data, password empty
+            setCurrentDb({ ...db, password: "" });
+        } else {
+            // Create mode: reset to default
+            setCurrentDb({
+                name: "",
+                type: "postgres",
+                host: "localhost",
+                port: 5432,
+                username: "",
+                password: "",
+                database_name: "",
+                ssl_mode: "disable"
+            });
+        }
+        setTestResult(null);
+        setIsDbOpen(true);
+    };
+
     const handleTestDb = async () => {
         setTesting(true);
         setTestResult(null);
         try {
-            if (selectedDb) {
-                // Testing an existing saved connection - use the ID-based endpoint
-                const res = await api.post(`/resources/databases/${selectedDb.id}/test`);
-                setTestResult(res.data);
-                if (res.data.status === "success") {
-                    toast("Connection test successful!", "success");
-                } else {
-                    toast("Connection test failed", "error");
-                }
+            // Testing the form values (Create or Edit)
+            const res = await api.post("/resources/databases/test", currentDb);
+            setTestResult(res.data);
+            if (res.data.status === "success") {
+                toast("Connection test successful!", "success");
             } else {
-                // Testing a new connection - send the full connection data
-                const res = await api.post("/resources/databases/test", newDb);
-                setTestResult(res.data);
-                if (res.data.status === "success") {
-                    toast("Connection test successful!", "success");
-                } else {
-                    toast("Connection test failed", "error");
-                }
+                toast("Connection test failed", "error");
             }
         } catch (error: any) {
             console.error("Test failed", error);
@@ -216,70 +243,45 @@ export default function KnowledgeBasePage() {
         }
     };
 
-    const handleViewDbDetails = (db: any) => {
-        setSelectedDb(db);
-        setEditedDb({ ...db, password: "" }); // Password is empty for security, user can update if needed
-        setIsEditingDb(false);
-        setIsDbDetailsOpen(true);
-        setTestResult(null);
-    };
-
-    const handleUpdateDb = async () => {
-        if (!selectedDb) return;
+    const handleSaveDb = async () => {
         setConnecting(true);
         try {
-            // Only send fields that have changed
-            const updateData: any = {};
-            if (editedDb.name !== selectedDb.name) updateData.name = editedDb.name;
-            if (editedDb.type !== selectedDb.type) updateData.type = editedDb.type;
-            if (editedDb.host !== selectedDb.host) updateData.host = editedDb.host;
-            if (editedDb.port !== selectedDb.port) updateData.port = editedDb.port;
-            if (editedDb.username !== selectedDb.username) updateData.username = editedDb.username;
-            if (editedDb.database_name !== selectedDb.database_name) updateData.database_name = editedDb.database_name;
-            if (editedDb.ssl_mode !== selectedDb.ssl_mode) updateData.ssl_mode = editedDb.ssl_mode;
-            if (editedDb.password && editedDb.password.trim() !== "") updateData.password = editedDb.password;
+            if (currentDb.id) {
+                // Update
+                const updateData: any = {};
+                // Send all fields for simplicity, backend handles update logic
+                updateData.name = currentDb.name;
+                updateData.type = currentDb.type;
+                updateData.host = currentDb.host;
+                updateData.port = currentDb.port;
+                updateData.username = currentDb.username;
+                updateData.database_name = currentDb.database_name;
+                updateData.ssl_mode = currentDb.ssl_mode;
+                if (currentDb.password && currentDb.password.trim() !== "") {
+                    updateData.password = currentDb.password;
+                }
 
-            await api.put(`/resources/databases/${selectedDb.id}`, updateData);
-            toast("Database connection updated successfully", "success");
-            setIsDbDetailsOpen(false);
-            setIsEditingDb(false);
-            setTestResult(null);
-            fetchResources();
-        } catch (error: any) {
-            console.error("DB Update failed", error);
-            const errorMessage = error.response?.data?.detail || error.message || "Update failed. Please try again.";
-            toast(errorMessage, "error");
-        } finally {
-            setConnecting(false);
-        }
-    };
+                await api.put(`/resources/databases/${currentDb.id}`, updateData);
+                toast("Database connection updated successfully", "success");
+            } else {
+                // Create
+                await api.post("/resources/databases", currentDb);
+                toast("Database connected successfully", "success");
+            }
 
-    const handleCreateDb = async () => {
-        setConnecting(true);
-        try {
-            await api.post("/resources/databases", newDb);
-            toast("Database connected successfully", "success");
             setIsDbOpen(false);
             setTestResult(null);
-            setNewDb({
-                name: "",
-                type: "postgres",
-                host: "localhost",
-                port: 5432,
-                username: "",
-                password: "",
-                database_name: "",
-                ssl_mode: "disable"
-            });
             fetchResources();
         } catch (error: any) {
-            console.error("DB Connection failed", error);
-            const errorMessage = error.response?.data?.detail || error.message || "Connection failed. Please check your credentials.";
+            console.error("DB Save failed", error);
+            const errorMessage = error.response?.data?.detail || error.message || "Connection failed.";
             toast(errorMessage, "error");
         } finally {
             setConnecting(false);
         }
     };
+
+
 
     const confirmDelete = (id: string, type: 'kb' | 'db') => {
         setItemToDelete({ id, type });
@@ -448,9 +450,12 @@ export default function KnowledgeBasePage() {
                             {dbConnections.map((db) => (
                                 <div
                                     key={db.id}
-                                    onClick={() => handleViewDbDetails(db)}
-                                    className={cn("backdrop-blur-sm border rounded-xl p-6 transition-all group cursor-pointer", isDark ? "bg-nvidia-dark/80 border-white/10 hover:border-nvidia-green/50" : "bg-white border-gray-200 hover:border-nvidia-green/50 shadow-sm")}
+                                    onClick={() => handleOpenDbDialog(db)}
+                                    className={cn("backdrop-blur-sm border rounded-xl p-6 transition-all group cursor-pointer relative overflow-hidden", isDark ? "bg-nvidia-dark/80 border-white/10 hover:border-nvidia-green/50 hover:bg-white/5" : "bg-white border-gray-200 hover:border-nvidia-green/50 shadow-sm")}
                                 >
+                                    <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <Edit className={cn("w-4 h-4", isDark ? "text-nvidia-green" : "text-gray-600")} />
+                                    </div>
                                     <div className="flex justify-between items-start mb-4">
                                         <div className={cn("p-3 rounded-lg transition-colors", isDark ? "bg-white/5 group-hover:bg-nvidia-green/10" : "bg-gray-100 group-hover:bg-nvidia-green/10")}>
                                             <Database className={cn("w-6 h-6 transition-colors", isDark ? "text-gray-400 group-hover:text-nvidia-green" : "text-gray-600 group-hover:text-nvidia-green")} />
@@ -460,16 +465,23 @@ export default function KnowledgeBasePage() {
                                                 e.stopPropagation();
                                                 confirmDelete(db.id, 'db');
                                             }}
-                                            className="text-gray-500 hover:text-red-500 transition-colors"
+                                            className="text-gray-500 hover:text-red-500 transition-colors p-2 hover:bg-red-500/10 rounded-lg z-10"
+                                            title="Delete Connection"
                                         >
                                             <Trash2 className="w-5 h-5" />
                                         </button>
                                     </div>
                                     <h3 className={cn("text-base md:text-lg font-bold mb-1", isDark ? "text-white" : "text-gray-900")}>{db.name}</h3>
-                                    <p className="text-sm text-gray-400 mb-4">{db.database_name} @ {db.host}</p>
+                                    <div className="flex items-center text-sm text-gray-400 mb-4">
+                                        <Server className="w-3 h-3 mr-1" />
+                                        <span className="truncate max-w-[200px]">{db.host}:{db.port}</span>
+                                    </div>
                                     <div className="flex flex-wrap gap-2">
-                                        <span className="text-xs font-bold text-black bg-nvidia-green px-2 py-1 rounded uppercase">
+                                        <span className={cn("text-xs font-bold px-2 py-1 rounded uppercase", isDark ? "bg-white/10 text-gray-300" : "bg-gray-100 text-gray-600")}>
                                             {db.type}
+                                        </span>
+                                        <span className={cn("text-xs font-medium px-2 py-1 rounded uppercase", isDark ? "bg-white/5 text-gray-500" : "bg-gray-50 text-gray-400")}>
+                                            {db.database_name}
                                         </span>
                                     </div>
                                 </div>
@@ -478,13 +490,21 @@ export default function KnowledgeBasePage() {
                                 <div className={cn("col-span-full flex flex-col items-center justify-center py-20 border rounded-2xl border-dashed", isDark ? "bg-nvidia-dark/30 border-white/10" : "bg-gray-50 border-gray-300")}>
                                     <Database className="w-16 h-16 text-gray-600 mb-4" />
                                     <h3 className="text-xl font-bold text-white mb-2">No Database Connections</h3>
-                                    <p className="text-gray-400">Connect to external databases.</p>
+                                    <p className="text-gray-400">Connect to external databases like PostgreSQL or MySQL.</p>
+                                    <button
+                                        onClick={() => handleOpenDbDialog()}
+                                        className="mt-4 text-nvidia-green hover:underline font-bold"
+                                    >
+                                        Connect Database
+                                    </button>
                                 </div>
                             )}
                         </div>
                     )}
                 </div>
             )}
+
+
 
             {/* Upload Dialog */}
             <Dialog
@@ -497,6 +517,7 @@ export default function KnowledgeBasePage() {
                 ]}
             >
                 <form id="upload-form" onSubmit={handleUpload} className="space-y-4">
+                    {/* ... upload form (unchanged) ... */}
                     <div className="border-2 border-dashed border-gray-700 rounded-xl p-8 text-center hover:border-nvidia-green/50 transition-colors">
                         <input
                             type="file"
@@ -509,108 +530,105 @@ export default function KnowledgeBasePage() {
                             <span className="text-white font-bold mb-1">
                                 {selectedFile ? selectedFile.name : "Click to select file"}
                             </span>
-                            <span className="text-gray-500 text-sm">PDF, TXT, MD, JSON, Word, Excel supported</span>
+                            <span className="text-gray-500 text-sm">PDF, TXT, MD, JSON, Word, Excel supported (Max 100MB)</span>
                         </label>
                     </div>
                 </form>
             </Dialog>
 
-            {/* Database Dialog */}
+            {/* Unified Database Dialog (Create & Edit) */}
             <Dialog
                 isOpen={isDbOpen}
                 onClose={() => setIsDbOpen(false)}
-                title="Add Database Connection"
+                title={currentDb.id ? "Edit Database Connection" : "Add Database Connection"}
                 buttons={[
                     { label: "Cancel", onClick: () => setIsDbOpen(false), variant: "outline" },
-                    { label: connecting ? "Connecting..." : "Connect", onClick: handleCreateDb, variant: "primary", isLoading: connecting }
+                    { label: connecting ? "Saving..." : (currentDb.id ? "Save Changes" : "Connect"), onClick: handleSaveDb, variant: "primary", isLoading: connecting }
                 ]}
             >
                 <div className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">Connection Name</label>
-                        <input
-                            type="text"
-                            className="w-full bg-black/50 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-nvidia-green focus:border-nvidia-green"
+                    <div className="grid grid-cols-2 gap-4">
+                        <Input
+                            label="Connection Name"
                             placeholder="My Production DB"
-                            value={newDb.name}
-                            onChange={e => setNewDb({ ...newDb, name: e.target.value })}
+                            value={currentDb.name}
+                            onChange={e => setCurrentDb({ ...currentDb, name: e.target.value })}
+                        />
+                        <Select
+                            label="Type"
+                            value={currentDb.type}
+                            onChange={e => setCurrentDb({ ...currentDb, type: e.target.value })}
+                            options={[
+                                { label: "PostgreSQL", value: "postgres" },
+                                { label: "MySQL", value: "mysql" },
+                                { label: "SQL Server", value: "sqlserver" }
+                            ]}
                         />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-1">Type</label>
-                            <CustomDropdown
-                                options={[
-                                    { id: "postgres", name: "PostgreSQL" },
-                                    { id: "mysql", name: "MySQL" },
-                                    { id: "sqlserver", name: "SQL Server" }
-                                ]}
-                                value={{ id: newDb.type || "postgres", name: "" }}
-                                onChange={(option) => setNewDb({ ...newDb, type: option.id })}
-                                getLabel={(option) => option.name}
-                                getKey={(option) => option.id}
-                                placeholder="Select Database Type"
+
+                    <div className="grid grid-cols-3 gap-4">
+                        <div className="col-span-2">
+                            <Input
+                                label="Host"
+                                placeholder="localhost"
+                                value={currentDb.host}
+                                onChange={e => setCurrentDb({ ...currentDb, host: e.target.value })}
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-1">Port</label>
-                            <input
+                            <Input
+                                label="Port"
                                 type="number"
-                                className="w-full bg-black/50 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-nvidia-green focus:border-nvidia-green"
-                                value={newDb.port}
-                                onChange={e => setNewDb({ ...newDb, port: parseInt(e.target.value) })}
+                                value={currentDb.port}
+                                onChange={e => setCurrentDb({ ...currentDb, port: parseInt(e.target.value) })}
                             />
                         </div>
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">Host</label>
-                        <input
-                            type="text"
-                            className="w-full bg-black/50 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-nvidia-green focus:border-nvidia-green"
-                            placeholder="localhost"
-                            value={newDb.host}
-                            onChange={e => setNewDb({ ...newDb, host: e.target.value })}
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">Database Name</label>
-                        <input
-                            type="text"
-                            className="w-full bg-black/50 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-nvidia-green focus:border-nvidia-green"
-                            placeholder="postgres"
-                            value={newDb.database_name}
-                            onChange={e => setNewDb({ ...newDb, database_name: e.target.value })}
-                        />
-                    </div>
+
+                    <Input
+                        label="Database Name"
+                        placeholder="postgres"
+                        value={currentDb.database_name}
+                        onChange={e => setCurrentDb({ ...currentDb, database_name: e.target.value })}
+                    />
+
                     <div className="grid grid-cols-2 gap-4">
+                        <Input
+                            label="Username"
+                            placeholder="postgres"
+                            value={currentDb.username}
+                            onChange={e => setCurrentDb({ ...currentDb, username: e.target.value })}
+                        />
                         <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-1">Username</label>
-                            <input
-                                type="text"
-                                className="w-full bg-black/50 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-nvidia-green focus:border-nvidia-green"
-                                placeholder="postgres"
-                                value={newDb.username}
-                                onChange={e => setNewDb({ ...newDb, username: e.target.value })}
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-1">Password</label>
-                            <input
+                            <Label>
+                                Password {currentDb.id && <span className="text-xs text-gray-500 font-normal">(leave blank to keep)</span>}
+                            </Label>
+                            <Input
                                 type="password"
-                                className="w-full bg-black/50 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-nvidia-green focus:border-nvidia-green"
                                 placeholder="••••••••"
-                                value={newDb.password}
-                                onChange={e => setNewDb({ ...newDb, password: e.target.value })}
+                                value={currentDb.password}
+                                onChange={e => setCurrentDb({ ...currentDb, password: e.target.value })}
                             />
                         </div>
                     </div>
+
+                    <Select
+                        label="SSL Mode"
+                        value={currentDb.ssl_mode || "disable"}
+                        onChange={e => setCurrentDb({ ...currentDb, ssl_mode: e.target.value })}
+                        options={[
+                            { label: "Disable", value: "disable" },
+                            { label: "Require", value: "require" },
+                            { label: "Prefer", value: "prefer" }
+                        ]}
+                    />
 
                     {/* Test Connection Button and Result */}
                     <div className="pt-4 border-t border-white/10">
                         <button
                             onClick={handleTestDb}
-                            disabled={testing || !newDb.host || !newDb.database_name}
-                            className="w-full bg-white/10 text-white font-medium px-4 py-2 rounded-lg hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                            disabled={testing || !currentDb.host || !currentDb.database_name}
+                            className="w-full bg-white/10 text-white font-medium px-4 py-2 rounded-lg hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center border border-white/5"
                         >
                             {testing ? (
                                 <>
@@ -623,194 +641,18 @@ export default function KnowledgeBasePage() {
                         </button>
 
                         {testResult && (
-                            <div className={`mt-3 p-3 rounded-lg text-sm ${testResult.status === 'success' ? 'bg-nvidia-green/10 text-nvidia-green border border-nvidia-green/30' : 'bg-red-500/10 text-red-400 border border-red-500/30'}`}>
-                                {testResult.message}
+                            <div className={`mt-3 p-3 rounded-lg text-sm flex items-start ${testResult.status === 'success' ? 'bg-nvidia-green/10 text-nvidia-green border border-nvidia-green/30' : 'bg-red-500/10 text-red-400 border border-red-500/30'}`}>
+                                {testResult.status === 'success' ? (
+                                    <Check className="w-4 h-4 mr-2 mt-0.5 shrink-0" />
+                                ) : (
+                                    <AlertTriangle className="w-4 h-4 mr-2 mt-0.5 shrink-0" />
+                                )}
+                                <span>{testResult.message}</span>
                             </div>
                         )}
                     </div>
                 </div>
             </Dialog>
-
-            {/* Database Details Dialog */}
-            {selectedDb && editedDb && (
-                <Dialog
-                    isOpen={isDbDetailsOpen}
-                    onClose={() => {
-                        setIsDbDetailsOpen(false);
-                        setIsEditingDb(false);
-                        setTestResult(null);
-                    }}
-                    title="Database Connection Details"
-                    buttons={[
-                        { label: "Close", onClick: () => setIsDbDetailsOpen(false), variant: "outline" as const },
-                        ...(isEditingDb ? [
-                            { label: connecting ? "Saving..." : "Save Changes", onClick: handleUpdateDb, variant: "primary" as const, isLoading: connecting }
-                        ] : [
-                            { label: "Edit", onClick: () => setIsEditingDb(true), variant: "primary" as const }
-                        ])
-                    ]}
-                >
-                    <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-400 mb-1">Connection Name</label>
-                                {isEditingDb ? (
-                                    <input
-                                        type="text"
-                                        className="w-full bg-black/50 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-nvidia-green focus:border-nvidia-green"
-                                        value={editedDb.name}
-                                        onChange={e => setEditedDb({ ...editedDb, name: e.target.value })}
-                                    />
-                                ) : (
-                                    <div className="bg-black/30 border border-gray-700 rounded-lg px-4 py-2 text-white">
-                                        {selectedDb.name}
-                                    </div>
-                                )}
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-400 mb-1">Type</label>
-                                {isEditingDb ? (
-                                    <select
-                                        className="w-full bg-black/50 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-nvidia-green focus:border-nvidia-green"
-                                        value={editedDb.type}
-                                        onChange={e => setEditedDb({ ...editedDb, type: e.target.value })}
-                                    >
-                                        <option value="postgres">PostgreSQL</option>
-                                        <option value="mysql">MySQL</option>
-                                    </select>
-                                ) : (
-                                    <div className="bg-black/30 border border-gray-700 rounded-lg px-4 py-2 text-white uppercase">
-                                        {selectedDb.type}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-400 mb-1">Host</label>
-                                {isEditingDb ? (
-                                    <input
-                                        type="text"
-                                        className="w-full bg-black/50 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-nvidia-green focus:border-nvidia-green"
-                                        value={editedDb.host}
-                                        onChange={e => setEditedDb({ ...editedDb, host: e.target.value })}
-                                    />
-                                ) : (
-                                    <div className="bg-black/30 border border-gray-700 rounded-lg px-4 py-2 text-white">
-                                        {selectedDb.host}
-                                    </div>
-                                )}
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-400 mb-1">Port</label>
-                                {isEditingDb ? (
-                                    <input
-                                        type="number"
-                                        className="w-full bg-black/50 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-nvidia-green focus:border-nvidia-green"
-                                        value={editedDb.port}
-                                        onChange={e => setEditedDb({ ...editedDb, port: parseInt(e.target.value) })}
-                                    />
-                                ) : (
-                                    <div className="bg-black/30 border border-gray-700 rounded-lg px-4 py-2 text-white">
-                                        {selectedDb.port}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-400 mb-1">Database Name</label>
-                            {isEditingDb ? (
-                                <input
-                                    type="text"
-                                    className="w-full bg-black/50 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-nvidia-green focus:border-nvidia-green"
-                                    value={editedDb.database_name}
-                                    onChange={e => setEditedDb({ ...editedDb, database_name: e.target.value })}
-                                />
-                            ) : (
-                                <div className="bg-black/30 border border-gray-700 rounded-lg px-4 py-2 text-white">
-                                    {selectedDb.database_name}
-                                </div>
-                            )}
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-400 mb-1">Username</label>
-                            {isEditingDb ? (
-                                <input
-                                    type="text"
-                                    className="w-full bg-black/50 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-nvidia-green focus:border-nvidia-green"
-                                    value={editedDb.username}
-                                    onChange={e => setEditedDb({ ...editedDb, username: e.target.value })}
-                                />
-                            ) : (
-                                <div className="bg-black/30 border border-gray-700 rounded-lg px-4 py-2 text-white">
-                                    {selectedDb.username}
-                                </div>
-                            )}
-                        </div>
-
-                        {isEditingDb && (
-                            <div>
-                                <label className="block text-sm font-medium text-gray-400 mb-1">
-                                    Password <span className="text-xs text-gray-500">(leave empty to keep current)</span>
-                                </label>
-                                <input
-                                    type="password"
-                                    className="w-full bg-black/50 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-nvidia-green focus:border-nvidia-green"
-                                    placeholder="••••••••"
-                                    value={editedDb.password}
-                                    onChange={e => setEditedDb({ ...editedDb, password: e.target.value })}
-                                />
-                            </div>
-                        )}
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-400 mb-1">SSL Mode</label>
-                            {isEditingDb ? (
-                                <select
-                                    className="w-full bg-black/50 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-nvidia-green focus:border-nvidia-green"
-                                    value={editedDb.ssl_mode || "disable"}
-                                    onChange={e => setEditedDb({ ...editedDb, ssl_mode: e.target.value })}
-                                >
-                                    <option value="disable">Disable</option>
-                                    <option value="require">Require</option>
-                                    <option value="prefer">Prefer</option>
-                                </select>
-                            ) : (
-                                <div className="bg-black/30 border border-gray-700 rounded-lg px-4 py-2 text-white">
-                                    {selectedDb.ssl_mode || 'disable'}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Test Connection Button */}
-                        <div className="pt-4 border-t border-white/10">
-                            <button
-                                onClick={handleTestDb}
-                                disabled={testing}
-                                className="w-full bg-nvidia-green text-black font-bold px-4 py-2 rounded-lg hover:bg-nvidia-green/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-                            >
-                                {testing ? (
-                                    <>
-                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                        Testing Connection...
-                                    </>
-                                ) : (
-                                    "Test Connection"
-                                )}
-                            </button>
-
-                            {testResult && (
-                                <div className={`mt-3 p-3 rounded-lg text-sm ${testResult.status === 'success' ? 'bg-nvidia-green/10 text-nvidia-green border border-nvidia-green/30' : 'bg-red-500/10 text-red-400 border border-red-500/30'}`}>
-                                    {testResult.message}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </Dialog>
-            )}
 
             {/* Delete Confirmation Dialog */}
             <Dialog
@@ -834,24 +676,30 @@ export default function KnowledgeBasePage() {
                 <div className="space-y-6">
                     {/* LLM Selection */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-400 mb-2">Select Model</label>
+                        <Label className="mb-2">Select Model</Label>
                         <select
-                            className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-nvidia-green focus:border-transparent transition-all outline-none"
+                            className={cn(
+                                "w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-nvidia-green focus:border-transparent transition-all outline-none",
+                                isDark ? "bg-white/5 border-white/10 text-white" : "bg-white border-gray-300 text-gray-900"
+                            )}
                             value={selectedLlmId}
                             onChange={e => setSelectedLlmId(e.target.value)}
                         >
                             {llmConfigs.map(llm => (
-                                <option key={llm.id} value={llm.id} className="bg-gray-900">{llm.name} ({llm.model})</option>
+                                <option key={llm.id} value={llm.id} className={isDark ? "bg-gray-900" : "bg-white"}>{llm.name} ({llm.model})</option>
                             ))}
                         </select>
                     </div>
 
                     {/* Query Input */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-400 mb-2">Your Query</label>
+                        <Label className="mb-2">Your Query</Label>
                         <div className="relative">
                             <textarea
-                                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-nvidia-green focus:border-transparent transition-all outline-none min-h-[120px] resize-none"
+                                className={cn(
+                                    "w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-nvidia-green focus:border-transparent transition-all outline-none min-h-[120px] resize-none",
+                                    isDark ? "bg-white/5 border-white/10 text-white" : "bg-white border-gray-300 text-gray-900"
+                                )}
                                 placeholder="Enter your question here..."
                                 value={queryText}
                                 onChange={e => setQueryText(e.target.value)}
@@ -882,7 +730,7 @@ export default function KnowledgeBasePage() {
                                 </button>
                             </div>
                         </div>
-                        <p className="text-xs text-gray-500 mt-2">Press Enter to search</p>
+                        <p className={cn("text-xs mt-2", isDark ? "text-gray-500" : "text-gray-400")}>Press Enter to search</p>
                     </div>
 
                     {/* Results */}

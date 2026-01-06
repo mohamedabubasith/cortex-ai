@@ -96,12 +96,18 @@ export default function RegisterPage() {
             setSuccess(true);
             setTimeout(() => {
                 router.push("/");
-            }, 2000);
+            }, 1500); // Slightly faster redirect
         } catch (err: any) {
             console.error(err);
+            // Handle different error structures
+            let errorMessage = "Registration failed. Please try again.";
+            if (err.response?.data?.detail) {
+                errorMessage = err.response.data.detail;
+            }
+
             setFormErrors(prev => ({
                 ...prev,
-                global: err.response?.data?.detail || "Registration failed. Please try again."
+                global: errorMessage
             }));
             setLoading(false);
         }

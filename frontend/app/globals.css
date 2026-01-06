@@ -3,21 +3,42 @@
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 255, 255, 255;
-  --background-start-rgb: 0, 0, 0;
-  --background-end-rgb: 20, 20, 20;
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 214, 219, 220;
+  --background-end-rgb: 255, 255, 255;
 }
 
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground-rgb: 255, 255, 255;
+    --background-start-rgb: 0, 0, 0;
+    --background-end-rgb: 0, 0, 0;
+  }
+}
+
+/* Custom base styles for smooth theme transition */
 body {
-  color: rgb(var(--foreground-rgb));
-  background: #000000;
+  @apply transition-colors duration-300;
   min-height: 100vh;
   position: relative;
   overflow-x: hidden;
 }
 
-/* Animated Background Effect */
-body::before {
+/* Explicit light/dark mode overrides */
+html.dark body {
+  @apply bg-black text-white;
+}
+
+html.light body {
+  @apply bg-gray-50 text-gray-900;
+}
+
+/* 
+   Animated Background Effect 
+   Only active in dark mode to preserve the "Nvidia/Sci-Fi" look.
+   In light mode, we keep it clean.
+*/
+html.dark body::before {
   content: "";
   position: fixed;
   top: 0;
@@ -30,10 +51,11 @@ body::before {
     radial-gradient(circle at 0% 100%, rgba(118, 185, 0, 0.1) 0%, transparent 40%);
   z-index: -1;
   animation: pulse-bg 8s ease-in-out infinite alternate;
+  pointer-events: none;
 }
 
-/* Grid Overlay */
-body::after {
+/* Grid Overlay - Dark Mode */
+html.dark body::after {
   content: "";
   position: fixed;
   top: 0;
@@ -43,6 +65,22 @@ body::after {
   background-image:
     linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* Grid Overlay - Light Mode (Subtle) */
+html.light body::after {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image:
+    linear-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
   background-size: 50px 50px;
   z-index: -1;
   pointer-events: none;
@@ -65,42 +103,46 @@ body::after {
   width: 8px;
 }
 
-::-webkit-scrollbar-track {
+html.dark ::-webkit-scrollbar-track {
   background: #1a1a1a;
 }
 
-::-webkit-scrollbar-thumb {
+html.light ::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+html.dark ::-webkit-scrollbar-thumb {
   background: #333;
   border-radius: 4px;
 }
 
-::-webkit-scrollbar-thumb:hover {
+html.light ::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 4px;
+}
+
+html.dark ::-webkit-scrollbar-thumb:hover {
   background: #76B900;
 }
 
-/* Custom Scrollbar Utility */
-.custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(118, 185, 0, 0.5);
+html.light ::-webkit-scrollbar-thumb:hover {
+  background: #76B900;
 }
 
 /* Input Autofill Fix for Dark Mode */
-input:-webkit-autofill,
-input:-webkit-autofill:hover,
-input:-webkit-autofill:focus,
-input:-webkit-autofill:active {
+html.dark input:-webkit-autofill,
+html.dark input:-webkit-autofill:hover,
+html.dark input:-webkit-autofill:focus,
+html.dark input:-webkit-autofill:active {
   -webkit-box-shadow: 0 0 0 30px #1a1a1a inset !important;
   -webkit-text-fill-color: white !important;
+}
+
+/* Input Autofill Fix for Light Mode */
+html.light input:-webkit-autofill,
+html.light input:-webkit-autofill:hover,
+html.light input:-webkit-autofill:focus,
+html.light input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px #ffffff inset !important;
+  -webkit-text-fill-color: black !important;
 }

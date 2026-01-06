@@ -35,10 +35,12 @@ api.interceptors.response.use(
             if (error.config?.url?.includes("/auth/token")) {
                 return Promise.reject(error);
             }
-            // Handle unauthorized for other requests
+            
+            // For other requests, it means the token is invalid/expired
             localStorage.removeItem("token");
-            // Only redirect if not already on the login page (root)
-            if (window.location.pathname !== "/") {
+            
+            // Only redirect if not already on the login page (root) to avoid loops
+            if (typeof window !== 'undefined' && window.location.pathname !== "/") {
                 window.location.href = "/";
             }
         }

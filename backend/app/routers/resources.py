@@ -7,6 +7,8 @@ from app.models import models
 from app.schemas import schemas
 from app.services.auth_service import get_current_active_user
 from app.services.database_service import database_service
+from app.services.mcp_service import mcp_service
+import json
 
 router = APIRouter()
 
@@ -17,6 +19,16 @@ async def create_db_connection(
     db: AsyncSession = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user)
 ):
+    # Validation
+    if not (1 <= connection.port <= 65535):
+        raise HTTPException(status_code=400, detail="Port must be between 1 and 65535")
+    if not connection.host.strip():
+        raise HTTPException(status_code=400, detail="Host cannot be empty")
+    if not connection.database_name.strip():
+        raise HTTPException(status_code=400, detail="Database name cannot be empty")
+    if not connection.username.strip():
+        raise HTTPException(status_code=400, detail="Username cannot be empty")
+
     encrypted_password = database_service.encrypt_password(connection.password)
     
     db_connection = models.DatabaseConnection(
@@ -139,6 +151,9 @@ async def update_db_connection(
         raise HTTPException(status_code=404, detail="Database connection not found")
     
     # Update fields if provided
+    if connection_update.port is not None and not (1 <= connection_update.port <= 65535):
+        raise HTTPException(status_code=400, detail="Port must be between 1 and 65535")
+
     if connection_update.name is not None:
         db_conn.name = connection_update.name
     if connection_update.type is not None:
@@ -171,6 +186,153 @@ async def delete_db_connection(
     if not db_conn:
         raise HTTPException(status_code=404, detail="Database connection not found")
     
-    await db.delete(db_conn)
+
+# MCP Endpoints
+
+@router.post("/mcp", response_model=schemas.MCPConnectionResponse)
+async def create_mcp_connection(
+    connection: schemas.MCPConnectionCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user)
+):
+    # Determine auth headers (encrypt if provided)
+    encrypted_headers = None
+    if connection.auth_headers:
+        # Re-using database_service for encryption as it uses Fernet
+        encrypted_headers = database_service.encrypt_password(json.dumps(connection.auth_headers))
+
+    mcp_conn = models.MCPConnection(
+        user_id=current_user.id,
+        name=connection.name,
+        server_url=connection.server_url,
+        auth_headers=encrypted_headers,
+        protocol=connection.protocol
+    )
+    db.add(mcp_conn)
+    await db.commit()
+    await db.refresh(mcp_conn)
+    return mcp_conn
+
+@router.put("/mcp/{mcp_id}", response_model=schemas.MCPConnectionResponse)
+async def update_mcp_connection(
+    mcp_id: str,
+    connection: schemas.MCPConnectionUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user)
+):
+    result = await db.execute(select(models.MCPConnection).where(models.MCPConnection.id == mcp_id, models.MCPConnection.user_id == current_user.id))
+    mcp_conn = result.scalars().first()
+    if not mcp_conn:
+        raise HTTPException(status_code=404, detail="MCP connection not found")
+
+    if connection.name is not None:
+        mcp_conn.name = connection.name
+    if connection.server_url is not None:
+        mcp_conn.server_url = connection.server_url
+    if connection.protocol is not None:
+        mcp_conn.protocol = connection.protocol
+    
+    if connection.auth_headers is not None:
+        # Re-using database_service for encryption
+        encrypted_headers = database_service.encrypt_password(json.dumps(connection.auth_headers))
+        mcp_conn.auth_headers = encrypted_headers
+
+    await db.commit()
+    await db.refresh(mcp_conn)
+    return mcp_conn
+
+@router.post("/mcp/test")
+async def test_mcp_connection(
+    connection: schemas.MCPConnectionCreate,
+    current_user: models.User = Depends(get_current_active_user)
+):
+    """Test MCP connection without saving it"""
+    try:
+        # Determine auth headers
+        auth_headers = connection.auth_headers if connection.auth_headers else {}
+        
+        # Test connection by fetching tools
+        tools = await mcp_service.connect_and_fetch_tools(connection.server_url, auth_headers, connection.protocol)
+        
+        tool_count = len(tools)
+        return {
+            "status": "success", 
+            "message": f"Connection successful! Found {tool_count} tools.",
+            "tool_count": tool_count
+        }
+    except Exception as e:
+        error_message = str(e)
+        return {
+            "status": "failed", 
+            "message": f"Connection failed: {error_message}"
+        }
+
+@router.get("/mcp", response_model=List[schemas.MCPConnectionResponse])
+async def get_mcp_connections(
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user)
+):
+    result = await db.execute(select(models.MCPConnection).where(models.MCPConnection.user_id == current_user.id))
+    return result.scalars().all()
+
+@router.post("/mcp/{mcp_id}/sync", response_model=schemas.MCPConnectionResponse)
+async def sync_mcp_connection(
+    mcp_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user)
+):
+    result = await db.execute(
+        select(models.MCPConnection).where(
+            models.MCPConnection.id == mcp_id, 
+            models.MCPConnection.user_id == current_user.id
+        )
+    )
+    mcp_conn = result.scalars().first()
+    if not mcp_conn:
+        raise HTTPException(status_code=404, detail="MCP connection not found")
+
+    # Decrypt headers
+    auth_headers = {}
+    if mcp_conn.auth_headers:
+        try:
+            decrypted_json = database_service.decrypt_password(mcp_conn.auth_headers)
+            auth_headers = json.loads(decrypted_json)
+        except Exception:
+            pass # Handle decryption error gracefully or log it
+
+    # Fetch Tools
+    try:
+        tools = await mcp_service.connect_and_fetch_tools(mcp_conn.server_url, auth_headers, mcp_conn.protocol)
+        mcp_conn.tools_metadata = tools
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to fetch tools: {str(e)}")
+
+    # Summarize Tools
+    # Get user's first LLM config for summarization
+    llm_result = await db.execute(select(models.LLMConfiguration).where(models.LLMConfiguration.user_id == current_user.id))
+    llm_config = llm_result.scalars().first()
+    
+    if llm_config:
+        summary = await mcp_service.summarize_tools(tools, llm_config)
+        mcp_conn.summary = summary
+    else:
+        mcp_conn.summary = "No LLM configuration found to generate summary. Please configure an LLM provider."
+
+    await db.commit()
+    await db.refresh(mcp_conn)
+    return mcp_conn
+
+@router.delete("/mcp/{mcp_id}")
+async def delete_mcp_connection(
+    mcp_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user)
+):
+    result = await db.execute(select(models.MCPConnection).where(models.MCPConnection.id == mcp_id, models.MCPConnection.user_id == current_user.id))
+    mcp_conn = result.scalars().first()
+    if not mcp_conn:
+        raise HTTPException(status_code=404, detail="MCP connection not found")
+    
+    await db.delete(mcp_conn)
     await db.commit()
     return {"status": "success"}

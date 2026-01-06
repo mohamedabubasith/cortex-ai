@@ -17,12 +17,15 @@ export default function LoginPage() {
     const [password, setPassword] = useState("");
     const [formErrors, setFormErrors] = useState({ email: "", password: "", global: "" });
     const [loading, setLoading] = useState(false);
+    const [initialCheckDone, setInitialCheckDone] = useState(false);
     const router = useRouter();
 
     useEffect(() => {
         const token = localStorage.getItem("token");
         if (token) {
             router.push("/dashboard");
+        } else {
+            setInitialCheckDone(true);
         }
     }, [router]);
 
@@ -68,14 +71,19 @@ export default function LoginPage() {
             router.push("/dashboard");
         } catch (err: any) {
             console.error(err);
+            const detail = err.response?.data?.detail;
             setFormErrors(prev => ({
                 ...prev,
-                global: "Invalid email or password. Please try again."
+                global: detail || "Invalid email or password. Please try again."
             }));
         } finally {
             setLoading(false);
         }
     };
+
+    if (!initialCheckDone) {
+        return null; // Or a subtle spinner/loader to prevent flash
+    }
 
     return (
         <div className="min-h-screen bg-black flex items-center justify-center p-3 sm:p-4 relative overflow-hidden">

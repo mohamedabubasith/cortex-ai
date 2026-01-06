@@ -127,7 +127,10 @@ class ChatService:
             logger.info(f"RAG Check: Linked KBs: {len(agent.knowledge_bases) if agent.knowledge_bases else 0}")
             
             if agent.knowledge_bases and agent.llm_config:
-                dataset_names = [f"doc_{kb.id}" for kb in agent.knowledge_bases]
+                # Create a mapping for source identification
+                kb_map = {f"doc_{kb.id}": kb.filename for kb in agent.knowledge_bases}
+                dataset_names = list(kb_map.keys())
+                
                 for kb in agent.knowledge_bases:
                     logger.info(f"RAG Check: Linked KB: {kb.id} - {kb.name} (Status: {kb.status})")
                 
@@ -147,11 +150,13 @@ class ChatService:
                     )
                     if search_result and search_result.get("success") and search_result.get("data"):
                         logger.info(f"RAG Success: Found {len(search_result['data'])} results")
-                        # Format results
+                        # Format results with source labels
                         for result in search_result["data"]:
                             # Assuming result is a string or dict with 'text'
                             text = result.get("text", str(result)) if isinstance(result, dict) else str(result)
-                            context_parts.append(text)
+                            source_dataset = result.get("belongs_to_set", "unknown") if isinstance(result, dict) else "unknown"
+                            filename = kb_map.get(source_dataset, "Unknown File")
+                            context_parts.append(f"SOURCE: [{filename}]\nCONTENT: {text}")
                     else:
                         logger.info(f"RAG Info: No results found for query")
                 except Exception as e:

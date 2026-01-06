@@ -115,7 +115,7 @@ except ImportError:
 
 class CogneeService:
     def __init__(self):
-        pass
+        self.config_lock = asyncio.Lock()
 
     async def setup_cognee(self):
         """
@@ -164,10 +164,6 @@ class CogneeService:
         
         # Configure embeddings early
         self._configure_embeddings()
-        
-        # CRITICAL: Force Cognee to use pgvector - REMOVED as per user request
-        # User confirmed that environment variables should be sufficient
-        pass
         
         try:
             # Try setup first
@@ -270,18 +266,19 @@ class CogneeService:
         Add a document to a specific dataset.
         Passes file path to Cognee.
         """
-        self._configure_llm(llm_config)
         try:
-            logger.info(f"Adding file {file_path} to dataset {dataset_name} for user {user_email}")
-            
-            user = await self._get_cognee_user(user_email)
-            
-            # Add data to Cognee (creates dataset if needed)
-            await cognee.add(
-                data=file_path,
-                dataset_name=dataset_name,
-                user = user
-            )
+            async with self.config_lock:
+                self._configure_llm(llm_config)
+                logger.info(f"Adding file {file_path} to dataset {dataset_name} for user {user_email}")
+                
+                user = await self._get_cognee_user(user_email)
+                
+                # Add data to Cognee (creates dataset if needed)
+                await cognee.add(
+                    data=file_path,
+                    dataset_name=dataset_name,
+                    user = user
+                )
             
             return {"success": True, "message": "Document added successfully"}
         except Exception as e:
@@ -292,17 +289,18 @@ class CogneeService:
         """
         Run the cognify process on a specific dataset.
         """
-        self._configure_llm(llm_config)
         try:
-            logger.info(f"Cognifying dataset {dataset_name} for user {user_email}")
-            
-            user = await self._get_cognee_user(user_email)
-            
-            # Cognify
-            await cognee.cognify(
-                datasets=[dataset_name],
-                user = user
-            )
+            async with self.config_lock:
+                self._configure_llm(llm_config)
+                logger.info(f"Cognifying dataset {dataset_name} for user {user_email}")
+                
+                user = await self._get_cognee_user(user_email)
+                
+                # Cognify
+                await cognee.cognify(
+                    datasets=[dataset_name],
+                    user = user
+                )
             
             return {"success": True, "message": "Dataset cognify started"}
         except Exception as e:
@@ -425,41 +423,42 @@ class CogneeService:
         """
         Search within specific datasets.
         """
-        self._configure_llm(llm_config)
         try:
-            logger.info(f"Searching datasets {datasets} with query: {query_text}")
-            
-            search_type_map = {
-                "CHUNKS": SearchType.CHUNKS,
-                "GRAPH_COMPLETION": SearchType.GRAPH_COMPLETION,
-            }
-            
-            s_type = search_type_map.get(search_type, SearchType.CHUNKS)
-            
-            # Ensure datasets is always a list of strings
-            search_datasets = datasets if isinstance(datasets, list) else [datasets]
-            
-            logger.info(f"Calling cognee_search with datasets={search_datasets} for user {user_email}")
-            
-            user = await self._get_cognee_user(user_email)
-            
-            # Pass user parameter to Cognee for multi-tenancy
-            results = await cognee_search(
-                query_type=s_type,
-                query_text=query_text,
-                datasets=search_datasets,
-                user = user
-            )
+            async with self.config_lock:
+                self._configure_llm(llm_config)
+                logger.info(f"Searching datasets {datasets} with query: {query_text}")
+                
+                search_type_map = {
+                    "CHUNKS": SearchType.CHUNKS,
+                    "GRAPH_COMPLETION": SearchType.GRAPH_COMPLETION,
+                }
+                
+                s_type = search_type_map.get(search_type, SearchType.CHUNKS)
+                
+                # Ensure datasets is always a list of strings
+                search_datasets = datasets if isinstance(datasets, list) else [datasets]
+                
+                logger.info(f"Calling cognee_search with datasets={search_datasets} for user {user_email}")
+                
+                user = await self._get_cognee_user(user_email)
+                
+                # Pass user parameter to Cognee for multi-tenancy
+                results = await cognee_search(
+                    query_type=s_type,
+                    query_text=query_text,
+                    datasets=search_datasets,
+                    user = user
+                )
 
-            # Log which datasets the results belong to
-            if isinstance(results, list) and len(results) > 0:
-                belongs_to_sets = set()
-                for r in results:
-                    if isinstance(r, dict):
-                        belongs_to = r.get('belongs_to_set')
-                        if belongs_to:
-                            belongs_to_sets.add(belongs_to)
-                logger.info(f"Search results belong to datasets: {belongs_to_sets}")
+                # Log which datasets the results belong to
+                if isinstance(results, list) and len(results) > 0:
+                    belongs_to_sets = set()
+                    for r in results:
+                        if isinstance(r, dict):
+                            belongs_to = r.get('belongs_to_set')
+                            if belongs_to:
+                                belongs_to_sets.add(belongs_to)
+                    logger.info(f"Search results belong to datasets: {belongs_to_sets}")
             
             return {"success": True, "data": results}
         except Exception as e:

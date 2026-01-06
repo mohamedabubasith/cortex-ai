@@ -14,7 +14,7 @@ echo "🏗️  Rebuilding and restarting services..."
 docker compose -f docker-compose.prod.yml up -d --build
 
 # 3. Run Migrations (just in case)
-echo "🔄 Running Database Migrations..."
-docker compose -f docker-compose.prod.yml exec backend alembic upgrade head
+# 3. Run Migrations (just in case)
+./migrate.sh
 
 echo "✅ Update Complete! Services are running with latest code."
