@@ -28,7 +28,8 @@ async def get_public_agent_info(
         name=agent.name,
         description=agent.description,
         first_message=agent.first_message,
-        has_kb=len(agent.knowledge_bases) > 0 if agent.knowledge_bases else False
+        has_kb=len(agent.knowledge_bases) > 0 if agent.knowledge_bases else False,
+        has_db=len(agent.database_connections) > 0 if agent.database_connections else False
     )
 
 @router.post("/public/{share_token}/chat")
@@ -54,7 +55,14 @@ async def public_chat(
         session_id = await service.create_new_session(agent.id)
         
     return StreamingResponse(
-        service.process_chat(agent, request.message, session_id),
+        service.process_chat(
+            agent, 
+            request.message, 
+            session_id, 
+            search_enabled=request.search_enabled,
+            kb_enabled=request.kb_enabled,
+            db_enabled=request.db_enabled
+        ),
         media_type="text/event-stream",
         headers={"x-session-id": session_id}
     )
@@ -128,7 +136,14 @@ async def test_chat(
         session_id = await service.create_new_session(agent.id)
 
     return StreamingResponse(
-        service.process_chat(agent, request.message, session_id),
+        service.process_chat(
+            agent, 
+            request.message, 
+            session_id, 
+            search_enabled=request.search_enabled,
+            kb_enabled=request.kb_enabled,
+            db_enabled=request.db_enabled
+        ),
         media_type="text/event-stream",
         headers={"x-session-id": session_id}
     )

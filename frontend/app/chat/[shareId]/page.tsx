@@ -9,6 +9,7 @@ interface Message {
     role: "user" | "assistant";
     content: string;
     thinking?: string;
+    status?: string; // e.g. "Searching web for 'X'...", "Reading page..."
 }
 
 interface BackendSession {
@@ -31,10 +32,14 @@ export default function PublicChatPage() {
     const [agentName, setAgentName] = useState<string>("Cortex AI");
     const [agentFirstMessage, setAgentFirstMessage] = useState<string>("");
     const [hasKB, setHasKB] = useState<boolean>(false);
+    const [hasDB, setHasDB] = useState<boolean>(false);
     const [sessions, setSessions] = useState<ChatSession[]>([]);
     const [currentSessionId, setCurrentSessionId] = useState<string>("");
     const [loading, setLoading] = useState(true);
     const [isValidAgent, setIsValidAgent] = useState(true);
+    const [isSearchEnabled, setIsSearchEnabled] = useState(false);
+    const [isKBEnabled, setIsKBEnabled] = useState(false);
+    const [isDBEnabled, setIsDBEnabled] = useState(true);
 
     useEffect(() => {
         const initChat = async () => {
@@ -65,6 +70,7 @@ export default function PublicChatPage() {
                 setAgentName(data.name);
                 setAgentFirstMessage(data.first_message || "");
                 setHasKB(data.has_kb || false);
+                setHasDB(data.has_db || false);
                 setIsValidAgent(true);
                 return data.first_message || "";
             } else if (response.status === 404) {
@@ -75,6 +81,10 @@ export default function PublicChatPage() {
         }
         return "";
     };
+
+    // ... (rest of methods unchanged)
+
+
 
     const loadSessions = async (restoredSessionId?: string, firstMsgFromFetch?: string) => {
         try {
@@ -230,7 +240,12 @@ export default function PublicChatPage() {
             const response = await fetch(`${config.apiV1Url}/chat/public/${params.shareId}/chat`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ message, session_id: sessionId }),
+                body: JSON.stringify({
+                    message,
+                    session_id: sessionId,
+                    search_enabled: isSearchEnabled,
+                    kb_enabled: isKBEnabled
+                }),
                 signal: controller.signal
             });
 
@@ -243,6 +258,7 @@ export default function PublicChatPage() {
             const decoder = new TextDecoder();
             let assistantMessage = "";
             let assistantThinking = "";
+            let assistantStatus = "";
             let isThinkingMode = false;
             let updateScheduled = false;
 
@@ -252,7 +268,8 @@ export default function PublicChatPage() {
                     updated[updated.length - 1] = {
                         role: "assistant",
                         content: assistantMessage,
-                        thinking: assistantThinking || undefined
+                        thinking: assistantThinking || undefined,
+                        status: assistantStatus || undefined
                     };
                     return updated;
                 });
@@ -260,34 +277,94 @@ export default function PublicChatPage() {
             };
 
             try {
+                let streamBuffer = "";
                 while (true) {
                     const { done, value } = await reader.read();
                     if (done) break;
 
-                    let chunk = decoder.decode(value, { stream: true });
+                    streamBuffer += decoder.decode(value, { stream: true });
 
-                    // Robust parsing: process markers sequentially within the chunk
-                    let remaining = chunk;
-                    while (remaining.length > 0) {
+                    // Robust parsing loop
+                    let lastProcessedLength = -1;
+                    while (streamBuffer.length > 0 && streamBuffer.length !== lastProcessedLength) {
+                        lastProcessedLength = streamBuffer.length;
+
                         if (isThinkingMode) {
-                            const endIdx = remaining.indexOf("</THINK>");
+                            const endIdx = streamBuffer.indexOf("</THINK>");
                             if (endIdx !== -1) {
-                                assistantThinking += remaining.substring(0, endIdx);
+                                assistantThinking += streamBuffer.substring(0, endIdx);
                                 isThinkingMode = false;
-                                remaining = remaining.substring(endIdx + 8); // length of </THINK>
+                                streamBuffer = streamBuffer.substring(endIdx + 8);
                             } else {
-                                assistantThinking += remaining;
-                                remaining = "";
+                                // Check for partial </THINK> at the end
+                                const lastTagStart = streamBuffer.lastIndexOf("</");
+                                if (lastTagStart !== -1 && "</THINK>".startsWith(streamBuffer.substring(lastTagStart))) {
+                                    assistantThinking += streamBuffer.substring(0, lastTagStart);
+                                    streamBuffer = streamBuffer.substring(lastTagStart);
+                                    break; // Wait for more data
+                                } else {
+                                    assistantThinking += streamBuffer;
+                                    streamBuffer = "";
+                                }
                             }
                         } else {
-                            const startIdx = remaining.indexOf("<THINK>");
-                            if (startIdx !== -1) {
-                                assistantMessage += remaining.substring(0, startIdx);
-                                isThinkingMode = true;
-                                remaining = remaining.substring(startIdx + 7); // length of <THINK>
+                            // Find earliest marker
+                            const thinkStart = streamBuffer.indexOf("<THINK>");
+                            const searchStart = streamBuffer.indexOf("<SEARCHING>");
+                            const readStart = streamBuffer.indexOf("<READING>");
+                            const kbStart = streamBuffer.indexOf("<KB_QUERY>");
+
+                            const markers = [
+                                { type: 'THINK', start: thinkStart, open: '<THINK>', close: '</THINK>' },
+                                { type: 'SEARCHING', start: searchStart, open: '<SEARCHING>', close: '</SEARCHING>' },
+                                { type: 'READING', start: readStart, open: '<READING>', close: '</READING>' },
+                                { type: 'KB_QUERY', start: kbStart, open: '<KB_QUERY>', close: '</KB_QUERY>' }
+                            ].filter(m => m.start !== -1).sort((a, b) => a.start - b.start);
+
+                            if (markers.length > 0) {
+                                const marker = markers[0];
+
+                                // Process everything before marker
+                                if (marker.start > 0) {
+                                    const text = streamBuffer.substring(0, marker.start);
+                                    assistantMessage += text;
+                                    if (text.trim().length > 0) assistantStatus = "";
+                                }
+
+                                // Handle marker content
+                                if (marker.type === 'THINK') {
+                                    isThinkingMode = true;
+                                    streamBuffer = streamBuffer.substring(marker.start + marker.open.length);
+                                } else {
+                                    const closeIdx = streamBuffer.indexOf(marker.close, marker.start + marker.open.length);
+                                    if (closeIdx !== -1) {
+                                        const content = streamBuffer.substring(marker.start + marker.open.length, closeIdx);
+                                        if (marker.type === 'SEARCHING') assistantStatus = `Searching web for "${content}"...`;
+                                        else if (marker.type === 'READING') assistantStatus = `Reading ${content}...`;
+                                        else if (marker.type === 'KB_QUERY') assistantStatus = `Querying knowledge base...`;
+                                        streamBuffer = streamBuffer.substring(closeIdx + marker.close.length);
+                                    } else {
+                                        // Wait for closing tag
+                                        streamBuffer = streamBuffer.substring(marker.start);
+                                        break;
+                                    }
+                                }
                             } else {
-                                assistantMessage += remaining;
-                                remaining = "";
+                                // No full tag start. Check for partial tag at end.
+                                const lastOpen = streamBuffer.lastIndexOf("<");
+                                if (lastOpen !== -1) {
+                                    const potential = streamBuffer.substring(lastOpen);
+                                    const possibleTags = ["<THINK>", "<SEARCHING>", "<READING>", "<KB_QUERY>"];
+                                    if (possibleTags.some(tag => tag.startsWith(potential))) {
+                                        assistantMessage += streamBuffer.substring(0, lastOpen);
+                                        streamBuffer = potential;
+                                        break;
+                                    }
+                                }
+
+                                assistantMessage += streamBuffer;
+                                if (streamBuffer.trim().length > 0) assistantStatus = "";
+                                streamBuffer = "";
                             }
                         }
                     }
@@ -386,6 +463,10 @@ export default function PublicChatPage() {
             onSelectSession={handleSelectSession}
             onDeleteSession={handleDeleteSession}
             onRetryMessage={handleRetryMessage}
+            isSearchEnabled={isSearchEnabled}
+            onToggleSearch={() => setIsSearchEnabled(!isSearchEnabled)}
+            isKBEnabled={isKBEnabled}
+            onToggleKB={() => setIsKBEnabled(!isKBEnabled)}
         />
     );
 }

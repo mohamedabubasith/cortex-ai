@@ -1,4 +1,5 @@
 from typing import List, AsyncGenerator
+import re
 from sqlalchemy.ext.asyncio import AsyncSession
 import uuid
 
@@ -62,7 +63,7 @@ class ChatService:
         """Get a chat session by ID"""
         return await self.chat_repo.get_session(session_id)
 
-    async def process_chat(self, agent: models.Agent, message: str, session_id: str) -> AsyncGenerator[str, None]:
+    async def process_chat(self, agent: models.Agent, message: str, session_id: str, search_enabled: bool = True, kb_enabled: bool = True, db_enabled: bool = True) -> AsyncGenerator[str, None]:
         try:
             # 0. Validate Agent Config
             if not agent.llm_config:
@@ -119,67 +120,128 @@ class ChatService:
             # Restore order
             messages = list(reversed(kept_messages))
 
-            # 4. RAG: Retrieve Context
+            # 4. RAG & Web Search: Retrieve Context
             context_parts = []
             
-            # Debug: Log KB selection
-            logger.info(f"RAG Check: Agent ID: {agent.id}, Name: {agent.name}")
-            logger.info(f"RAG Check: Linked KBs: {len(agent.knowledge_bases) if agent.knowledge_bases else 0}")
-            
-            if agent.knowledge_bases and agent.llm_config:
-                # Create a mapping for source identification
+            # --- WEB SEARCH (PRE-SEARCH ARCHITECTURE) ---
+            web_search_context = ""
+            if search_enabled:
+                # 4.1 Intent Detection
+                # Check for URLs first
+                url_patterns = [r'https?://[^\s<>"]+|www\.[^\s<>"]+']
+                urls = []
+                for pattern in url_patterns:
+                    urls.extend(re.findall(pattern, message))
+                
+                if urls:
+                    # Intent: Read specific URL
+                    yield f"<READING>{urls[0][:30]}...</READING>"
+                    try:
+                        from app.services.search_service import search_service
+                        page_content = await search_service.fetch_page_content(urls[0])
+                        web_search_context = f"\n\n### WEBPAGE CONTENT ({urls[0]})\n{page_content[:5000]}"
+                        logger.info(f"Pre-Read Success: Fetched {urls[0]}")
+                    except Exception as e:
+                        logger.error(f"Pre-Read Error: {e}")
+                else:
+                    # Intent: General Search
+                    search_keywords = [
+                        "search", "web", "internet", "current", "today", "latest", "news", 
+                        "price", "rate", "stock", "weather", "who is", "what is", "how is",
+                        "status", "live", "real-time", "now", "recent"
+                    ]
+                    needs_search = any(word in message.lower() for word in search_keywords) or len(message.split()) > 3
+                    
+                    if needs_search:
+                        yield f"<SEARCHING>{message[:30]}...</SEARCHING>"
+                        try:
+                            from app.services.search_service import search_service
+                            search_results = await search_service.search(message, max_results=3)
+                            if search_results:
+                                search_context_items = []
+                                for res in search_results:
+                                    search_context_items.append(f"SOURCE: {res['url']}\nTITLE: {res['title']}\nCONTENT: {res['content']}")
+                                
+                                web_search_context = "\n\n### WEB SEARCH RESULTS\n" + "\n---\n".join(search_context_items)
+                                logger.info(f"Pre-Search Success: Found {len(search_results)} results")
+                            else:
+                                logger.warning(f"Pre-Search returned no results for: {message}")
+                                web_search_context = "\n\n### WEB SEARCH STATUS\nSearch was attempted but returned no results. The service may be rate-limited or the query was too specific."
+                        except Exception as e:
+                            logger.error(f"Pre-Search Error: {e}")
+                            web_search_context = f"\n\n### WEB SEARCH STATUS\nSearch failed due to an error: {str(e)}"
+
+            # --- KNOWLEDGE BASE RAG ---
+            if kb_enabled and agent.knowledge_bases and agent.llm_config:
+                # ... existing KB logic ...
                 kb_map = {f"doc_{kb.id}": kb.filename for kb in agent.knowledge_bases}
                 dataset_names = list(kb_map.keys())
                 
-                for kb in agent.knowledge_bases:
-                    logger.info(f"RAG Check: Linked KB: {kb.id} - {kb.name} (Status: {kb.status})")
-                
-                logger.info(f"RAG Query: Datasets: {dataset_names}, Query: {message[:50]}...")
-                
-                # Initialize KB Service (lightweight)
                 kb_repo = KBRepository(self.db)
                 kb_service = KBService(kb_repo)
                 
                 try:
-                    # Pass the agent owner's email for proper multi-tenant filtering
+                    yield f"<KB_QUERY>{message[:50]}...</KB_QUERY>"
                     search_result = await kb_service.query_datasets(
                         dataset_names, 
                         message, 
                         agent.llm_config,
-                        user_email=agent.owner.email if agent.owner else None  # Use owner email
+                        user_email=agent.owner.email if agent.owner else None
                     )
                     if search_result and search_result.get("success") and search_result.get("data"):
-                        logger.info(f"RAG Success: Found {len(search_result['data'])} results")
-                        # Format results with source labels
                         for result in search_result["data"]:
-                            # Assuming result is a string or dict with 'text'
-                            text = result.get("text", str(result)) if isinstance(result, dict) else str(result)
-                            source_dataset = result.get("belongs_to_set", "unknown") if isinstance(result, dict) else "unknown"
+                            # Robustly extract text and source dataset
+                            # Cognee results can be dicts or objects with attributes
+                            text = ""
+                            source_dataset = "unknown"
+                            
+                            if isinstance(result, dict):
+                                text = result.get("text") or result.get("content") or str(result)
+                                source_dataset = result.get("belongs_to_set") or result.get("dataset_name") or "unknown"
+                            else:
+                                # Try attribute access for objects
+                                text = getattr(result, "text", getattr(result, "content", str(result)))
+                                source_dataset = getattr(result, "belongs_to_set", getattr(result, "dataset_name", "unknown"))
+                            
                             filename = kb_map.get(source_dataset, "Unknown File")
+                            
+                            # Fallback: if we still have "Unknown File", check if the text itself contains a hint or if we only have one KB
+                            if filename == "Unknown File" and len(kb_map) == 1:
+                                filename = list(kb_map.values())[0]
+                                
                             context_parts.append(f"SOURCE: [{filename}]\nCONTENT: {text}")
-                    else:
-                        logger.info(f"RAG Info: No results found for query")
                 except Exception as e:
                     logger.error(f"RAG Error: {e}")
-            else:
-                if not agent.knowledge_bases:
-                    logger.info(f"RAG Skip: No KBs linked to this agent")
-                if not agent.llm_config:
-                    logger.info(f"RAG Skip: No LLM config for this agent")
-            
+
+            # --- CONTEXT INJECTION ---
+            full_context = ""
             if context_parts:
-                full_context = "\n\n".join(context_parts)
-                # Prepend context to the last user message for the LLM prompt
+                full_context += "\n\n### KNOWLEDGE BASE CONTEXT\n" + "\n\n".join(context_parts)
+            
+            if web_search_context:
+                full_context += web_search_context
+
+            if full_context:
+                # Prepend context to the last user message
                 last_msg = messages.pop()
-                messages.append({"role": "user", "content": f"{full_context}\n\nUser Query: {last_msg['content']}"})
+                messages.append({
+                    "role": "user", 
+                    "content": f"CONTEXT INFORMATION:\n{full_context}\n\n---\nUSER QUERY: {last_msg['content']}\n\nInstruction: Use the provided context to answer the user query. If the context contains web search results, cite the URLs clearly."
+                })
 
             # 5. Stream Response
             full_response = ""
             full_thinking = ""
             is_thinking = False
             start_time = time.time()
-            
-            async for chunk in llm_service.stream_chat(agent, messages):
+            # Stream from LLM
+            async for chunk in llm_service.stream_chat(
+                agent, 
+                messages, 
+                search_enabled=search_enabled,
+                kb_enabled=kb_enabled,
+                db_enabled=db_enabled
+            ):
                 if chunk == "<THINK>":
                     is_thinking = True
                     yield chunk

@@ -18,7 +18,7 @@ class LLMService:
         wait=wait_exponential(multiplier=1, min=2, max=10),
         reraise=True
     )
-    async def stream_chat(self, agent, messages: list) -> AsyncGenerator[str, None]:
+    async def stream_chat(self, agent, messages: list, search_enabled: bool = True, kb_enabled: bool = True, db_enabled: bool = True) -> AsyncGenerator[str, None]:
         """Stream chat completion from LLM with token tracking, robust error handling, and tool support"""
         chunk_count = 0
         
@@ -55,12 +55,13 @@ class LLMService:
             
             # Build System Prompt using PromptService
             from app.services.prompt_service import prompt_service
-            system_prompt = prompt_service.build_system_prompt(agent, db_connections)
+            system_prompt = prompt_service.build_system_prompt(agent, db_connections, search_enabled=search_enabled, kb_enabled=kb_enabled, db_enabled=db_enabled)
+            logger.info(f"LLM Service: search_enabled={search_enabled} for agent {agent.id}")
             
             full_messages.append({"role": "system", "content": system_prompt})
             full_messages.extend(messages)
             
-            tools = tools_service.get_agent_specific_tools(db_connections, mcp_connections)
+            tools = tools_service.get_agent_specific_tools(db_connections, mcp_connections, search_enabled=search_enabled, db_enabled=db_enabled)
             
             # Set agent context for tool execution (database service needs to be passed from chat_service)
             from app.services.database_service import database_service
@@ -160,6 +161,34 @@ class LLMService:
                     # Execute tool (No visible output to user)
                     try:
                         logger.info(f"Calling tools_service.execute_tool for {func_name}...")
+                        
+                        # Yield status markers for web tools
+                        if func_name in ["web_search", "website_reader"]:
+                            if not search_enabled:
+                                logger.warning(f"Model tried to call {func_name} but search is DISABLED. Blocking.")
+                                tool_result = json.dumps({"error": f"Tool '{func_name}' is currently disabled for this chat. Please enable Web Search if you need internet access."})
+                                full_messages.append({
+                                    "tool_call_id": tc["id"],
+                                    "role": "tool",
+                                    "name": func_name,
+                                    "content": tool_result
+                                })
+                                continue
+
+                        if func_name == "web_search":
+                            # Extract query if possible from arguments
+                            try:
+                                args = json.loads(func_args)
+                                yield f"<SEARCHING>{args.get('query', 'web')}...</SEARCHING>"
+                            except:
+                                yield "<SEARCHING>web...</SEARCHING>"
+                        elif func_name == "website_reader":
+                            try:
+                                args = json.loads(func_args)
+                                yield f"<READING>{args.get('url', 'page')}...</READING>"
+                            except:
+                                yield "<READING>page...</READING>"
+
                         # Add timeout to prevent hanging
                         tool_result = await asyncio.wait_for(tools_service.execute_tool(func_name, func_args), timeout=30.0)
                         logger.info(f"Tool {func_name} execution completed. Result length: {len(tool_result)}")

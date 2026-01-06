@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Menu, Bot, Loader2, Sun, Moon } from "lucide-react";
+import { Send, Menu, Bot, Loader2, Sun, Moon, Globe, Search, Plus, X, Brain, FlaskConical, ShoppingBag, ImageIcon, GraduationCap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import MessageBubble from "./MessageBubble";
@@ -9,6 +9,8 @@ import MessageBubble from "./MessageBubble";
 interface Message {
     role: "user" | "assistant";
     content: string;
+    thinking?: string;
+    status?: string;
 }
 
 interface ChatWindowProps {
@@ -22,6 +24,13 @@ interface ChatWindowProps {
     onToggleSidebar?: () => void;
     sidebarOpen?: boolean;
     onRetryMessage?: (messageIndex: number) => void;
+    isSearchEnabled?: boolean;
+    onToggleSearch?: () => void;
+    isKBEnabled?: boolean;
+    onToggleKB?: () => void;
+    hasDB?: boolean;
+    isDBEnabled?: boolean;
+    onToggleDB?: () => void;
 }
 
 export default function ChatWindow({
@@ -34,13 +43,23 @@ export default function ChatWindow({
     onToggleTheme,
     onToggleSidebar,
     sidebarOpen = true,
-    onRetryMessage
+    onRetryMessage,
+    isSearchEnabled = false,
+    onToggleSearch,
+    isKBEnabled = true,
+    onToggleKB,
+    hasDB = false,
+    isDBEnabled = true,
+    onToggleDB
 }: ChatWindowProps) {
     const [input, setInput] = useState("");
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isTagHovered, setIsTagHovered] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const messagesContainerRef = useRef<HTMLDivElement>(null);
     const lastMessageLengthRef = useRef(0);
+    const isExpandedMode = isSearchEnabled || (isKBEnabled && hasKB) || (isDBEnabled && hasDB);
 
     // Auto-scroll to bottom when messages change or during streaming
     useEffect(() => {
@@ -67,7 +86,7 @@ export default function ChatWindow({
             textareaRef.current.style.height = "auto";
             textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
         }
-    }, [input]);
+    }, [input, isExpandedMode]); // Add isExpandedMode to re-calculate height if padding changes
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -173,6 +192,7 @@ export default function ChatWindow({
                                 theme={theme}
                                 isStreaming={isStreaming && index === messages.length - 1}
                                 hasKB={hasKB}
+                                isKBEnabled={isKBEnabled}
                                 onRetry={onRetryMessage ? () => onRetryMessage(index) : undefined}
                             />
                         ))}
@@ -210,42 +230,303 @@ export default function ChatWindow({
                         />
                         <motion.div
                             className={cn(
-                                "relative flex items-center border rounded-xl shadow-lg transition-all duration-300",
-                                theme === 'dark' ? "bg-[#1A1F2E] border-gray-600" : "bg-white border-gray-300"
+                                "relative flex border rounded-2xl shadow-lg transition-all duration-300",
+                                isExpandedMode ? "flex-col bg-[#1A1F2E]/80 backdrop-blur-sm" : "flex-row items-center",
+                                theme === 'dark' ? "bg-[#1A1F2E] border-white/10" : "bg-white border-gray-200",
+                                "focus-within:border-[#76B900] focus-within:ring-1 focus-within:ring-[#76B900]/30"
                             )}
-                            whileFocus={{
-                                borderColor: "#76B900",
-                                boxShadow: "0 0 0 1px #76B900"
-                            }}
                         >
-                            <textarea
-                                ref={textareaRef}
-                                value={input}
-                                onChange={(e) => {
-                                    setInput(e.target.value);
-                                    // Auto-hide sidebar when user starts typing (like ChatGPT)
-                                    if (sidebarOpen && onToggleSidebar) {
-                                        onToggleSidebar();
-                                    }
-                                }}
-                                onKeyDown={handleKeyDown}
-                                placeholder="Message Cortex AI..."
-                                className={cn(
-                                    "w-full py-3 px-4 bg-transparent focus:outline-none focus:ring-0 border-none text-base md:text-sm font-medium resize-none overflow-y-auto",
-                                    theme === 'dark' ? "text-white placeholder-gray-400" : "text-gray-900 placeholder-gray-500"
+                            {/* Top Section: Textarea (and Plus/Send in single-row mode) */}
+                            <div className={cn(
+                                "flex items-center flex-1 min-w-0",
+                                isExpandedMode ? "w-full" : "pr-2"
+                            )}>
+                                {!isExpandedMode && (
+                                    <div className="pl-3">
+                                        <div className="relative">
+                                            <motion.button
+                                                type="button"
+                                                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                                                className={cn(
+                                                    "w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200",
+                                                    theme === 'dark' ? "text-gray-400 hover:text-white hover:bg-white/10" : "text-gray-500 hover:text-black hover:bg-black/5"
+                                                )}
+                                                whileHover={{ scale: 1.1 }}
+                                                whileTap={{ scale: 0.9 }}
+                                            >
+                                                <Plus className={cn("w-5 h-5 transition-transform duration-200", isMenuOpen && "rotate-45")} />
+                                            </motion.button>
+                                            <AnimatePresence>
+                                                {isMenuOpen && (
+                                                    <>
+                                                        <div className="fixed inset-0 z-40" onClick={() => setIsMenuOpen(false)} />
+                                                        <motion.div
+                                                            initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                                                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                            exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                                                            className={cn(
+                                                                "absolute bottom-full left-0 mb-3 w-56 p-1.5 rounded-2xl border shadow-2xl z-50",
+                                                                theme === 'dark' ? "bg-[#232627] border-white/10" : "bg-white border-gray-200"
+                                                            )}
+                                                        >
+                                                            <div className="flex flex-col">
+                                                                <button
+                                                                    onClick={() => {
+                                                                        onToggleSearch?.();
+                                                                        setIsMenuOpen(false);
+                                                                    }}
+                                                                    className={cn(
+                                                                        "flex items-center justify-between w-full p-2.5 rounded-xl text-left text-sm transition-colors",
+                                                                        isSearchEnabled
+                                                                            ? (theme === 'dark' ? "bg-[#76B900]/10 text-[#76B900]" : "bg-gray-100 text-[#76B900]")
+                                                                            : (theme === 'dark' ? "text-gray-300 hover:bg-white/5" : "text-gray-700 hover:bg-black/5")
+                                                                    )}
+                                                                >
+                                                                    <div className="flex items-center gap-3">
+                                                                        <Globe className={cn("w-4 h-4", isSearchEnabled ? "text-[#76B900]" : "text-gray-400")} />
+                                                                        <span className="font-medium">Web search</span>
+                                                                    </div>
+                                                                    {isSearchEnabled && <div className="w-1.5 h-1.5 rounded-full bg-[#76B900]" />}
+                                                                </button>
+
+                                                                {hasKB && (
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            onToggleKB?.();
+                                                                            setIsMenuOpen(false);
+                                                                        }}
+                                                                        className={cn(
+                                                                            "flex items-center justify-between w-full p-2.5 rounded-xl text-left text-sm transition-colors",
+                                                                            isKBEnabled
+                                                                                ? (theme === 'dark' ? "bg-[#76B900]/10 text-[#76B900]" : "bg-gray-100 text-[#76B900]")
+                                                                                : (theme === 'dark' ? "text-gray-300 hover:bg-white/5" : "text-gray-700 hover:bg-black/5")
+                                                                        )}
+                                                                    >
+                                                                        <div className="flex items-center gap-3">
+                                                                            <Brain className={cn("w-4 h-4", isKBEnabled ? "text-[#76B900]" : "text-gray-400")} />
+                                                                            <span className="font-medium">Knowledge base</span>
+                                                                        </div>
+                                                                        {isKBEnabled && <div className="w-1.5 h-1.5 rounded-full bg-[#76B900]" />}
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        </motion.div>
+                                                    </>
+                                                )}
+                                            </AnimatePresence>
+                                        </div>
+                                    </div>
                                 )}
-                                disabled={isStreaming}
-                                rows={1}
-                            />
-                            <motion.button
-                                type="submit"
-                                disabled={!input.trim() || isStreaming}
-                                className="p-2 mr-2 text-gray-400 hover:text-black hover:bg-[#76B900] rounded-lg disabled:opacity-50 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-all duration-200"
-                                whileHover={!isStreaming && input.trim() ? { scale: 1.1, rotate: -15 } : {}}
-                                whileTap={!isStreaming && input.trim() ? { scale: 0.9 } : {}}
-                            >
-                                {isStreaming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                            </motion.button>
+                                <textarea
+                                    ref={textareaRef}
+                                    value={input}
+                                    onChange={(e) => {
+                                        setInput(e.target.value);
+                                        if (sidebarOpen && onToggleSidebar) {
+                                            onToggleSidebar();
+                                        }
+                                    }}
+                                    onKeyDown={handleKeyDown}
+                                    placeholder={isExpandedMode ? "Type a message..." : "Message Cortex AI..."}
+                                    className={cn(
+                                        "w-full py-3 px-4 bg-transparent focus:outline-none focus:ring-0 border-none text-base md:text-sm font-medium resize-none overflow-y-auto min-h-[44px]",
+                                        theme === 'dark' ? "text-white placeholder-gray-400" : "text-gray-900 placeholder-gray-500"
+                                    )}
+                                    disabled={isStreaming}
+                                    rows={1}
+                                />
+                                {!isExpandedMode && (
+                                    <motion.button
+                                        type="submit"
+                                        disabled={!input.trim() || isStreaming}
+                                        className={cn(
+                                            "p-1.5 rounded-full transition-all duration-200 shrink-0",
+                                            input.trim()
+                                                ? "bg-[#76B900] text-black hover:bg-[#8CD600]"
+                                                : "bg-[#2A2D30] text-gray-500 cursor-not-allowed"
+                                        )}
+                                        whileHover={!isStreaming && input.trim() ? { scale: 1.05 } : {}}
+                                        whileTap={!isStreaming && input.trim() ? { scale: 0.95 } : {}}
+                                    >
+                                        {isStreaming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                                    </motion.button>
+                                )}
+                            </div>
+
+                            {/* Bottom Section: Full Tools Row (only in search/expanded mode) */}
+                            {isExpandedMode && (
+                                <div className="flex items-center justify-between px-3 pb-3 pt-1">
+                                    <div className="flex items-center gap-2">
+                                        <div className="relative">
+                                            <motion.button
+                                                type="button"
+                                                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                                                className={cn(
+                                                    "w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200",
+                                                    theme === 'dark' ? "text-gray-400 hover:text-white hover:bg-white/10" : "text-gray-500 hover:text-black hover:bg-black/5"
+                                                )}
+                                                whileHover={{ scale: 1.1 }}
+                                                whileTap={{ scale: 0.9 }}
+                                            >
+                                                <Plus className={cn("w-5 h-5 transition-transform duration-200", isMenuOpen && "rotate-45")} />
+                                            </motion.button>
+                                            <AnimatePresence>
+                                                {isMenuOpen && (
+                                                    <>
+                                                        <div className="fixed inset-0 z-40" onClick={() => setIsMenuOpen(false)} />
+                                                        <motion.div
+                                                            initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                                                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                            exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                                                            className={cn(
+                                                                "absolute bottom-full left-0 mb-3 w-56 p-1.5 rounded-2xl border shadow-2xl z-50",
+                                                                theme === 'dark' ? "bg-[#232627] border-white/10" : "bg-white border-gray-200"
+                                                            )}
+                                                        >
+                                                            {/* Menu Items */}
+                                                            <div className="flex flex-col">
+                                                                <button
+                                                                    onClick={() => {
+                                                                        onToggleSearch?.();
+                                                                        setIsMenuOpen(false);
+                                                                    }}
+                                                                    className={cn(
+                                                                        "flex items-center justify-between w-full p-2.5 rounded-xl text-left text-sm transition-colors",
+                                                                        isSearchEnabled
+                                                                            ? (theme === 'dark' ? "bg-[#76B900]/10 text-[#76B900]" : "bg-gray-100 text-[#76B900]")
+                                                                            : (theme === 'dark' ? "text-gray-300 hover:bg-white/5" : "text-gray-700 hover:bg-black/5")
+                                                                    )}
+                                                                >
+                                                                    <div className="flex items-center gap-3">
+                                                                        <Globe className={cn("w-4 h-4", isSearchEnabled ? "text-[#76B900]" : "text-gray-400")} />
+                                                                        <span className="font-medium">Web search</span>
+                                                                    </div>
+                                                                    {isSearchEnabled && <div className="w-1.5 h-1.5 rounded-full bg-[#76B900]" />}
+                                                                </button>
+
+                                                                {hasKB && (
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            onToggleKB?.();
+                                                                            setIsMenuOpen(false);
+                                                                        }}
+                                                                        className={cn(
+                                                                            "flex items-center justify-between w-full p-2.5 rounded-xl text-left text-sm transition-colors",
+                                                                            isKBEnabled
+                                                                                ? (theme === 'dark' ? "bg-[#76B900]/10 text-[#76B900]" : "bg-gray-100 text-[#76B900]")
+                                                                                : (theme === 'dark' ? "text-gray-300 hover:bg-white/5" : "text-gray-700 hover:bg-black/5")
+                                                                        )}
+                                                                    >
+                                                                        <div className="flex items-center gap-3">
+                                                                            <Brain className={cn("w-4 h-4", isKBEnabled ? "text-[#76B900]" : "text-gray-400")} />
+                                                                            <span className="font-medium">Knowledge base</span>
+                                                                        </div>
+                                                                        {isKBEnabled && <div className="w-1.5 h-1.5 rounded-full bg-[#76B900]" />}
+                                                                    </button>
+                                                                )}
+
+                                                                {hasDB && (
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            onToggleDB?.();
+                                                                            setIsMenuOpen(false);
+                                                                        }}
+                                                                        className={cn(
+                                                                            "flex items-center justify-between w-full p-2.5 rounded-xl text-left text-sm transition-colors",
+                                                                            isDBEnabled
+                                                                                ? (theme === 'dark' ? "bg-[#76B900]/10 text-[#76B900]" : "bg-gray-100 text-[#76B900]")
+                                                                                : (theme === 'dark' ? "text-gray-300 hover:bg-white/5" : "text-gray-700 hover:bg-black/5")
+                                                                        )}
+                                                                    >
+                                                                        <div className="flex items-center gap-3">
+                                                                            <FlaskConical className={cn("w-4 h-4", isDBEnabled ? "text-[#76B900]" : "text-gray-400")} />
+                                                                            <span className="font-medium">Database</span>
+                                                                        </div>
+                                                                        {isDBEnabled && <div className="w-1.5 h-1.5 rounded-full bg-[#76B900]" />}
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        </motion.div>
+                                                    </>
+                                                )}
+                                            </AnimatePresence>
+                                        </div>
+                                        {(() => {
+                                            const activeTools = [
+                                                { id: 'search', enabled: isSearchEnabled, label: 'SEARCH', Icon: Globe, toggle: onToggleSearch },
+                                                { id: 'kb', enabled: isKBEnabled && hasKB, label: 'KNOWLEDGE', Icon: Brain, toggle: onToggleKB },
+                                                { id: 'db', enabled: isDBEnabled && hasDB, label: 'DATABASE', Icon: FlaskConical, toggle: onToggleDB }
+                                            ].filter(t => t.enabled);
+
+                                            if (activeTools.length === 0) return null;
+
+                                            // Show all for now since we only have 3, but prepared for overflow
+                                            const maxVisible = 3;
+                                            const visibleTools = activeTools.slice(0, maxVisible);
+                                            const remaining = activeTools.length - maxVisible;
+
+                                            return (
+                                                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth">
+                                                    {visibleTools.map((tool) => (
+                                                        <motion.div
+                                                            key={tool.id}
+                                                            initial={{ opacity: 0, scale: 0.9 }}
+                                                            animate={{ opacity: 1, scale: 1 }}
+                                                            className={cn(
+                                                                "flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full border transition-all duration-200 cursor-default shadow-sm h-7",
+                                                                theme === 'dark'
+                                                                    ? "bg-[#76B900]/10 border-[#76B900]/30 text-[#76B900]"
+                                                                    : "bg-[#76B900]/5 border-[#76B900]/20 text-[#76B900]"
+                                                            )}
+                                                        >
+                                                            <tool.Icon className="w-3.5 h-3.5" />
+                                                            <span className="text-[11px] font-bold tracking-tight uppercase whitespace-nowrap">
+                                                                {tool.label}
+                                                            </span>
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    tool.toggle?.();
+                                                                }}
+                                                                className={cn(
+                                                                    "ml-0.5 p-0.5 rounded-full transition-all duration-200",
+                                                                    theme === 'dark' ? "hover:bg-[#76B900]/20" : "hover:bg-[#76B900]/10"
+                                                                )}
+                                                            >
+                                                                <X className="w-3 h-3" />
+                                                            </button>
+                                                        </motion.div>
+                                                    ))}
+                                                    {remaining > 0 && (
+                                                        <div className={cn(
+                                                            "px-2 py-1 rounded-full border text-[10px] font-bold h-7 flex items-center shadow-sm",
+                                                            theme === 'dark'
+                                                                ? "bg-[#76B900]/10 border-[#76B900]/30 text-[#76B900]"
+                                                                : "bg-[#76B900]/5 border-[#76B900]/20 text-[#76B900]"
+                                                        )}>
+                                                            +{remaining}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })()}
+                                    </div>
+                                    <motion.button
+                                        type="submit"
+                                        disabled={!input.trim() || isStreaming}
+                                        className={cn(
+                                            "p-1.5 rounded-full transition-all duration-200",
+                                            input.trim()
+                                                ? "bg-[#76B900] text-black hover:bg-[#8CD600]"
+                                                : "bg-[#2A2D30] text-gray-500 cursor-not-allowed"
+                                        )}
+                                        whileHover={!isStreaming && input.trim() ? { scale: 1.05 } : {}}
+                                        whileTap={!isStreaming && input.trim() ? { scale: 0.95 } : {}}
+                                    >
+                                        {isStreaming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                                    </motion.button>
+                                </div>
+                            )}
                         </motion.div>
                     </motion.form>
                     <motion.p

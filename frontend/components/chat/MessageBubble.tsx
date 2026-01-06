@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { User, Bot, Copy, Check, RotateCw, ChevronDown, ChevronUp, Brain } from "lucide-react";
+import { User, Bot, Copy, Check, RotateCw, ChevronDown, ChevronUp, Brain, Globe, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -14,6 +14,13 @@ interface Message {
     role: "user" | "assistant";
     content: string;
     thinking?: string;
+    status?: string;
+}
+
+interface Source {
+    title: string;
+    url: string;
+    domain: string;
 }
 
 interface MessageBubbleProps {
@@ -21,11 +28,12 @@ interface MessageBubbleProps {
     isStreaming?: boolean;
     isQuerying?: boolean;
     hasKB?: boolean;
+    isKBEnabled?: boolean;
     theme?: "dark" | "light";
     onRetry?: () => void;
 }
 
-function MessageBubbleBase({ message, isStreaming = false, isQuerying = false, hasKB = false, theme = "dark", onRetry }: MessageBubbleProps) {
+function MessageBubbleBase({ message, isStreaming = false, isQuerying = false, hasKB = false, isKBEnabled = true, theme = "dark", onRetry }: MessageBubbleProps) {
     const [copied, setCopied] = useState(false);
     const [isThinkingExpanded, setIsThinkingExpanded] = useState(false);
 
@@ -41,10 +49,33 @@ function MessageBubbleBase({ message, isStreaming = false, isQuerying = false, h
     };
 
     const isUser = message.role === "user";
-    // Only show retry for actual errors, not truncated or interrupted messages
+
+    // Extract Citations [Title](URL)
+    const extractSources = (text: string): Source[] => {
+        const sources: Source[] = [];
+        const regex = /\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g;
+        let match;
+        const seenUrls = new Set();
+
+        while ((match = regex.exec(text)) !== null) {
+            const url = match[2];
+            if (!seenUrls.has(url)) {
+                try {
+                    const domain = new URL(url).hostname.replace('www.', '');
+                    sources.push({ title: match[1], url, domain });
+                    seenUrls.add(url);
+                } catch (e) { }
+            }
+        }
+        return sources;
+    };
+
+    const sources = !isUser ? extractSources(message.content) : [];
+    const [isSourcesExpanded, setIsSourcesExpanded] = useState(false);
+
+    // Only show retry for actual errors
     const isError = !isUser && (
         message.content.toLowerCase().startsWith("error:") ||
-        message.content.includes("❌") ||
         message.content.includes("Failed to") ||
         message.content.toLowerCase().includes("timeout")
     ) && !message.content.includes("[Response truncated]") && !message.content.includes("[Stream interrupted]");
@@ -165,6 +196,7 @@ function MessageBubbleBase({ message, isStreaming = false, isQuerying = false, h
                         </motion.div>
                     )}
 
+
                     <motion.div
                         initial={{ opacity: 0, x: isUser ? 20 : -20 }}
                         animate={{ opacity: 1, x: 0 }}
@@ -269,7 +301,7 @@ function MessageBubbleBase({ message, isStreaming = false, isQuerying = false, h
                                     )}
                                 </div>
                             ) : (
-                                <ThinkingIndicator theme={theme} isQuerying={isQuerying} hasKB={hasKB} />
+                                <ThinkingIndicator theme={theme} isQuerying={isQuerying} hasKB={hasKB} isKBEnabled={isKBEnabled} status={message.status} />
                             )
                         )}
 
@@ -292,6 +324,66 @@ function MessageBubbleBase({ message, isStreaming = false, isQuerying = false, h
                                     <Copy className="w-3.5 h-3.5" />
                                 )}
                             </motion.button>
+                        )}
+
+                        {/* Sources Section at the bottom */}
+                        {!isUser && sources.length > 0 && (
+                            <div className="mt-4 pt-4 border-t border-white/5">
+                                <button
+                                    onClick={() => setIsSourcesExpanded(!isSourcesExpanded)}
+                                    className={cn(
+                                        "flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold tracking-wider uppercase transition-all duration-200 border",
+                                        isSourcesExpanded
+                                            ? "bg-[#76B900] text-black border-[#76B900] shadow-[0_0_15px_rgba(118,185,0,0.3)]"
+                                            : "bg-transparent text-[#76B900] border-[#76B900]/30 hover:bg-[#76B900]/10"
+                                    )}
+                                >
+                                    <Globe className={cn("w-3 h-3 transition-transform duration-300", isSourcesExpanded && "rotate-180")} />
+                                    <span>{isSourcesExpanded ? "Hide Sources" : `View ${sources.length} Sources`}</span>
+                                </button>
+
+                                <AnimatePresence>
+                                    {isSourcesExpanded && (
+                                        <motion.div
+                                            initial={{ height: 0, opacity: 0, marginTop: 0 }}
+                                            animate={{ height: "auto", opacity: 1, marginTop: 12 }}
+                                            exit={{ height: 0, opacity: 0, marginTop: 0 }}
+                                            transition={{ duration: 0.3, ease: "easeInOut" }}
+                                            className="overflow-hidden"
+                                        >
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pb-2">
+                                                {sources.map((source, i) => (
+                                                    <motion.a
+                                                        initial={{ opacity: 0, x: -10 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        transition={{ delay: i * 0.05 }}
+                                                        key={i}
+                                                        href={source.url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className={cn(
+                                                            "flex flex-col p-2.5 rounded-xl border transition-all duration-200 group",
+                                                            theme === 'dark'
+                                                                ? "bg-[#1A1F2E]/50 border-white/5 hover:border-[#76B900]/50 hover:bg-[#1A1F2E]"
+                                                                : "bg-white border-gray-200 shadow-sm hover:border-[#76B900]/50"
+                                                        )}
+                                                    >
+                                                        <div className="text-[11px] font-bold text-[#76B900] truncate mb-0.5 group-hover:underline">
+                                                            {source.title}
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5">
+                                                            <div className="w-1 h-1 rounded-full bg-neutral-500" />
+                                                            <div className="text-[9px] text-neutral-500 font-medium">
+                                                                {source.domain}
+                                                            </div>
+                                                        </div>
+                                                    </motion.a>
+                                                ))}
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
                         )}
 
                         {/* Retry button for error messages */}

@@ -211,6 +211,9 @@ class ChatSession(ChatSessionBase):
 class ChatRequest(BaseModel):
     message: str
     session_id: Optional[str] = None
+    search_enabled: bool = True
+    kb_enabled: bool = True
+    db_enabled: bool = True
 
 class LLMConfigCheck(BaseModel):
     llm_base_url: str
@@ -255,6 +258,7 @@ class PublicAgentInfo(BaseModel):
     description: Optional[str] = None
     first_message: Optional[str] = None
     has_kb: bool = False
+    has_db: bool = False
 
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr

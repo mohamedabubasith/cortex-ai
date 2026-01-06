@@ -42,13 +42,13 @@ class ToolsService:
         self.register_tool(SearchTool())
         self.register_tool(WebsiteReaderTool())
 
-    def get_agent_specific_tools(self, db_connections: List[Any], mcp_connections: List[Any]) -> List[Dict[str, Any]]:
+    def get_agent_specific_tools(self, db_connections: List[Any], mcp_connections: List[Any], search_enabled: bool = True, db_enabled: bool = True) -> List[Dict[str, Any]]:
         """Get tool definitions including database tools and MCP tools for the specific agent"""
-        # Get standard tools schemas
-        tools_schemas = self.get_tool_definitions()
+        # Get standard tools schemas (filtered)
+        tools_schemas = self.get_tool_definitions(search_enabled=search_enabled)
         
-        # Add database query tool if agent has database connections
-        if db_connections and len(db_connections) > 0:
+        # Add database query tool if agent has database connections AND DB is enabled
+        if db_connections and len(db_connections) > 0 and db_enabled:
             db_tool = DatabaseTool(db_connections, self.database_service)
             tools_schemas.append(db_tool.schema)
             
@@ -71,8 +71,14 @@ class ToolsService:
         
         return tools_schemas
 
-    def get_tool_definitions(self) -> List[Dict[str, Any]]:
-        return [tool.schema for tool in self.tools_registry.values()]
+    def get_tool_definitions(self, search_enabled: bool = True) -> List[Dict[str, Any]]:
+        schemas = []
+        for name, tool in self.tools_registry.items():
+            # Skip search tools if disabled
+            if not search_enabled and name in ["web_search", "website_reader"]:
+                continue
+            schemas.append(tool.schema)
+        return schemas
 
     async def execute_tool(self, name: str, arguments: str) -> str:
         # Handle database query tool specially as it relies on context not in registry

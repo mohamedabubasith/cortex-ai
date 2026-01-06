@@ -17,36 +17,49 @@ class SearchService:
     def is_available(self) -> bool:
         return True
 
-    async def search(self, query: str, max_results: int = 5, timelimit: Optional[str] = None, backend: str = "auto") -> List[Dict[str, Any]]:
+    async def search(self, query: str, max_results: int = 5, timelimit: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         Perform a web search using DuckDuckGo.
         """
         try:
-            # DuckDuckGo 8.x + uses synchronous DDGS. We run it in executor to avoid blocking.
             loop = asyncio.get_event_loop()
             
             def _do_search():
                 with DDGS() as ddgs:
-                    return ddgs.text(query, max_results=max_results, timelimit=timelimit, backend=backend)
+                    # Remove 'backend' as it can cause 202 Ratelimit issues in some environments
+                    return list(ddgs.text(query, max_results=max_results, timelimit=timelimit))
             
             raw_results = await loop.run_in_executor(None, _do_search)
+            
+            # If no results and it might be a rate limit, try one more time after a tiny delay
+            if not raw_results:
+                await asyncio.sleep(0.5)
+                raw_results = await loop.run_in_executor(None, _do_search)
+
             logger.info(f"DuckDuckGo raw results count: {len(raw_results) if raw_results else 0}")
             
             results = []
-            for r in raw_results:
-                logger.debug(f"Result: {r.get('title')} - {r.get('href')}")
-                results.append({
-                    "title": r.get("title"),
-                    "url": r.get("href"),
-                    "content": r.get("body") # Normalized to match 'content' expectation
-                })
+            if raw_results:
+                for r in raw_results:
+                    results.append({
+                        "title": r.get("title"),
+                        "url": r.get("href"),
+                        "content": r.get("body")
+                    })
             
-            if results and results[0].get('content'):
-                snippet = str(results[0]['content'])[:100]
-                logger.info(f"First result content snippet: {snippet}...")
+            # Fallback to News if regular search is empty (news is sometimes less restricted)
+            if not results:
+                logger.info(f"Regular search empty for '{query}', falling back to news...")
+                news_fallback = await self.news_search(query, max_results=max_results)
+                if news_fallback:
+                    results = news_fallback
+
             return results
         except Exception as e:
             logger.error(f"DuckDuckGo search failed: {e}")
+            if "Ratelimit" in str(e):
+                # Try news search as a last resort
+                return await self.news_search(query, max_results=max_results)
             return []
 
     async def news_search(self, query: str, max_results: int = 5, timelimit: Optional[str] = None) -> List[Dict[str, Any]]:

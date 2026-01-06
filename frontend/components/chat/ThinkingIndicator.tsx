@@ -9,23 +9,29 @@ interface ThinkingIndicatorProps {
     theme?: "dark" | "light";
     isQuerying?: boolean; // If true, forces "Querying" state
     hasKB?: boolean; // If true, shows "Querying Knowledge Base" step
+    isKBEnabled?: boolean; // If true, allows KB querying step
+    status?: string; // Real-time status from stream (e.g. "Searching web...")
 }
 
-export default function ThinkingIndicator({ theme = "dark", isQuerying = false, hasKB = false }: ThinkingIndicatorProps) {
-    const [step, setStep] = useState<"thinking" | "querying" | "synthesizing">("thinking");
+export default function ThinkingIndicator({ theme = "dark", isQuerying = false, hasKB = false, isKBEnabled = true, status }: ThinkingIndicatorProps) {
+    const [step, setStep] = useState<"thinking" | "querying" | "synthesizing" | "web_search" | "reading">("thinking");
 
-    // Cycle through states to simulate "agentic" behavior
     useEffect(() => {
-        if (isQuerying) {
-            setStep("querying");
+        if (status) {
+            if (status.includes("Searching")) setStep("web_search");
+            else if (status.includes("Reading")) setStep("reading");
+            else if (status.includes("knowledge")) setStep("querying");
             return;
         }
 
         const thinkingDuration = 2000 + Math.random() * 1000; // 2-3s
         const queryingDuration = 2500 + Math.random() * 1000; // 2.5-3.5s
 
+        // Only show querying step if Agent HAS KB AND KB is ENABLED
+        const shouldShowQuerying = hasKB && isKBEnabled;
+
         const t1 = setTimeout(() => {
-            if (hasKB) {
+            if (shouldShowQuerying) {
                 setStep("querying");
             } else {
                 setStep("synthesizing");
@@ -33,36 +39,45 @@ export default function ThinkingIndicator({ theme = "dark", isQuerying = false, 
         }, thinkingDuration);
 
         const t2 = setTimeout(() => {
-            if (hasKB) {
+            if (shouldShowQuerying) {
                 setStep("synthesizing");
             }
-        }, thinkingDuration + (hasKB ? queryingDuration : 0));
+        }, thinkingDuration + (shouldShowQuerying ? queryingDuration : 0));
 
         return () => {
             clearTimeout(t1);
             clearTimeout(t2);
         };
-    }, [isQuerying, hasKB]);
+    }, [isQuerying, hasKB, isKBEnabled, status]);
 
     const getIcon = () => {
         switch (step) {
             case "thinking":
-                return <Brain className="w-4 h-4 animate-pulse" />;
+                return <Brain className="w-4 h-4 animate-pulse text-[#76B900]" />;
             case "querying":
-                return <Database className="w-4 h-4 animate-bounce" />;
+                return <Database className="w-4 h-4 animate-bounce text-blue-400" />;
+            case "web_search":
+                return <Search className="w-4 h-4 animate-spin text-[#76B900]" />;
+            case "reading":
+                return <Database className="w-4 h-4 animate-pulse text-purple-400" />;
             case "synthesizing":
-                return <Sparkles className="w-4 h-4 animate-spin-slow" />;
+                return <Sparkles className="w-4 h-4 animate-spin-slow text-yellow-400" />;
         }
     };
 
     const getText = () => {
+        if (status) return status;
         switch (step) {
             case "thinking":
                 return "Thinking...";
             case "querying":
-                return "Fetching from knowledge...";
+                return "Searching library...";
+            case "web_search":
+                return "Searching the web...";
+            case "reading":
+                return "Reading sources...";
             case "synthesizing":
-                return "Synthesizing Response...";
+                return "Responding...";
         }
     };
 

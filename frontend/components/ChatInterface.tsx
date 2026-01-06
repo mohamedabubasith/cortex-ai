@@ -10,6 +10,7 @@ interface Message {
     role: "user" | "assistant";
     content: string;
     thinking?: string;
+    status?: string;
 }
 
 interface ChatInterfaceProps {
@@ -25,6 +26,13 @@ interface ChatInterfaceProps {
     onSelectSession?: (sessionId: string) => void;
     onDeleteSession?: (sessionId: string) => void;
     onRetryMessage?: (messageIndex: number) => void;
+    isSearchEnabled?: boolean;
+    onToggleSearch?: () => void;
+    isKBEnabled?: boolean;
+    onToggleKB?: () => void;
+    hasDB?: boolean;
+    isDBEnabled?: boolean;
+    onToggleDB?: () => void;
 }
 
 export default function ChatInterface({
@@ -40,6 +48,13 @@ export default function ChatInterface({
     onSelectSession,
     onDeleteSession,
     onRetryMessage,
+    isSearchEnabled = false,
+    onToggleSearch,
+    isKBEnabled = true,
+    onToggleKB,
+    hasDB = false,
+    isDBEnabled = true,
+    onToggleDB
 }: ChatInterfaceProps) {
     const [theme, setTheme] = useState<"dark" | "light">("dark");
     const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -107,6 +122,13 @@ export default function ChatInterface({
                 onToggleSidebar={toggleSidebar}
                 sidebarOpen={sidebarOpen}
                 onRetryMessage={onRetryMessage}
+                isSearchEnabled={isSearchEnabled}
+                onToggleSearch={onToggleSearch}
+                isKBEnabled={isKBEnabled}
+                onToggleKB={onToggleKB}
+                hasDB={hasDB}
+                isDBEnabled={isDBEnabled}
+                onToggleDB={onToggleDB}
             />
         </div>
     );
