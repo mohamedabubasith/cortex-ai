@@ -99,6 +99,7 @@ class SearchService:
     async def fetch_page_content(self, url: str) -> str:
         """
         Fetch the full text content of a webpage and clean it up.
+        Uses a background thread for CPU-intensive parsing to avoid blocking the event loop.
         """
         try:
             async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
@@ -107,8 +108,10 @@ class SearchService:
                 }
                 response = await client.get(url, headers=headers)
                 response.raise_for_status()
-                
-                soup = BeautifulSoup(response.text, 'html.parser')
+                html_content = response.text
+
+            def _parse_and_clean(html):
+                soup = BeautifulSoup(html, 'html.parser')
                 
                 # Remove script and style elements
                 for script in soup(["script", "style", "nav", "footer", "header", "aside"]):
@@ -122,8 +125,12 @@ class SearchService:
                 chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
                 text = '\n'.join(chunk for chunk in chunks if chunk)
                 
-                # Limit to 10k characters to prevent context overflow
                 return text[:10000]
+
+            loop = asyncio.get_event_loop()
+            content = await loop.run_in_executor(None, _parse_and_clean, html_content)
+            return content
+            
         except Exception as e:
             logger.error(f"Failed to fetch page content from {url}: {e}")
             return f"Error fetching page content: {str(e)}"

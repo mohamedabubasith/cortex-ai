@@ -34,6 +34,7 @@ export default function PublicChatPage() {
     const [sessions, setSessions] = useState<ChatSession[]>([]);
     const [currentSessionId, setCurrentSessionId] = useState<string>("");
     const [loading, setLoading] = useState(true);
+    const [isValidAgent, setIsValidAgent] = useState(true);
 
     useEffect(() => {
         const initChat = async () => {
@@ -64,7 +65,10 @@ export default function PublicChatPage() {
                 setAgentName(data.name);
                 setAgentFirstMessage(data.first_message || "");
                 setHasKB(data.has_kb || false);
+                setIsValidAgent(true);
                 return data.first_message || "";
+            } else if (response.status === 404) {
+                setIsValidAgent(false);
             }
         } catch (error) {
             console.error("Failed to fetch agent info", error);
@@ -350,6 +354,21 @@ export default function PublicChatPage() {
         return (
             <div className="flex h-screen items-center justify-center bg-black">
                 <div className="text-[#76B900] text-lg">Loading...</div>
+            </div>
+        );
+    }
+
+    if (!isValidAgent) {
+        return (
+            <div className="flex h-screen flex-col items-center justify-center bg-black text-white p-4">
+                <h1 className="text-4xl font-bold text-[#76B900] mb-4">404</h1>
+                <p className="text-xl mb-8 text-neutral-400">Agent not found or invalid chat link.</p>
+                <a
+                    href="/"
+                    className="px-6 py-2 bg-[#76B900] text-black font-semibold rounded-lg hover:bg-[#86d100] transition-colors"
+                >
+                    Return Home
+                </a>
             </div>
         );
     }

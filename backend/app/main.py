@@ -81,11 +81,11 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 @app.get("/")
-def root():
+async def root():
     return {"message": "Welcome to Chatbot Admin Dashboard API"}
 
 @app.get("/health")
-def health_check():
+async def health_check():
     return {"status": "ok"}
 
 # Import and include routers here later
