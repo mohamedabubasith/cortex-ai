@@ -523,14 +523,24 @@ export default function KnowledgeBasePage() {
                             type="file"
                             id="file-upload"
                             className="hidden"
-                            onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                            accept=".pdf,application/pdf"
+                            onChange={(e) => {
+                                const file = e.target.files?.[0] || null;
+                                if (file && file.type !== 'application/pdf') {
+                                    toast("Only PDF files are allowed", "error");
+                                    e.target.value = ''; // Reset input
+                                    setSelectedFile(null);
+                                    return;
+                                }
+                                setSelectedFile(file);
+                            }}
                         />
                         <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center">
                             <Upload className="w-12 h-12 text-gray-500 mb-4" />
                             <span className="text-white font-bold mb-1">
                                 {selectedFile ? selectedFile.name : "Click to select file"}
                             </span>
-                            <span className="text-gray-500 text-sm">PDF, TXT, MD, JSON, Word, Excel supported (Max 100MB)</span>
+                            <span className="text-gray-500 text-sm">PDF supported (Max 100MB)</span>
                         </label>
                     </div>
                 </form>
