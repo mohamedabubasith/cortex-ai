@@ -5,7 +5,7 @@ from typing import List
 from app.core.database import get_db
 from app.models import models
 from app.schemas import schemas
-from app.services.auth_service import get_current_active_user
+from app.services.auth_service import get_current_active_user, get_current_tenant
 from app.services.database_service import database_service
 from app.services.mcp_service import mcp_service
 import json
@@ -101,7 +101,8 @@ async def get_mcp_hub_registry(
 async def create_db_connection(
     connection: schemas.DatabaseConnectionCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+    current_user: models.User = Depends(get_current_active_user),
+    current_tenant: models.Tenant = Depends(get_current_tenant)
 ):
     # Validation
     if not (1 <= connection.port <= 65535):
@@ -117,6 +118,7 @@ async def create_db_connection(
     
     db_connection = models.DatabaseConnection(
         user_id=current_user.id,
+        tenant_id=current_tenant.id, # Multi-tenancy
         name=connection.name,
         type=connection.type,
         host=connection.host,
@@ -134,9 +136,10 @@ async def create_db_connection(
 @router.get("/databases", response_model=List[schemas.DatabaseConnectionResponse])
 async def get_db_connections(
     db: AsyncSession = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+    current_user: models.User = Depends(get_current_active_user),
+    current_tenant: models.Tenant = Depends(get_current_tenant)
 ):
-    result = await db.execute(select(models.DatabaseConnection).where(models.DatabaseConnection.user_id == current_user.id))
+    result = await db.execute(select(models.DatabaseConnection).where(models.DatabaseConnection.tenant_id == current_tenant.id))
     return result.scalars().all()
 
 @router.post("/databases/test")
@@ -179,13 +182,14 @@ async def test_db_connection(
 async def test_existing_db_connection(
     db_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+    current_user: models.User = Depends(get_current_active_user),
+    current_tenant: models.Tenant = Depends(get_current_tenant)
 ):
     """Test an existing saved database connection by ID"""
     result = await db.execute(
         select(models.DatabaseConnection).where(
             models.DatabaseConnection.id == db_id,
-            models.DatabaseConnection.user_id == current_user.id
+            models.DatabaseConnection.tenant_id == current_tenant.id
         )
     )
     db_conn = result.scalars().first()
@@ -221,13 +225,14 @@ async def update_db_connection(
     db_id: str,
     connection_update: schemas.DatabaseConnectionUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+    current_user: models.User = Depends(get_current_active_user),
+    current_tenant: models.Tenant = Depends(get_current_tenant)
 ):
     """Update an existing database connection"""
     result = await db.execute(
         select(models.DatabaseConnection).where(
             models.DatabaseConnection.id == db_id,
-            models.DatabaseConnection.user_id == current_user.id
+            models.DatabaseConnection.tenant_id == current_tenant.id
         )
     )
     db_conn = result.scalars().first()
@@ -263,9 +268,10 @@ async def update_db_connection(
 async def delete_db_connection(
     db_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+    current_user: models.User = Depends(get_current_active_user),
+    current_tenant: models.Tenant = Depends(get_current_tenant)
 ):
-    result = await db.execute(select(models.DatabaseConnection).where(models.DatabaseConnection.id == db_id, models.DatabaseConnection.user_id == current_user.id))
+    result = await db.execute(select(models.DatabaseConnection).where(models.DatabaseConnection.id == db_id, models.DatabaseConnection.tenant_id == current_tenant.id))
     db_conn = result.scalars().first()
     if not db_conn:
         raise HTTPException(status_code=404, detail="Database connection not found")
@@ -277,7 +283,8 @@ async def delete_db_connection(
 async def create_mcp_connection(
     connection: schemas.MCPConnectionCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+    current_user: models.User = Depends(get_current_active_user),
+    current_tenant: models.Tenant = Depends(get_current_tenant)
 ):
     # Determine auth headers (encrypt if provided)
     encrypted_headers = None
@@ -287,6 +294,7 @@ async def create_mcp_connection(
 
     mcp_conn = models.MCPConnection(
         user_id=current_user.id,
+        tenant_id=current_tenant.id, # Multi-tenancy
         name=connection.name,
         server_url=connection.server_url,
         auth_headers=encrypted_headers,
@@ -302,9 +310,10 @@ async def update_mcp_connection(
     mcp_id: str,
     connection: schemas.MCPConnectionUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+    current_user: models.User = Depends(get_current_active_user),
+    current_tenant: models.Tenant = Depends(get_current_tenant)
 ):
-    result = await db.execute(select(models.MCPConnection).where(models.MCPConnection.id == mcp_id, models.MCPConnection.user_id == current_user.id))
+    result = await db.execute(select(models.MCPConnection).where(models.MCPConnection.id == mcp_id, models.MCPConnection.tenant_id == current_tenant.id))
     mcp_conn = result.scalars().first()
     if not mcp_conn:
         raise HTTPException(status_code=404, detail="MCP connection not found")
@@ -354,21 +363,23 @@ async def test_mcp_connection(
 @router.get("/mcp", response_model=List[schemas.MCPConnectionResponse])
 async def get_mcp_connections(
     db: AsyncSession = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+    current_user: models.User = Depends(get_current_active_user),
+    current_tenant: models.Tenant = Depends(get_current_tenant)
 ):
-    result = await db.execute(select(models.MCPConnection).where(models.MCPConnection.user_id == current_user.id))
+    result = await db.execute(select(models.MCPConnection).where(models.MCPConnection.tenant_id == current_tenant.id))
     return result.scalars().all()
 
 @router.post("/mcp/{mcp_id}/sync", response_model=schemas.MCPConnectionResponse)
 async def sync_mcp_connection(
     mcp_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+    current_user: models.User = Depends(get_current_active_user),
+    current_tenant: models.Tenant = Depends(get_current_tenant)
 ):
     result = await db.execute(
         select(models.MCPConnection).where(
             models.MCPConnection.id == mcp_id, 
-            models.MCPConnection.user_id == current_user.id
+            models.MCPConnection.tenant_id == current_tenant.id
         )
     )
     mcp_conn = result.scalars().first()
@@ -410,9 +421,10 @@ async def sync_mcp_connection(
 async def delete_mcp_connection(
     mcp_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+    current_user: models.User = Depends(get_current_active_user),
+    current_tenant: models.Tenant = Depends(get_current_tenant)
 ):
-    result = await db.execute(select(models.MCPConnection).where(models.MCPConnection.id == mcp_id, models.MCPConnection.user_id == current_user.id))
+    result = await db.execute(select(models.MCPConnection).where(models.MCPConnection.id == mcp_id, models.MCPConnection.tenant_id == current_tenant.id))
     mcp_conn = result.scalars().first()
     if not mcp_conn:
         raise HTTPException(status_code=404, detail="MCP connection not found")

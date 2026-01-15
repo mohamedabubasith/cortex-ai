@@ -10,15 +10,23 @@ class BaseRepository(Generic[ModelType]):
         self.model = model
         self.db = db
 
-    async def get(self, id: Any) -> Optional[ModelType]:
-        result = await self.db.execute(select(self.model).where(self.model.id == id))
+    async def get(self, id: Any, tenant_id: Optional[str] = None) -> Optional[ModelType]:
+        query = select(self.model).where(self.model.id == id)
+        if tenant_id:
+            query = query.where(self.model.tenant_id == tenant_id)
+        result = await self.db.execute(query)
         return result.scalars().first()
 
-    async def get_all(self, skip: int = 0, limit: int = 100) -> List[ModelType]:
-        result = await self.db.execute(select(self.model).offset(skip).limit(limit))
+    async def get_all(self, skip: int = 0, limit: int = 100, tenant_id: Optional[str] = None) -> List[ModelType]:
+        query = select(self.model).offset(skip).limit(limit)
+        if tenant_id:
+            query = query.where(self.model.tenant_id == tenant_id)
+        result = await self.db.execute(query)
         return result.scalars().all()
 
-    async def create(self, obj_in: dict) -> ModelType:
+    async def create(self, obj_in: dict, tenant_id: Optional[str] = None) -> ModelType:
+        if tenant_id:
+            obj_in["tenant_id"] = tenant_id
         db_obj = self.model(**obj_in)
         self.db.add(db_obj)
         await self.db.commit()
