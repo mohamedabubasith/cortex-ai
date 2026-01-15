@@ -2,6 +2,30 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from datetime import datetime
 
+# Tenant Schemas
+class TenantBase(BaseModel):
+    name: str
+    slug: str
+
+class Tenant(TenantBase):
+    id: str
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+class TenantMemberBase(BaseModel):
+    role: str
+
+class TenantMember(TenantMemberBase):
+    tenant_id: str
+    user_id: str
+    created_at: datetime
+    tenant: Tenant
+    
+    class Config:
+        from_attributes = True
+
 # User Schemas
 class UserBase(BaseModel):
     email: EmailStr
@@ -14,6 +38,8 @@ class UserCreate(UserBase):
 
 class User(UserBase):
     id: str
+    tenant_memberships: List[TenantMember] = []
+    
     class Config:
         from_attributes = True
 

@@ -82,6 +82,12 @@ class AuthService:
             self.db.add(membership)
             await self.db.commit()
             
+            # Re-fetch user to ensure relationships (tenants) are loaded for the response
+            # We use get_by_email which now includes eager loading
+            refreshed_user = await self.repo.get_by_email(user_in.email)
+            if refreshed_user:
+                return refreshed_user
+                
         except Exception as e:
             print(f"Failed to provision default tenant: {e}")
             # Non-critical? Actually critical for multi-tenancy.
