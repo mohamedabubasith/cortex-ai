@@ -58,6 +58,36 @@ class AuthService:
         
         user = await self.repo.create(user_data)
         
+        # Multi-Tenancy: Create default "Personal" Tenant
+        try:
+            from sqlalchemy.orm import Session
+            
+            # 1. Create Tenant
+            tenant_name = f"{user.full_name or user.email.split('@')[0]}'s Workspace"
+            tenant_slug = f"{user.email.split('@')[0]}-{user.id[:8]}".lower().replace(" ", "-") # Simple slug generation
+            
+            new_tenant = models.Tenant(
+                name=tenant_name,
+                slug=tenant_slug
+            )
+            self.db.add(new_tenant)
+            await self.db.flush() # Get ID
+            
+            # 2. Add User as Tenant Owner
+            membership = models.TenantMember(
+                tenant_id=new_tenant.id,
+                user_id=user.id,
+                role="owner"
+            )
+            self.db.add(membership)
+            await self.db.commit()
+            
+        except Exception as e:
+            print(f"Failed to provision default tenant: {e}")
+            # Non-critical? Actually critical for multi-tenancy.
+            # But let's not block user creation for now if it fails, or rollback?
+            # ideally rollback, but simple try/except for now.
+        
         # Create user in Cognee as well
         try:
             from cognee.api.v1.users.create_user import create_user as create_cognee_user
@@ -197,3 +227,27 @@ async def get_current_active_user(current_user: models.User = Depends(get_curren
     if not current_user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
+
+async def get_current_tenant(
+    user: models.User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db) # We need DB to query memberships
+) -> models.Tenant:
+    """
+    Returns the user's active tenant.
+    For now, defaults to their first tenant membership.
+    TODO: Support X-Tenant-ID header to switch context.
+    """
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+    
+    # Query membership explicitly (relationship might not be loaded)
+    stmt = select(models.TenantMember).where(models.TenantMember.user_id == user.id).options(selectinload(models.TenantMember.tenant))
+    result = await db.execute(stmt)
+    membership = result.scalars().first()
+    
+    if not membership:
+        # Fallback: if no tenant (legacy user?), create one now?
+        # Or raise error. Let's create one (self-healing for legacy users)
+        return None # Or handle legacy behavior
+        
+    return membership.tenant

@@ -11,6 +11,7 @@ class MCPConnection(Base):
 
     id = Column(String, primary_key=True, default=generate_uuid)
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True) # New
     name = Column(String, nullable=False)
     server_url = Column(String, nullable=False)
     protocol = Column(String, default="sse")
@@ -20,6 +21,7 @@ class MCPConnection(Base):
 
     # Relationship to user
     user = relationship("User", back_populates="mcp_connections")
+    tenant = relationship("Tenant", back_populates="mcp_connections")
     
     # Relationship to agents
     agents = relationship("Agent", secondary="agent_mcp_connections", back_populates="mcp_connections")

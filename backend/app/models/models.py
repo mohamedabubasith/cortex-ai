@@ -30,6 +30,35 @@ agent_mcp_connections = Table(
     Column('mcp_connection_id', String, ForeignKey('mcp_connections.id', ondelete="CASCADE"))
 )
 
+class Tenant(Base):
+    __tablename__ = "tenants"
+    
+    id = Column(String, primary_key=True, default=generate_uuid)
+    name = Column(String, index=True)
+    slug = Column(String, unique=True, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    members = relationship("TenantMember", back_populates="tenant", cascade="all, delete-orphan")
+    
+    # Resources
+    agents = relationship("Agent", back_populates="tenant", cascade="all, delete-orphan")
+    knowledge_bases = relationship("KnowledgeBase", back_populates="tenant", cascade="all, delete-orphan")
+    llm_configs = relationship("LLMConfiguration", back_populates="tenant", cascade="all, delete-orphan")
+    database_connections = relationship("DatabaseConnection", back_populates="tenant", cascade="all, delete-orphan")
+    mcp_connections = relationship("MCPConnection", back_populates="tenant", cascade="all, delete-orphan")
+
+class TenantMember(Base):
+    __tablename__ = "tenant_members"
+    
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), primary_key=True)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    role = Column(String, default="member") # owner, admin, member, viewer
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    tenant = relationship("Tenant", back_populates="members")
+    user = relationship("User", back_populates="tenant_memberships")
+
 class User(Base):
     __tablename__ = "users"
     
@@ -40,17 +69,22 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     is_superuser = Column(Boolean, default=False)
     
+    # Direct resource ownership (Legacy/Personal) - keeping for backward compatibility if needed,
+    # but strictly we should move to tenant ownership.
     agents = relationship("Agent", back_populates="owner")
     llm_configs = relationship("LLMConfiguration", back_populates="owner")
     knowledge_bases = relationship("KnowledgeBase", back_populates="owner")
     database_connections = relationship("DatabaseConnection", back_populates="owner")
     mcp_connections = relationship("MCPConnection", back_populates="user")
+    
+    tenant_memberships = relationship("TenantMember", back_populates="user", cascade="all, delete-orphan")
 
 class LLMConfiguration(Base):
     __tablename__ = "llm_configurations"
 
     id = Column(String, primary_key=True, default=generate_uuid)
     user_id = Column(String, ForeignKey("users.id"))
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True) # New
     name = Column(String)
     provider = Column(String, default="openai")
     base_url = Column(String)
@@ -60,6 +94,7 @@ class LLMConfiguration(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     owner = relationship("User", back_populates="llm_configs")
+    tenant = relationship("Tenant", back_populates="llm_configs")
     agents = relationship("Agent", back_populates="llm_config")
 
 class Agent(Base):
@@ -71,6 +106,7 @@ class Agent(Base):
     system_prompt = Column(Text, nullable=True, default="You are a helpful AI assistant.")
     first_message = Column(Text, nullable=True, default="Hello! How can I help you today?")
     owner_id = Column(String, ForeignKey("users.id"))
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True) # New
     
     # Linked Resources
     llm_config_id = Column(String, ForeignKey("llm_configurations.id"), nullable=True)
@@ -86,6 +122,7 @@ class Agent(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     owner = relationship("User", back_populates="agents")
+    tenant = relationship("Tenant", back_populates="agents")
     llm_config = relationship("LLMConfiguration", back_populates="agents")
     
     # Many-to-Many Relationships
@@ -111,7 +148,8 @@ class KnowledgeBase(Base):
     __tablename__ = "knowledge_bases"
     
     id = Column(String, primary_key=True, default=generate_uuid)
-    user_id = Column(String, ForeignKey("users.id")) # Global resource owned by user
+    user_id = Column(String, ForeignKey("users.id")) 
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True) # New
     name = Column(String)
     filename = Column(String)
     file_path = Column(String)
@@ -120,13 +158,15 @@ class KnowledgeBase(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     owner = relationship("User", back_populates="knowledge_bases")
+    tenant = relationship("Tenant", back_populates="knowledge_bases")
     agents = relationship("Agent", secondary=agent_knowledge_bases, back_populates="knowledge_bases")
 
 class DatabaseConnection(Base):
     __tablename__ = "database_connections"
     
     id = Column(String, primary_key=True, default=generate_uuid)
-    user_id = Column(String, ForeignKey("users.id")) # Global resource owned by user
+    user_id = Column(String, ForeignKey("users.id"))
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True) # New
     name = Column(String)
     type = Column(String) # postgres, mysql, mongodb
     host = Column(String)
@@ -137,6 +177,7 @@ class DatabaseConnection(Base):
     ssl_mode = Column(String, default="prefer")
     
     owner = relationship("User", back_populates="database_connections")
+    tenant = relationship("Tenant", back_populates="database_connections")
     agents = relationship("Agent", secondary=agent_database_connections, back_populates="database_connections")
     saved_queries = relationship("SavedQuery", back_populates="connection")
 
@@ -179,6 +220,7 @@ class Analytics(Base):
     id = Column(String, primary_key=True, default=generate_uuid)
     user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
     agent_id = Column(String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=True)
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True) # New
     event_type = Column(String, nullable=False)  # chat, kb_upload, kb_query, etc.
     event_data = Column(JSON, default={})
     meta_data = Column(JSON, default={})
@@ -192,6 +234,7 @@ class AuditLog(Base):
     
     id = Column(String, primary_key=True, default=generate_uuid)
     user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True) # New
     action = Column(String, nullable=False)  # create, update, delete, access
     resource_type = Column(String, nullable=False)  # agent, kb, llm_config, etc.
     resource_id = Column(String, nullable=True)
