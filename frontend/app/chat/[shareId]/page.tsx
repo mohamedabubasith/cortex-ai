@@ -33,6 +33,7 @@ export default function PublicChatPage() {
     const [agentFirstMessage, setAgentFirstMessage] = useState<string>("");
     const [hasKB, setHasKB] = useState<boolean>(false);
     const [hasDB, setHasDB] = useState<boolean>(false);
+    const [hasMCP, setHasMCP] = useState<boolean>(false);
     const [sessions, setSessions] = useState<ChatSession[]>([]);
     const [currentSessionId, setCurrentSessionId] = useState<string>("");
     const [loading, setLoading] = useState(true);
@@ -71,6 +72,7 @@ export default function PublicChatPage() {
                 setAgentFirstMessage(data.first_message || "");
                 setHasKB(data.has_kb || false);
                 setHasDB(data.has_db || false);
+                setHasMCP(data.has_mcp || false);
                 setIsValidAgent(true);
                 return data.first_message || "";
             } else if (response.status === 404) {
@@ -244,7 +246,8 @@ export default function PublicChatPage() {
                     message,
                     session_id: sessionId,
                     search_enabled: isSearchEnabled,
-                    kb_enabled: isKBEnabled
+                    kb_enabled: isKBEnabled,
+                    db_enabled: isDBEnabled
                 }),
                 signal: controller.signal
             });
@@ -467,6 +470,10 @@ export default function PublicChatPage() {
             onToggleSearch={() => setIsSearchEnabled(!isSearchEnabled)}
             isKBEnabled={isKBEnabled}
             onToggleKB={() => setIsKBEnabled(!isKBEnabled)}
+            hasDB={hasDB}
+            isDBEnabled={isDBEnabled}
+            onToggleDB={() => setIsDBEnabled(!isDBEnabled)}
+            hasMCP={hasMCP}
         />
     );
 }

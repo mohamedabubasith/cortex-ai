@@ -31,6 +31,7 @@ interface ChatWindowProps {
     hasDB?: boolean;
     isDBEnabled?: boolean;
     onToggleDB?: () => void;
+    hasMCP?: boolean;
 }
 
 export default function ChatWindow({
@@ -50,7 +51,8 @@ export default function ChatWindow({
     onToggleKB,
     hasDB = false,
     isDBEnabled = true,
-    onToggleDB
+    onToggleDB,
+    hasMCP = false
 }: ChatWindowProps) {
     const [input, setInput] = useState("");
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -59,7 +61,7 @@ export default function ChatWindow({
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const messagesContainerRef = useRef<HTMLDivElement>(null);
     const lastMessageLengthRef = useRef(0);
-    const isExpandedMode = isSearchEnabled || (isKBEnabled && hasKB) || (isDBEnabled && hasDB);
+    const isExpandedMode = isSearchEnabled || (isKBEnabled && hasKB) || (isDBEnabled && hasDB) || hasMCP;
 
     // Auto-scroll to bottom when messages change or during streaming
     useEffect(() => {
@@ -455,13 +457,14 @@ export default function ChatWindow({
                                             const activeTools = [
                                                 { id: 'search', enabled: isSearchEnabled, label: 'SEARCH', Icon: Globe, toggle: onToggleSearch },
                                                 { id: 'kb', enabled: isKBEnabled && hasKB, label: 'KNOWLEDGE', Icon: Brain, toggle: onToggleKB },
-                                                { id: 'db', enabled: isDBEnabled && hasDB, label: 'DATABASE', Icon: FlaskConical, toggle: onToggleDB }
+                                                { id: 'db', enabled: isDBEnabled && hasDB, label: 'DATABASE', Icon: FlaskConical, toggle: onToggleDB },
+                                                { id: 'mcp', enabled: hasMCP, label: 'MCP TOOLS', Icon: ShoppingBag, toggle: undefined }
                                             ].filter(t => t.enabled);
 
                                             if (activeTools.length === 0) return null;
 
-                                            // Show all for now since we only have 3, but prepared for overflow
-                                            const maxVisible = 3;
+                                            // Show all for now even if it's 4
+                                            const maxVisible = 4;
                                             const visibleTools = activeTools.slice(0, maxVisible);
                                             const remaining = activeTools.length - maxVisible;
 

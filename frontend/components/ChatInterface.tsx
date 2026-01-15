@@ -33,6 +33,7 @@ interface ChatInterfaceProps {
     hasDB?: boolean;
     isDBEnabled?: boolean;
     onToggleDB?: () => void;
+    hasMCP?: boolean;
 }
 
 export default function ChatInterface({
@@ -54,7 +55,8 @@ export default function ChatInterface({
     onToggleKB,
     hasDB = false,
     isDBEnabled = true,
-    onToggleDB
+    onToggleDB,
+    hasMCP = false
 }: ChatInterfaceProps) {
     const [theme, setTheme] = useState<"dark" | "light">("dark");
     const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -129,6 +131,7 @@ export default function ChatInterface({
                 hasDB={hasDB}
                 isDBEnabled={isDBEnabled}
                 onToggleDB={onToggleDB}
+                hasMCP={hasMCP}
             />
         </div>
     );

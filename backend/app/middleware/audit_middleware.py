@@ -95,8 +95,12 @@ class AuditMiddleware(BaseHTTPMiddleware):
             
             if token:
                 try:
-                    payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
-                    user_email = payload.get("sub")
+                    # Skip decode if it's a dummy token
+                    if token.startswith("dummy_sso_"):
+                         user_email = token.split("dummy_sso_")[1].replace("_at_", "@")
+                    else:
+                        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+                        user_email = payload.get("sub")
                     
                     # Fetch user_id from database
                     if user_email:

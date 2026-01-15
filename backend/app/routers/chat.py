@@ -29,7 +29,8 @@ async def get_public_agent_info(
         description=agent.description,
         first_message=agent.first_message,
         has_kb=len(agent.knowledge_bases) > 0 if agent.knowledge_bases else False,
-        has_db=len(agent.database_connections) > 0 if agent.database_connections else False
+        has_db=len(agent.database_connections) > 0 if agent.database_connections else False,
+        has_mcp=len(agent.mcp_connections) > 0 if agent.mcp_connections else False
     )
 
 @router.post("/public/{share_token}/chat")

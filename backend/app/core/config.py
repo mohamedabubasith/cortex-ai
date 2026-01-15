@@ -40,9 +40,15 @@ class Settings(BaseSettings):
     ADMIN_SECRET_KEY: str = "ec49d476-0757-46c5-a4de-9c0b5a87a20a" # Default secret, change in production
     
     # Keycloak (Example config)
-    KEYCLOAK_URL: str = "http://localhost:8080"
+    KEYCLOAK_URL: Optional[str] = None # Set to enable SSO
     KEYCLOAK_REALM: str = "master"
     KEYCLOAK_CLIENT_ID: str = "chatbot-app"
+    KEYCLOAK_PEM_PUBLIC_KEY: Optional[str] = None # For offline token validation
+    
+    # Auth Provider
+    # "local" = standard username/password
+    # "keycloak" = SSO via Keycloak
+    AUTH_PROVIDER: str = "local"
 
     # Email
     EMAIL_PROVIDER: str = "console" # smtp, console, none

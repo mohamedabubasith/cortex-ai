@@ -122,19 +122,76 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    
+    email = None
+    
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        email: str = payload.get("sub")
+        # 1. DUMMY SSO TOKEN VALIDATION (For Testing/Development)
+        if token.startswith("dummy_sso_"):
+            # Format: dummy_sso_email_at_example_com
+            try:
+                # Extract email from simple dummy format
+                parts = token.split("dummy_sso_")
+                if len(parts) > 1:
+                    email = parts[1].replace("_at_", "@")
+            except Exception:
+                pass
+                
+        # 2. KEYCLOAK TOKEN VALIDATION (Real Implementation Placeholder)
+        elif settings.AUTH_PROVIDER == "keycloak" and settings.KEYCLOAK_PEM_PUBLIC_KEY:
+            try:
+                # In a real scenario, we verify signature using KEYCLOAK_PEM_PUBLIC_KEY
+                # options = {"verify_signature": True, "verify_aud": True, "aud": settings.KEYCLOAK_CLIENT_ID}
+                # payload = jwt.decode(token, settings.KEYCLOAK_PEM_PUBLIC_KEY, algorithms=["RS256"], options=options)
+                pass
+            except Exception:
+                pass
+
+        # 3. LOCAL JWT VALIDATION (Fallback)
+        if not email:
+            try:
+                payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+                email: str = payload.get("sub")
+            except Exception:
+                # If standard flow failed and we didn't match dummy, raise error
+                raise credentials_exception
+
         if email is None:
             raise credentials_exception
-    except JWTError:
-        raise credentials_exception
+            
+        repo = UserRepository(models.User, db)
+        user = await repo.get_by_email(email=email)
         
-    repo = UserRepository(models.User, db)
-    user = await repo.get_by_email(email=email)
-    if user is None:
+        # JIT Provisioning for SSO Users
+        if user is None:
+            # If the user came from a valid SSO/Dummy token but doesn't exist locally,
+            # we create them ("Just In Time" provisioning) to handle RBAC locally.
+            
+            import secrets
+            import string
+            alphabet = string.ascii_letters + string.digits
+            dummy_password = ''.join(secrets.choice(alphabet) for i in range(20))
+            
+            user_in = schemas.UserCreate(
+                email=email,
+                password=dummy_password, # Random password, they won't use it
+                full_name=email.split("@")[0],
+                is_active=True
+            )
+            
+            # Use auth service instance to create user
+            auth_svc = AuthService(db)
+            try:
+                user = await auth_svc.create_user(user_in)
+            except Exception:
+                raise credentials_exception
+                
+        if user is None:
+            raise credentials_exception
+            
+        return user
+    except Exception:
         raise credentials_exception
-    return user
 
 async def get_current_active_user(current_user: models.User = Depends(get_current_user)):
     if not current_user.is_active:

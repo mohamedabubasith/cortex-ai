@@ -259,6 +259,7 @@ class PublicAgentInfo(BaseModel):
     first_message: Optional[str] = None
     has_kb: bool = False
     has_db: bool = False
+    has_mcp: bool = False
 
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr

@@ -4,7 +4,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState } from "react";
-import { Cpu, Trash2, Loader2, Plus, Save, X, Edit2, AlertCircle, Server, RefreshCw, Key, Plug } from "lucide-react";
+import { Cpu, Trash2, Loader2, Plus, Save, X, Edit2, AlertCircle, Server, RefreshCw, Key, Plug, FolderOpen, Github, Database, Globe, Search, Mail, MessageSquare } from "lucide-react";
 import api from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
 import Dialog from "@/components/ui/Dialog";
@@ -36,6 +36,17 @@ interface MCPConnection {
     protocol?: 'sse' | 'http';
 }
 
+interface HubItem {
+    id: string;
+    name: string;
+    description: string;
+    icon: string;
+    server_url: string;
+    protocol: string;
+    documentation: string;
+    env_vars: any[];
+}
+
 const PROVIDER_OPTIONS = [
     { id: "openai", name: "OpenAI" },
     { id: "anthropic", name: "Anthropic" },
@@ -48,7 +59,7 @@ export default function ProvidersPage() {
     const { theme } = useTheme();
     const isDark = theme === "dark";
 
-    const [activeTab, setActiveTab] = useState<'models' | 'mcp'>('models');
+    const [activeTab, setActiveTab] = useState<'models' | 'mcp' | 'hub'>('models');
     const [loading, setLoading] = useState(true);
 
     // --- LLM State ---
@@ -82,6 +93,9 @@ export default function ProvidersPage() {
     const [mcpToDelete, setMcpToDelete] = useState<string | null>(null);
     const [testingMcp, setTestingMcp] = useState(false);
 
+    // --- Hub State ---
+    const [hubItems, setHubItems] = useState<HubItem[]>([]);
+
 
     useEffect(() => {
         fetchResources();
@@ -90,13 +104,15 @@ export default function ProvidersPage() {
     const fetchResources = async () => {
         setLoading(true);
         try {
-            const [llmRes, mcpRes] = await Promise.allSettled([
+            const [llmRes, mcpRes, hubRes] = await Promise.allSettled([
                 api.get("/llm"),
-                api.get("/resources/mcp")
+                api.get("/resources/mcp"),
+                api.get("/resources/mcp/hub")
             ]);
 
             if (llmRes.status === 'fulfilled') setLlmConfigs(llmRes.value.data);
             if (mcpRes.status === 'fulfilled') setMcpConnections(mcpRes.value.data);
+            if (hubRes.status === 'fulfilled') setHubItems(hubRes.value.data);
 
         } catch (error) {
             console.error("Failed to fetch resources", error);
@@ -192,15 +208,37 @@ export default function ProvidersPage() {
 
     const handleOpenMcpDialog = (mcp: any = null) => {
         if (mcp) {
-            setCurrentMcp({ ...mcp, auth_headers: "", protocol: mcp.protocol || "sse" }); // Don't show auth headers back
+            setCurrentMcp({
+                ...mcp,
+                auth_headers: "",
+                protocol: mcp.protocol || "sse",
+                env_vars: [] // Reset env vars for existing connections as they don't have schema
+            });
         } else {
             setCurrentMcp({
                 name: "",
                 server_url: "http://localhost:8000/sse",
                 auth_headers: "",
-                protocol: "sse"
+                protocol: "sse",
+                documentation: "",
+                env_vars: []
             });
         }
+        setIsMcpModalOpen(true);
+    };
+
+    const handleInstallFromHub = (item: HubItem) => {
+        // Initialize dynamic values from env_vars
+        const initialHeaders: Record<string, string> = {};
+
+        setCurrentMcp({
+            name: item.name,
+            server_url: item.server_url,
+            auth_headers: JSON.stringify(initialHeaders), // Start empty
+            protocol: item.protocol,
+            documentation: item.documentation,
+            env_vars: item.env_vars // Pass schema to dialog
+        });
         setIsMcpModalOpen(true);
     };
 
@@ -251,7 +289,7 @@ export default function ProvidersPage() {
         setSavingMcp(true);
         try {
             // Parse headers if present
-            let authHeadersObj = null;
+            let authHeadersObj: Record<string, any> = {};
             if (currentMcp.auth_headers && currentMcp.auth_headers.trim()) {
                 try {
                     authHeadersObj = JSON.parse(currentMcp.auth_headers);
@@ -259,6 +297,17 @@ export default function ProvidersPage() {
                     toast("Invalid JSON in Auth Headers", "error");
                     setSavingMcp(false);
                     return;
+                }
+            }
+
+            // Validate required env vars
+            if (currentMcp.env_vars && currentMcp.env_vars.length > 0) {
+                for (const field of currentMcp.env_vars) {
+                    if (field.required && !authHeadersObj[field.name]) {
+                        toast(`Please enter ${field.label || field.name}`, "warning");
+                        setSavingMcp(false);
+                        return;
+                    }
                 }
             }
 
@@ -325,6 +374,29 @@ export default function ProvidersPage() {
         }
     }
 
+    // Helper to update a dynamic field value
+    const updateDynamicField = (name: string, value: string) => {
+        setCurrentMcp((prev: any) => {
+            try {
+                const currentHeaders = prev.auth_headers ? JSON.parse(prev.auth_headers) : {};
+                currentHeaders[name] = value;
+                return { ...prev, auth_headers: JSON.stringify(currentHeaders) };
+            } catch (e) {
+                console.error("Error updating dynamic field", e);
+                return prev;
+            }
+        });
+    };
+
+    const getDynamicFieldValue = (name: string) => {
+        try {
+            const currentHeaders = currentMcp.auth_headers ? JSON.parse(currentMcp.auth_headers) : {};
+            return currentHeaders[name] || "";
+        } catch (e) {
+            return "";
+        }
+    };
+
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -338,11 +410,17 @@ export default function ProvidersPage() {
                         if (activeTab === 'models') {
                             resetLlmForm();
                             setIsLlmModalOpen(true);
-                        } else {
+                        } else if (activeTab === 'mcp') {
                             handleOpenMcpDialog();
+                        } else {
+                            // In Hub tab, maybe focus search if we had one, or just scroll top
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
                         }
                     }}
-                    className="flex items-center justify-center w-full md:w-auto px-6 py-3 bg-nvidia-green text-black font-bold rounded-lg hover:bg-[#8CD600] transition-all transform hover:scale-105 shadow-[0_0_20px_rgba(118,185,0,0.3)]"
+                    className={cn(
+                        "flex items-center justify-center w-full md:w-auto px-6 py-3 font-bold rounded-lg transition-all transform hover:scale-105 shadow-[0_0_20px_rgba(118,185,0,0.3)]",
+                        activeTab === 'hub' ? "hidden" : "bg-nvidia-green text-black hover:bg-[#8CD600]"
+                    )}
                 >
                     <Plus className="w-5 h-5 mr-2" />
                     {activeTab === 'models' ? "Add Model" : "Add Connection"}
@@ -368,10 +446,22 @@ export default function ProvidersPage() {
                     className={`pb-4 text-base md:text-sm font-bold transition-colors relative ${activeTab === 'mcp' ? 'text-nvidia-green' : isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}
                 >
                     <div className="flex items-center gap-2">
-                        <Plug className="w-4 h-4" />
+                        <Server className="w-4 h-4" />
                         MCP Servers
                     </div>
                     {activeTab === 'mcp' && (
+                        <div className="absolute bottom-0 left-0 w-full h-0.5 bg-nvidia-green rounded-t-full" />
+                    )}
+                </button>
+                <button
+                    onClick={() => setActiveTab('hub')}
+                    className={`pb-4 text-base md:text-sm font-bold transition-colors relative ${activeTab === 'hub' ? 'text-nvidia-green' : isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}
+                >
+                    <div className="flex items-center gap-2">
+                        <Plug className="w-4 h-4" />
+                        MCP Hub
+                    </div>
+                    {activeTab === 'hub' && (
                         <div className="absolute bottom-0 left-0 w-full h-0.5 bg-nvidia-green rounded-t-full" />
                     )}
                 </button>
@@ -435,7 +525,7 @@ export default function ProvidersPage() {
                             </div>
                         )}
                     </div>
-                ) : (
+                ) : activeTab === 'mcp' ? (
                     // MCP Tab Content
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {mcpConnections.map((conn) => (
@@ -500,6 +590,47 @@ export default function ProvidersPage() {
                                 <p className={isDark ? "text-gray-400" : "text-gray-600"}>Connect to an MCP server to add tools.</p>
                             </div>
                         )}
+                    </div>
+                ) : (
+                    // MCP Hub Content
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {hubItems.map((item) => (
+                            <div key={item.id} className={cn("backdrop-blur-sm border rounded-xl p-6 transition-all group flex flex-col justify-between h-full min-h-[180px]", isDark ? "bg-nvidia-dark/80 border-white/10 hover:border-nvidia-green/50" : "bg-white border-gray-200 hover:border-nvidia-green/50 shadow-sm")}>
+                                <div>
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div className={cn("p-3 rounded-lg transition-colors", isDark ? "bg-white/5 group-hover:bg-nvidia-green/10" : "bg-gray-100 group-hover:bg-nvidia-green/10")}>
+                                            {/* Simple icon mapping */}
+                                            {item.icon === 'Github' ? <Plug className="w-6 h-6 text-gray-500" /> :
+                                                item.icon === 'Database' ? <Server className="w-6 h-6 text-gray-500" /> :
+                                                    item.icon === 'Globe' ? <Server className="w-6 h-6 text-gray-500" /> :
+                                                        item.icon === 'Mail' ? <Server className="w-6 h-6 text-gray-500" /> :
+                                                            item.icon === 'MessageSquare' ? <Server className="w-6 h-6 text-gray-500" /> :
+                                                                <FolderOpen className={cn("w-6 h-6 transition-colors", isDark ? "text-gray-400 group-hover:text-nvidia-green" : "text-gray-600 group-hover:text-nvidia-green")} />
+                                            }
+                                        </div>
+                                        <div className="flex space-x-2">
+                                            {/* Could add a 'View Documentation' button/link here */}
+                                        </div>
+                                    </div>
+                                    <h3 className={cn("text-base md:text-lg font-bold mb-2", isDark ? "text-white" : "text-gray-900")}>{item.name}</h3>
+                                    <p className={cn("text-sm mb-4 line-clamp-3", isDark ? "text-gray-400" : "text-gray-600")}>
+                                        {item.description}
+                                    </p>
+                                </div>
+                                <div className={cn("mt-4 pt-4 border-t", isDark ? "border-white/5" : "border-gray-100")}>
+                                    <button
+                                        onClick={() => handleInstallFromHub(item)}
+                                        className={cn("w-full py-2 px-4 rounded-lg font-medium text-sm transition-colors flex items-center justify-center", isDark ? "bg-white/10 hover:bg-white/20 text-white" : "bg-gray-100 hover:bg-gray-200 text-gray-900")}
+                                    >
+                                        <Plug className="w-4 h-4 mr-2" />
+                                        Connect
+                                    </button>
+                                    <p className="text-[10px] text-gray-500 mt-2 text-center" title={item.documentation}>
+                                        {item.documentation ? "See documentation for setup command" : ""}
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 )}
             </div>
@@ -613,19 +744,46 @@ export default function ProvidersPage() {
                             />
                         </div>
                     </div>
-                    <div>
-                        <label className={cn("block text-sm font-medium mb-1", isDark ? "text-gray-300" : "text-gray-700")}>Auth Headers (JSON, Optional)</label>
-                        <textarea
-                            className={cn(
-                                "w-full border rounded-lg px-4 py-2 focus:ring-nvidia-green focus:border-nvidia-green h-24 font-mono text-xs",
-                                isDark ? "bg-black/50 border-gray-700 text-white" : "bg-white border-gray-300 text-gray-900"
-                            )}
-                            placeholder={'{"Authorization": "Bearer token"}'}
-                            value={currentMcp.auth_headers}
-                            onChange={e => setCurrentMcp({ ...currentMcp, auth_headers: e.target.value })}
-                        />
-                        <p className="text-xs text-gray-500 mt-1">Optional JSON object for authentication headers.</p>
-                    </div>
+
+                    {/* Dynamic Forms vs Raw JSON */}
+                    {currentMcp.env_vars && currentMcp.env_vars.length > 0 ? (
+                        <div className="space-y-4 pt-2 border-t border-gray-200 dark:border-white/10">
+                            <h4 className={cn("text-sm font-bold", isDark ? "text-white" : "text-gray-900")}>Configuration</h4>
+                            {currentMcp.env_vars.map((field: any) => (
+                                <div key={field.name}>
+                                    <label className={cn("block text-sm font-medium mb-1", isDark ? "text-gray-300" : "text-gray-700")}>
+                                        {field.label || field.name} {field.required && <span className="text-red-500">*</span>}
+                                    </label>
+                                    <input
+                                        type={field.type || "text"}
+                                        className={cn(
+                                            "w-full border rounded-lg px-4 py-2 focus:ring-nvidia-green focus:border-nvidia-green",
+                                            isDark ? "bg-black/50 border-gray-700 text-white" : "bg-white border-gray-300 text-gray-900"
+                                        )}
+                                        placeholder={field.placeholder || ""}
+                                        value={getDynamicFieldValue(field.name)}
+                                        onChange={e => updateDynamicField(field.name, e.target.value)}
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div>
+                            <label className={cn("block text-sm font-medium mb-1", isDark ? "text-gray-300" : "text-gray-700")}>Auth Headers (JSON, Optional)</label>
+                            <textarea
+                                className={cn(
+                                    "w-full border rounded-lg px-4 py-2 focus:ring-nvidia-green focus:border-nvidia-green h-24 font-mono text-xs",
+                                    isDark ? "bg-black/50 border-gray-700 text-white" : "bg-white border-gray-300 text-gray-900"
+                                )}
+                                placeholder={'{"Authorization": "Bearer token"}'}
+                                value={currentMcp.auth_headers}
+                                onChange={e => setCurrentMcp({ ...currentMcp, auth_headers: e.target.value })}
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Optional JSON object for authentication headers.</p>
+                        </div>
+                    )}
+
+                    {currentMcp.documentation && <p className="text-xs text-nvidia-green mt-2"><strong>Tip:</strong> {currentMcp.documentation}</p>}
                 </div>
             </Dialog>
 

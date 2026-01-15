@@ -12,6 +12,90 @@ import json
 
 router = APIRouter()
 
+# MCP Hub Registry
+MCP_HUB_REGISTRY = [
+    {
+        "id": "filesystem",
+        "name": "Local Filesystem",
+        "description": "Access and manage local files and directories securely.",
+        "icon": "FolderOpen",
+        "server_url": "http://localhost:8000/mcp/filesystem",
+        "protocol": "sse",
+        "documentation": "Run: npx -y @modelcontextprotocol/server-filesystem /path/to/allowed/dir",
+        "env_vars": []
+    },
+    {
+        "id": "github",
+        "name": "GitHub",
+        "description": "Search repositories, manage issues, and view pull requests.",
+        "icon": "Github",
+        "server_url": "http://localhost:8000/mcp/github",
+        "protocol": "sse",
+        "documentation": "Run: npx -y @modelcontextprotocol/server-github",
+        "env_vars": [
+            {"name": "GITHUB_PERSONAL_ACCESS_TOKEN", "label": "Personal Access Token", "type": "password", "required": True}
+        ]
+    },
+    {
+        "id": "postgres",
+        "name": "PostgreSQL",
+        "description": "Read-only database access for querying data and schema.",
+        "icon": "Database",
+        "server_url": "http://localhost:8000/mcp/postgres",
+        "protocol": "sse",
+        "documentation": "Run: npx -y @modelcontextprotocol/server-postgres postgresql://user:pass@localhost:5432/db",
+         "env_vars": [
+             {"name": "POSTGRES_URL", "label": "Connection String", "type": "text", "placeholder": "postgresql://user:pass@localhost:5432/db", "required": True}
+        ]
+    },
+    {
+        "id": "brave",
+        "name": "Brave Search",
+        "description": "Web search capabilities using Brave Search API.",
+        "icon": "Globe",
+        "server_url": "http://localhost:8000/mcp/brave",
+        "protocol": "sse",
+        "documentation": "Run: npx -y @modelcontextprotocol/server-brave-search",
+        "env_vars": [
+             {"name": "BRAVE_API_KEY", "label": "Brave API Key", "type": "password", "required": True}
+        ]
+    },
+    {
+        "id": "gmail",
+        "name": "Gmail",
+        "description": "Read and manage emails, drafts, and attachments.",
+        "icon": "Mail",
+        "server_url": "http://localhost:8000/mcp/gmail",
+        "protocol": "sse",
+        "documentation": "Custom Python server required.",
+        "env_vars": [
+             {"name": "GMAIL_CLIENT_ID", "label": "Client ID", "type": "password", "required": True},
+             {"name": "GMAIL_CLIENT_SECRET", "label": "Client Secret", "type": "password", "required": True},
+             {"name": "GMAIL_REFRESH_TOKEN", "label": "Refresh Token", "type": "password", "required": True}
+        ]
+    },
+    {
+        "id": "slack",
+        "name": "Slack",
+        "description": "Send messages, read channels, and manage workspace.",
+        "icon": "MessageSquare",
+        "server_url": "http://localhost:8000/mcp/slack",
+        "protocol": "sse",
+        "documentation": "Custom Python server required.",
+        "env_vars": [
+             {"name": "SLACK_BOT_TOKEN", "label": "Bot Token", "type": "password", "required": True},
+             {"name": "SLACK_TEAM_ID", "label": "Team ID", "type": "text", "required": True}
+        ]
+    }
+]
+
+@router.get("/mcp/hub")
+async def get_mcp_hub_registry(
+    current_user: models.User = Depends(get_current_active_user)
+):
+    """Return the list of available MCP plugins in the Hub."""
+    return MCP_HUB_REGISTRY
+
 
 @router.post("/databases", response_model=schemas.DatabaseConnectionResponse)
 async def create_db_connection(
