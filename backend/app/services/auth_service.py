@@ -17,7 +17,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/token
 
 class AuthService:
     def __init__(self, db: AsyncSession):
-        self.repo = UserRepository(models.User, db)
+        self.repo = UserRepository(db)
         self.db = db
 
     def verify_password(self, plain_password, hashed_password):
@@ -195,7 +195,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
         if email is None:
             raise credentials_exception
             
-        repo = UserRepository(models.User, db)
+        repo = UserRepository(db)
         user = await repo.get_by_email(email=email)
         
         # JIT Provisioning for SSO Users

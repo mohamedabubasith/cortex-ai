@@ -15,6 +15,7 @@ class AnalyticsRepository:
         event_type: str,
         user_id: Optional[str] = None,
         agent_id: Optional[str] = None,
+        tenant_id: Optional[str] = None,
         event_data: dict = None,
         meta_data: dict = None
     ) -> models.Analytics:
@@ -23,6 +24,7 @@ class AnalyticsRepository:
             id=str(uuid.uuid4()),
             user_id=user_id,
             agent_id=agent_id,
+            tenant_id=tenant_id,
             event_type=event_type,
             event_data=event_data or {},
             meta_data=meta_data or {}
@@ -36,6 +38,7 @@ class AnalyticsRepository:
         self,
         user_id: Optional[str] = None,
         agent_id: Optional[str] = None,
+        tenant_id: Optional[str] = None,
         event_type: Optional[str] = None,
         limit: int = 100
     ) -> List[models.Analytics]:
@@ -46,6 +49,8 @@ class AnalyticsRepository:
             query = query.where(models.Analytics.user_id == user_id)
         if agent_id:
             query = query.where(models.Analytics.agent_id == agent_id)
+        if tenant_id:
+            query = query.where(models.Analytics.tenant_id == tenant_id)
         if event_type:
             query = query.where(models.Analytics.event_type == event_type)
         

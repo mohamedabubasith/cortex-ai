@@ -91,6 +91,18 @@ from app.services.auth_service import get_current_active_user
 
 @router.get("/me", response_model=schemas.User)
 async def read_users_me(
-    current_user: models.User = Depends(get_current_active_user)
+    current_user: models.User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
 ):
-    return current_user
+    # Explicitly load tenant memberships for the response
+    # Since get_current_user logic (get_by_email) was optimized to be lazy
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+    
+    query = select(models.User).where(models.User.id == current_user.id).options(
+        selectinload(models.User.tenant_memberships).selectinload(models.TenantMember.tenant)
+    )
+    result = await db.execute(query)
+    user_with_tenants = result.scalars().first()
+    
+    return user_with_tenants

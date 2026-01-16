@@ -11,6 +11,7 @@ class AnalyticsService:
         event_type: str,
         user_id: Optional[str] = None,
         agent_id: Optional[str] = None,
+        tenant_id: Optional[str] = None,
         event_data: dict = None,
         metadata: dict = None
     ):
@@ -19,6 +20,7 @@ class AnalyticsService:
             event_type=event_type,
             user_id=user_id,
             agent_id=agent_id,
+            tenant_id=tenant_id,
             event_data=event_data,
             meta_data=metadata
         )
@@ -27,6 +29,7 @@ class AnalyticsService:
         self,
         user_id: Optional[str] = None,
         agent_id: Optional[str] = None,
+        tenant_id: Optional[str] = None,
         event_type: Optional[str] = None,
         limit: int = 100
     ):
@@ -34,6 +37,7 @@ class AnalyticsService:
         return await self.analytics_repo.get_events(
             user_id=user_id,
             agent_id=agent_id,
+            tenant_id=tenant_id,
             event_type=event_type,
             limit=limit
         )

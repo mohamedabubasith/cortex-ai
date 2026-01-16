@@ -1,101 +1,75 @@
-"""LLM Configuration Repository"""
+from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from app.models import models
-from typing import Optional, List
-import uuid
+from app.models.models import LLMConfiguration
+from app.repositories.base_repository import BaseRepository
 
-class LLMRepository:
+class LLMRepository(BaseRepository[LLMConfiguration]):
+    """
+    LLM Configuration Repository.
+    Inherits from BaseRepository to provide unified RBAC/Multi-tenancy filtering.
+    Maintains backward compatibility with LLMConfigService.
+    """
     def __init__(self, db: AsyncSession):
-        self.db = db
-    
+        super().__init__(LLMConfiguration, db)
+
     async def create(
         self,
         user_id: str,
         name: str,
         api_key: str,
         model: str,
-        base_url: Optional[str] = None
-    ) -> models.LLMConfiguration:
-        """Create LLM config"""
-        llm = models.LLMConfiguration(
-            id=str(uuid.uuid4()),
-            user_id=user_id,
-            name=name,
-            api_key=api_key,
-            model=model,
-            base_url=base_url
-        )
-        self.db.add(llm)
-        await self.db.commit()
-        await self.db.refresh(llm)
-        return llm
-    
-    async def get_by_id(self, llm_id: str, user_id: str) -> Optional[models.LLMConfiguration]:
-        """Get LLM by ID"""
+        provider: str = None,
+        base_url: Optional[str] = None,
+        tenant_id: Optional[str] = None
+    ) -> LLMConfiguration:
+        """Create LLM config with original signature support"""
+        obj_in = {
+            "name": name,
+            "api_key": api_key,
+            "model": model,
+            "provider": provider,
+            "base_url": base_url
+        }
+        return await super().create(obj_in, user_id=user_id, tenant_id=tenant_id)
+
+    async def get_by_id(self, llm_id: str, user_id: str) -> Optional[LLMConfiguration]:
+        """Backward compatible get_by_id using manual filtering for safety"""
+        from sqlalchemy import select
         result = await self.db.execute(
-            select(models.LLMConfiguration).where(
-                models.LLMConfiguration.id == llm_id,
-                models.LLMConfiguration.user_id == user_id
+            select(self.model).where(
+                self.model.id == llm_id,
+                self.model.user_id == user_id
             )
         )
         return result.scalars().first()
-    
-    async def get_all(self, user_id: str) -> List[models.LLMConfiguration]:
-        """Get all LLM configs for user"""
+
+    async def get_all(self, user_id: str) -> List[LLMConfiguration]:
+        """Backward compatible get_all for specified user"""
+        from sqlalchemy import select
         result = await self.db.execute(
-            select(models.LLMConfiguration)
-            .where(models.LLMConfiguration.user_id == user_id)
-            .order_by(models.LLMConfiguration.created_at.desc())
+            select(self.model).where(self.model.user_id == user_id)
         )
         return result.scalars().all()
-    
+
     async def update(
         self,
         llm_id: str,
         user_id: str,
-        name: Optional[str] = None,
-        api_key: Optional[str] = None,
-        model: Optional[str] = None,
-        base_url: Optional[str] = None
-    ) -> Optional[models.LLMConfiguration]:
-        """Update LLM config"""
-        result = await self.db.execute(
-            select(models.LLMConfiguration).where(
-                models.LLMConfiguration.id == llm_id,
-                models.LLMConfiguration.user_id == user_id
-            )
-        )
-        llm = result.scalars().first()
+        **kwargs
+    ) -> Optional[LLMConfiguration]:
+        """Backward compatible update wrapper"""
+        llm = await self.get_by_id(llm_id, user_id)
+        if not llm:
+            return None
         
-        if llm:
-            if name is not None:
-                llm.name = name
-            if api_key is not None:
-                llm.api_key = api_key
-            if model is not None:
-                llm.model = model
-            if base_url is not None:
-                llm.base_url = base_url
-            
-            await self.db.commit()
-            await self.db.refresh(llm)
-        
-        return llm
-    
+        # BaseRepository.update expects a dict
+        update_data = {k: v for k, v in kwargs.items() if v is not None}
+        return await super().update(llm, update_data)
+
     async def delete(self, llm_id: str, user_id: str) -> bool:
-        """Delete LLM config"""
-        result = await self.db.execute(
-            select(models.LLMConfiguration).where(
-                models.LLMConfiguration.id == llm_id,
-                models.LLMConfiguration.user_id == user_id
-            )
-        )
-        llm = result.scalars().first()
-        
-        if llm:
-            await self.db.delete(llm)
-            await self.db.commit()
-            return True
-        
-        return False
+        """Backward compatible delete wrapper"""
+        llm = await self.get_by_id(llm_id, user_id)
+        if not llm:
+            return False
+        await super().delete(llm)
+        return True

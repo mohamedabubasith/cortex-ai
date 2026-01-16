@@ -63,10 +63,9 @@ async def get_audit_logs(
     current_user: models.User = Depends(get_current_active_user),
     audit_service: AuditService = Depends(get_audit_service)
 ):
-    """Get audit logs - admins see all, users see only their own"""
-    # Admin users see all logs, regular users see only their own
+    """Get audit logs - admins see all (or tenant), users see only their own"""
+    # 1. Platform Superuser: See everything
     if current_user.is_superuser:
-        # Admin: show all logs
         if hours:
             return await audit_service.get_recent_logs(hours=hours, limit=limit)
         else:
@@ -75,14 +74,24 @@ async def get_audit_logs(
                 action=action,
                 limit=limit
             )
-    else:
-        # Regular user: show only their own logs
+            
+    # 2. Tenant Admin/Owner: See all tenant logs
+    if current_user.tenant_memberships and current_user.tenant_memberships[0].role in ["owner", "admin"]:
+        tenant_id = current_user.tenant_memberships[0].tenant_id
         return await audit_service.get_logs(
-            user_id=current_user.id,
+            tenant_id=tenant_id,
             resource_type=resource_type,
             action=action,
             limit=limit
         )
+
+    # 3. Regular User: See only their own logs
+    return await audit_service.get_logs(
+        user_id=current_user.id,
+        resource_type=resource_type,
+        action=action,
+        limit=limit
+    )
 
 @router.delete("/audit/logs")
 async def clear_audit_logs(
@@ -93,8 +102,12 @@ async def clear_audit_logs(
     from sqlalchemy import delete
     
     if current_user.is_superuser:
-        # Admin: clear all logs
+        # Superuser: clear all logs
         stmt = delete(models.AuditLog)
+    elif current_user.tenant_memberships and current_user.tenant_memberships[0].role in ["owner", "admin"]:
+        # Tenant Admin: clear tenant logs
+        tenant_id = current_user.tenant_memberships[0].tenant_id
+        stmt = delete(models.AuditLog).where(models.AuditLog.tenant_id == tenant_id)
     else:
         # Regular user: clear only their own logs
         stmt = delete(models.AuditLog).where(models.AuditLog.user_id == current_user.id)

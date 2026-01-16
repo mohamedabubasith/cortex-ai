@@ -86,21 +86,39 @@ from app.services.auth_service import get_current_active_user
 @router.get("/visitors/list", response_model=List[schemas.AnalyticsEvent])
 async def get_visitors_authenticated(
     limit: int = 100,
+    x_tenant_id: str = Header(None, alias="X-Tenant-ID"),
     current_user: models.User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Get visitor statistics (API hits) for authenticated superusers.
     """
-    if not current_user.is_superuser:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized"
-        )
-    
-    stmt = select(models.Analytics).where(
+    query = select(models.Analytics).where(
         models.Analytics.event_type == "api_hit"
-    ).order_by(models.Analytics.created_at.desc()).limit(limit)
+    )
+    
+    # Filter for non-superusers
+    if not current_user.is_superuser:
+        tenant_membership = None
+        if x_tenant_id and current_user.tenant_memberships:
+             tenant_membership = next((m for m in current_user.tenant_memberships if str(m.tenant_id) == str(x_tenant_id)), None)
+        
+        if not tenant_membership and current_user.tenant_memberships:
+            tenant_membership = current_user.tenant_memberships[0]
+            
+        if not tenant_membership:
+             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No tenant membership found")
+
+        # Check tenant role
+        if tenant_membership.role not in ["owner", "admin"]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized for this tenant"
+            )
+        
+        query = query.where(models.Analytics.tenant_id == tenant_membership.tenant_id)
+    
+    stmt = query.order_by(models.Analytics.created_at.desc()).limit(limit)
     
     result = await db.execute(stmt)
     events = result.scalars().all()
@@ -108,26 +126,62 @@ async def get_visitors_authenticated(
     
     return events
 
+
 from sqlalchemy import delete
 
 @router.delete("/visitors/list")
 async def clear_visitors_authenticated(
+    x_tenant_id: str = Header(None, alias="X-Tenant-ID"),
     current_user: models.User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Clear visitor statistics for authenticated superusers.
     """
-    if not current_user.is_superuser:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized"
-        )
-    
     stmt = delete(models.Analytics).where(
         models.Analytics.event_type == "api_hit"
     )
+    
+    if not current_user.is_superuser:
+        tenant_membership = None
+        if x_tenant_id and current_user.tenant_memberships:
+             tenant_membership = next((m for m in current_user.tenant_memberships if str(m.tenant_id) == str(x_tenant_id)), None)
+        
+        if not tenant_membership and current_user.tenant_memberships:
+            tenant_membership = current_user.tenant_memberships[0]
+            
+        if not tenant_membership:
+             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No tenant membership found")
+
+        # Check tenant role
+        if tenant_membership.role not in ["owner", "admin"]:
+             raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized for this tenant"
+            )
+        
+        stmt = stmt.where(models.Analytics.tenant_id == tenant_membership.tenant_id)
+        
     await db.execute(stmt)
     await db.commit()
     
     return {"message": "Visitor logs cleared"}
+
+@router.get("/users", response_model=List[schemas.User])
+async def list_all_users(
+    current_user: models.User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    List all users in the system.
+    Available to any authenticated user for sharing/collaboration purposes.
+    """
+    from sqlalchemy.orm import selectinload
+    
+    stmt = select(models.User).options(
+        selectinload(models.User.tenant_memberships).selectinload(models.TenantMember.tenant)
+    ).order_by(models.User.email)
+    result = await db.execute(stmt)
+    users = result.scalars().all()
+    
+    return users

@@ -6,13 +6,14 @@ from typing import List
 from app.core.database import get_db
 from app.models import models
 from app.schemas import schemas
-from app.services.auth_service import get_current_active_user
 from app.services.chat_service import ChatService
+from app.services.access_control_service import AccessControlService
+from app.services.auth_service import get_current_active_user, get_current_tenant
 
 router = APIRouter()
 
 def get_chat_service(db: AsyncSession = Depends(get_db)) -> ChatService:
-    return ChatService(db)
+    return ChatService(db, AccessControlService(db))
 
 # Public Chat Endpoint
 @router.get("/public/{share_token}")
@@ -118,11 +119,12 @@ async def test_chat(
     agent_id: str,
     request: schemas.ChatRequest,
     service: ChatService = Depends(get_chat_service),
-    current_user: models.User = Depends(get_current_active_user)
+    current_user: models.User = Depends(get_current_active_user),
+    current_tenant: models.Tenant = Depends(get_current_tenant)
 ):
-    agent = await service.get_agent_for_user(agent_id, current_user.id)
+    agent = await service.get_agent_for_user(agent_id, current_user, current_tenant.id)
     if not agent:
-        raise HTTPException(status_code=404, detail="Agent not found")
+        raise HTTPException(status_code=404, detail="Agent not found or access denied")
         
     # Handle session creation/retrieval
     session_id = request.session_id

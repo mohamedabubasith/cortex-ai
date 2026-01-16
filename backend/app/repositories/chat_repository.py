@@ -1,10 +1,14 @@
 from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.models import ChatSession, Message
 from app.repositories.base_repository import BaseRepository
 
 class ChatRepository(BaseRepository[ChatSession]):
+    def __init__(self, db: AsyncSession):
+        super().__init__(ChatSession, db)
+
     async def get_session(self, session_id: str) -> Optional[ChatSession]:
         return await self.get(session_id)
 

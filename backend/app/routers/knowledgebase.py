@@ -9,22 +9,24 @@ from app.core.database import get_db
 from app.models import models
 from app.schemas import schemas
 from app.repositories.kb_repository import KBRepository
+from app.repositories.llm_repository import LLMRepository
 from app.services.kb_service import KBService
-from app.services.auth_service import get_current_active_user
+from app.services.access_control_service import AccessControlService
+from app.services.auth_service import get_current_active_user, get_current_tenant
 
 router = APIRouter()
 
 def get_kb_service(db: AsyncSession = Depends(get_db)) -> KBService:
     """Dependency injection for KB service"""
-    return KBService(KBRepository(db))
+    return KBService(KBRepository(db), AccessControlService(db))
 
 @router.post("/upload", response_model=schemas.KnowledgeBase)
 async def upload_kb_file(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-    llm_config_id: Optional[str] = Form(None),
     db: AsyncSession = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user),
+    current_tenant: models.Tenant = Depends(get_current_tenant),
     kb_service: KBService = Depends(get_kb_service)
 ):
     """Upload knowledge base file"""
@@ -44,9 +46,6 @@ async def upload_kb_file(
         
         file_path = os.path.join(user_upload_dir, f"{uuid.uuid4()}_{file.filename}")
         
-        # Check available disk space (optional, but good practice)
-        # shutil.disk_usage(user_upload_dir).free < file.size ...
-        
         with open(file_path, "wb") as f:
             content = await file.read()
             f.write(content)
@@ -58,46 +57,23 @@ async def upload_kb_file(
              os.remove(file_path)
              raise HTTPException(status_code=413, detail="File too large. Maximum size is 100MB.")
         
-        llm_config = None
-        if llm_config_id:
-            result = await db.execute(
-                select(models.LLMConfiguration).where(
-                    models.LLMConfiguration.id == llm_config_id,
-                    models.LLMConfiguration.user_id == current_user.id
-                )
-            )
-            llm_config = result.scalars().first()
-        else:
-            # Fallback: Use the first available LLM config
-            result = await db.execute(
-                select(models.LLMConfiguration).where(
-                    models.LLMConfiguration.user_id == current_user.id
-                )
-            )
-            llm_config = result.scalars().first()
-        
-        if not llm_config:
-            # We allow upload but warn
-            print("WARNING: No LLM Config found! Indexing will be skipped for now.")
-        
         # Create KB record immediately
         kb = await kb_service.create_kb_record(
-            user_id=current_user.id,
+            user=current_user,
+            tenant_id=current_tenant.id,
             filename=file.filename,
             file_path=file_path,
             file_type=file_ext,
             file_size=file_size
         )
         
-        # Process in background
-        if llm_config:
-            background_tasks.add_task(
-                kb_service.process_kb,
-                kb.id,
-                file_path,
-                llm_config,
-                current_user.email
-            )
+        # Process in background (LangChain Ingestion)
+        background_tasks.add_task(
+            kb_service.process_kb,
+            kb.id,
+            file_path,
+            current_tenant.id
+        )
         
         return kb
         
@@ -111,10 +87,6 @@ async def upload_kb_file(
             except:
                 pass
         
-        logger_error = str(e).lower()
-        if "no space left" in logger_error:
-             raise HTTPException(status_code=507, detail="Server storage is full.")
-        
         print(f"ERROR in upload_kb_file: {e}")
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
@@ -122,48 +94,58 @@ async def upload_kb_file(
 async def get_kb_status(
     kb_id: str,
     current_user: models.User = Depends(get_current_active_user),
+    current_tenant: models.Tenant = Depends(get_current_tenant),
     kb_service: KBService = Depends(get_kb_service)
 ):
-    """Get Cognee processing status"""
-    status = await kb_service.get_status(kb_id, current_user.id, user_email = current_user.email)
+    """Get KB / Ingestion status"""
+    status = await kb_service.get_status(kb_id, current_user, current_tenant.id)
     
     if not status:
-        raise HTTPException(status_code=404, detail="Document not found")
+        raise HTTPException(status_code=404, detail="Document not found or access denied")
     
     return status
 
 @router.get("", response_model=List[schemas.KnowledgeBase])
 async def get_kb_files(
     current_user: models.User = Depends(get_current_active_user),
+    current_tenant: models.Tenant = Depends(get_current_tenant),
     kb_service: KBService = Depends(get_kb_service)
 ):
     """Get all KB files"""
-    return await kb_service.get_all(current_user.id, user_email = current_user.email)
+    return await kb_service.get_all(current_user, tenant_id=current_tenant.id)
 
 @router.post("/{kb_id}/query")
 async def query_kb(
     kb_id: str,
     query_request: schemas.KBQueryRequest,
-    db: AsyncSession = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user),
-    kb_service: KBService = Depends(get_kb_service)
+    current_tenant: models.Tenant = Depends(get_current_tenant),
+    kb_service: KBService = Depends(get_kb_service),
+    db: AsyncSession = Depends(get_db)
 ):
     """Query KB"""
-    result = await db.execute(
-        select(models.LLMConfiguration).where(
-            models.LLMConfiguration.id == query_request.llm_config_id,
-            models.LLMConfiguration.user_id == current_user.id
-        )
+    
+    # Fetch LLM config if requested
+    llm_config = None
+    if query_request.llm_config_id:
+        llm_repo = LLMRepository(db)
+        llm_config = await llm_repo.get(query_request.llm_config_id)
+        # Verify access? Repo get might not enforce tenant if handled generically, but we should be safe or add check
+        if llm_config and llm_config.tenant_id and llm_config.tenant_id != current_tenant.id:
+             llm_config = None # Authorization fail
+
+    # Simply retrieve relevant chunks
+    result = await kb_service.query(
+        kb_id=kb_id, 
+        user=current_user, 
+        tenant_id=current_tenant.id, 
+        query_text=query_request.query,
+        llm_config=llm_config
     )
-    llm_config = result.scalars().first()
-    
-    if not llm_config:
-        raise HTTPException(status_code=404, detail="LLM configuration not found. Please check your settings.")
-    
-    result = await kb_service.query(kb_id, current_user.id, query_request.query, llm_config, user_email = current_user.email)
     
     if not result["success"]:
-        raise HTTPException(status_code=400, detail=result["message"])
+        status_code = 403 if "Access Denied" in result["message"] else 400
+        raise HTTPException(status_code=status_code, detail=result["message"])
     
     return result
 
@@ -171,12 +153,18 @@ async def query_kb(
 async def delete_kb(
     kb_id: str,
     current_user: models.User = Depends(get_current_active_user),
+    current_tenant: models.Tenant = Depends(get_current_tenant),
     kb_service: KBService = Depends(get_kb_service)
 ):
     """Delete KB"""
-    result = await kb_service.delete(kb_id, current_user.id, user_email = current_user.email)
+    result = await kb_service.delete(
+        kb_id=kb_id, 
+        user=current_user,
+        tenant_id=current_tenant.id
+    )
     
     if not result["success"]:
-        raise HTTPException(status_code=404, detail=result["message"])
+        status_code = 403 if "Access Denied" in result["message"] else 404
+        raise HTTPException(status_code=status_code, detail=result["message"])
     
     return result

@@ -1,16 +1,22 @@
 from typing import List, Optional
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.models import Agent, KnowledgeBase
 from app.repositories.base_repository import BaseRepository
 
 from sqlalchemy.orm import selectinload
 
 class AgentRepository(BaseRepository[Agent]):
-    async def get_by_owner(self, owner_id: str, skip: int = 0, limit: int = 100) -> List[Agent]:
+    def __init__(self, db: AsyncSession):
+        super().__init__(Agent, db)
+
+    async def get_by_owner(self, owner_id: str, tenant_id: Optional[str] = None, skip: int = 0, limit: int = 100) -> List[Agent]:
+        query = select(self.model).where(self.model.owner_id == owner_id)
+        if tenant_id:
+            query = query.where(self.model.tenant_id == tenant_id)
+            
         result = await self.db.execute(
-            select(self.model)
-            .where(self.model.owner_id == owner_id)
-            .options(
+            query.options(
                 selectinload(self.model.llm_config),
                 selectinload(self.model.knowledge_bases),
                 selectinload(self.model.database_connections),
@@ -22,11 +28,13 @@ class AgentRepository(BaseRepository[Agent]):
         )
         return result.scalars().all()
 
-    async def get_by_id_and_owner(self, agent_id: str, owner_id: str) -> Optional[Agent]:
+    async def get_by_id_and_owner(self, agent_id: str, owner_id: str, tenant_id: Optional[str] = None) -> Optional[Agent]:
+        query = select(self.model).where(self.model.id == agent_id, self.model.owner_id == owner_id)
+        if tenant_id:
+            query = query.where(self.model.tenant_id == tenant_id)
+            
         result = await self.db.execute(
-            select(self.model)
-            .where(self.model.id == agent_id, self.model.owner_id == owner_id)
-            .options(
+            query.options(
                 selectinload(self.model.llm_config),
                 selectinload(self.model.knowledge_bases),
                 selectinload(self.model.database_connections),
@@ -45,7 +53,7 @@ class AgentRepository(BaseRepository[Agent]):
                 selectinload(self.model.knowledge_bases),
                 selectinload(self.model.database_connections),
                 selectinload(self.model.mcp_connections),
-                selectinload(self.model.owner)  # Load owner for email access
+                selectinload(self.model.owner)
             )
         )
         return result.scalars().first()

@@ -47,6 +47,7 @@ class Tenant(Base):
     llm_configs = relationship("LLMConfiguration", back_populates="tenant", cascade="all, delete-orphan")
     database_connections = relationship("DatabaseConnection", back_populates="tenant", cascade="all, delete-orphan")
     mcp_connections = relationship("MCPConnection", back_populates="tenant", cascade="all, delete-orphan")
+    roles = relationship("OrganizationRole", back_populates="tenant", cascade="all, delete-orphan")
 
 class TenantMember(Base):
     __tablename__ = "tenant_members"
@@ -278,3 +279,35 @@ class AgentAuditLog(Base):
     
     user = relationship("User")
     agent = relationship("Agent")
+
+class ResourceAccess(Base):
+    __tablename__ = "resource_access"
+    
+    id = Column(String, primary_key=True, default=generate_uuid)
+    resource_id = Column(String, index=True, nullable=False)
+    resource_type = Column(String, index=True, nullable=False) # 'knowledge_base', 'database_connection', 'mcp_connection', 'agent'
+    
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=True) # Share with specific user
+    tenant_role = Column(String, nullable=True) # Share with all users having this role (owner, admin, member, viewer)
+    
+    access_level = Column(String, nullable=False, default="viewer") # viewer, editor, admin
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    user = relationship("User")
+    user = relationship("User")
+    tenant = relationship("Tenant")
+
+class OrganizationRole(Base):
+    __tablename__ = "organization_roles"
+    
+    id = Column(String, primary_key=True, default=generate_uuid)
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+    permissions = Column(JSON, default={})
+    type = Column(String, default="custom") # custom, built-in (though built-in usually not in DB)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    tenant = relationship("Tenant", back_populates="roles")

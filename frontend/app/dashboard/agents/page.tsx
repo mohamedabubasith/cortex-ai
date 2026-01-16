@@ -6,12 +6,14 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Settings, Trash2, Loader2, Bot } from "lucide-react";
+import { Plus, Settings, Trash2, Loader2, Bot, Share2 } from "lucide-react";
 import api from "@/lib/api";
 import { useTheme } from "@/contexts/ThemeContext";
 import { cn } from "@/lib/utils";
 
 import Dialog from "@/components/ui/Dialog";
+import ShareResourceModal from "@/components/ShareResourceModal";
+import ResourceMenu from "@/components/ResourceMenu";
 
 interface Agent {
     id: string;
@@ -19,6 +21,7 @@ interface Agent {
     description: string;
     updated_at: string;
     is_public: boolean;
+    tenant_id?: string;
 }
 
 export default function AgentsPage() {
@@ -29,6 +32,8 @@ export default function AgentsPage() {
     const [loading, setLoading] = useState(true);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [agentToDelete, setAgentToDelete] = useState<string | null>(null);
+    const [shareModalOpen, setShareModalOpen] = useState(false);
+    const [agentToShare, setAgentToShare] = useState<{ id: string; name: string; tenant_id?: string } | null>(null);
 
     useEffect(() => {
         fetchAgents();
@@ -103,7 +108,7 @@ export default function AgentsPage() {
                             <p className={cn("mb-8 h-12 line-clamp-2 text-sm leading-relaxed", isDark ? "text-gray-400" : "text-gray-600")}>
                                 {agent.description}
                             </p>
-                            <div className="flex space-x-3">
+                            <div className="flex space-x-2">
                                 <Link
                                     href={`/agent/${agent.id}`}
                                     onClick={(e) => e.stopPropagation()}
@@ -112,15 +117,19 @@ export default function AgentsPage() {
                                     <Settings className="w-4 h-4 mr-2" />
                                     Configure
                                 </Link>
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        confirmDeleteAgent(agent.id);
+                                <ResourceMenu
+                                    isDark={isDark}
+                                    resourceType="Agent"
+                                    onShare={() => {
+                                        setAgentToShare({
+                                            id: agent.id,
+                                            name: agent.name,
+                                            tenant_id: agent.tenant_id
+                                        });
+                                        setShareModalOpen(true);
                                     }}
-                                    className={cn("px-3 py-2 border rounded-lg transition-colors", isDark ? "border-gray-700 text-gray-400 hover:bg-red-900/20 hover:text-red-400 hover:border-red-900/30" : "border-gray-200 text-gray-400 hover:bg-red-50 hover:text-red-600 hover:border-red-100")}
-                                >
-                                    <Trash2 className="h-4 w-4" />
-                                </button>
+                                    onDelete={() => confirmDeleteAgent(agent.id)}
+                                />
                             </div>
                         </div>
                     ))}
@@ -151,6 +160,20 @@ export default function AgentsPage() {
                     { label: "Delete", onClick: handleDeleteAgent, variant: "danger" }
                 ]}
             />
+
+            {agentToShare && (
+                <ShareResourceModal
+                    isOpen={shareModalOpen}
+                    onClose={() => {
+                        setShareModalOpen(false);
+                        setAgentToShare(null);
+                    }}
+                    resourceId={agentToShare.id}
+                    resourceType="agent"
+                    resourceName={agentToShare.name}
+                    tenantId={agentToShare.tenant_id}
+                />
+            )}
         </div>
     );
 }

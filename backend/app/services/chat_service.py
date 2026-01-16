@@ -1,4 +1,4 @@
-from typing import List, AsyncGenerator
+from typing import List, AsyncGenerator, Optional
 import re
 from sqlalchemy.ext.asyncio import AsyncSession
 import uuid
@@ -12,6 +12,7 @@ from app.services.kb_service import KBService
 from app.repositories.kb_repository import KBRepository
 from app.repositories.agent_audit_repository import AgentAuditLogRepository
 from app.services.agent_audit_service import AgentAuditService
+from app.services.access_control_service import AccessControlService
 import logging
 import tiktoken
 import time
@@ -20,14 +21,15 @@ from app.core.utils import count_tokens
 logger = logging.getLogger(__name__)
 
 class ChatService:
-    def __init__(self, db: AsyncSession):
-        self.chat_repo = ChatRepository(models.ChatSession, db)
-        self.agent_repo = AgentRepository(models.Agent, db)
+    def __init__(self, db: AsyncSession, access_service: Optional[AccessControlService] = None):
+        self.chat_repo = ChatRepository(db)
+        self.agent_repo = AgentRepository(db)
         self.analytics_repo = AnalyticsRepository(db)
         # Initialize Agent Audit Service
         audit_repo = AgentAuditLogRepository(db)
         self.audit_service = AgentAuditService(audit_repo)
         self.db = db
+        self.access_service = access_service or AccessControlService(db)
 
     def _count_tokens(self, text: str, model: str = "gpt-4o") -> int:
         return count_tokens(text, model)
@@ -38,8 +40,11 @@ class ChatService:
             return None
         return agent
 
-    async def get_agent_for_user(self, agent_id: str, owner_id: str) -> models.Agent:
-        return await self.agent_repo.get_by_id_and_owner(agent_id, owner_id)
+    async def get_agent_for_user(self, agent_id: str, user: models.User, tenant_id: Optional[str] = None) -> models.Agent:
+        # Check RBAC access
+        if not await self.access_service.has_access(user, agent_id, "agent", "viewer", tenant_id):
+            return None
+        return await self.agent_repo.get(agent_id, user=user, tenant_id=tenant_id)
     
     async def get_agent_sessions(self, agent_id: str) -> List[models.ChatSession]:
         """Get all sessions for an agent"""

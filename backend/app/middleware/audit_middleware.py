@@ -64,6 +64,9 @@ class AuditMiddleware(BaseHTTPMiddleware):
 
         response = await call_next(request)
         
+        # Extract X-Tenant-ID header
+        x_tenant_id = request.headers.get("X-Tenant-ID")
+
         # Fire and forget logging with extracted data
         asyncio.create_task(self.log_audit(
             path=path,
@@ -73,7 +76,8 @@ class AuditMiddleware(BaseHTTPMiddleware):
             query_params=query_params,
             user_agent=user_agent,
             ip=ip,
-            token=token
+            token=token,
+            x_tenant_id=x_tenant_id
         ))
             
         return response
@@ -86,11 +90,13 @@ class AuditMiddleware(BaseHTTPMiddleware):
         query_params: dict = None,
         user_agent: str = None,
         ip: str = None,
-        token: str = None
+        token: str = None,
+        x_tenant_id: str = None
     ):
         try:
             # Extract user from token
             user_id = None
+            tenant_id = None
             user_email = None
             
             if token:
@@ -107,12 +113,29 @@ class AuditMiddleware(BaseHTTPMiddleware):
                         async with AsyncSessionLocal() as session:
                             from app.models import models
                             from sqlalchemy import select
+                            from sqlalchemy.orm import selectinload
+                            
                             result = await session.execute(
-                                select(models.User).where(models.User.email == user_email)
+                                select(models.User)
+                                .where(models.User.email == user_email)
+                                .options(selectinload(models.User.tenant_memberships))
                             )
-                            user = result.scalar_one_or_none()
+                            user = result.scalars().first()
                             if user:
                                 user_id = user.id
+                                if user.tenant_memberships:
+                                    # Logic to select tenant:
+                                    # 1. Try to use header if valid membership matches
+                                    if x_tenant_id:
+                                        for membership in user.tenant_memberships:
+                                            if str(membership.tenant_id) == str(x_tenant_id):
+                                                tenant_id = membership.tenant_id
+                                                break
+                                    
+                                    # 2. Fallback to first membership if no header or invalid
+                                    if not tenant_id:
+                                        tenant_id = user.tenant_memberships[0].tenant_id
+
                 except (JWTError, Exception):
                     pass
             
@@ -149,6 +172,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
                         resource_type=resource_type,
                         user_id=user_id,
                         resource_id=resource_id,
+                        tenant_id=tenant_id,
                         details={
                             "method": method,
                             "path": path,

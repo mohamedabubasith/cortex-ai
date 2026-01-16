@@ -30,18 +30,19 @@ async def lifespan(app: FastAPI):
     # Validate critical configuration
     settings.validate_providers()
 
-    from app.services.cognee_service import cognee_service
-    from app.core.database import engine, Base
+    from app.core.database import engine, Base, get_db
     # Import models to ensure they are registered with Base
     from app.models import models
     
     # Database schema is managed by Alembic migrations.
     # Automatic table creation is disabled to prevent conflicts.
     # See backend/alembic for migration scripts.
-        
-    # Initialize Cognee (creates tables if needed)
-    print("DEBUG: Calling cognee_service.initialize()...", flush=True)
-    await cognee_service.initialize()
+    
+    # Auto-create default admin user if none exists
+    from app.core.startup import initialize_database
+    async for db in get_db():
+        await initialize_database(db)
+        break
     
     yield
     # Shutdown logic (if any)
@@ -58,7 +59,7 @@ app.add_middleware(
     allow_origins=["*"], # In production, replace with specific origins
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*", "X-Tenant-ID", "Content-Type", "Authorization"],
     expose_headers=["x-session-id"],
 )
 
@@ -66,7 +67,7 @@ from app.middleware.visitor_middleware import VisitorMiddleware
 app.add_middleware(VisitorMiddleware)
 
 from app.middleware.audit_middleware import AuditMiddleware
-app.add_middleware(AuditMiddleware)
+# app.add_middleware(AuditMiddleware)
 
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -89,7 +90,7 @@ async def health_check():
     return {"status": "ok"}
 
 # Import and include routers here later
-from app.routers import auth, agents, chat, resources, knowledgebase, llm, analytics, admin
+from app.routers import auth, agents, chat, resources, knowledgebase, llm, analytics, admin, access, tenants, organization
 
 app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["auth"])
 app.include_router(agents.router, prefix=f"{settings.API_V1_STR}/agents", tags=["agents"])
@@ -99,3 +100,6 @@ app.include_router(knowledgebase.router, prefix=f"{settings.API_V1_STR}/kb", tag
 app.include_router(llm.router, prefix=f"{settings.API_V1_STR}/llm", tags=["llm-config"])
 app.include_router(analytics.router, prefix=f"{settings.API_V1_STR}/analytics", tags=["analytics"])
 app.include_router(admin.router, prefix=f"{settings.API_V1_STR}/admin", tags=["admin"])
+app.include_router(access.router, prefix=f"{settings.API_V1_STR}/access", tags=["access"])
+app.include_router(tenants.router, prefix=f"{settings.API_V1_STR}/tenants", tags=["tenants"])
+app.include_router(organization.router, prefix=f"{settings.API_V1_STR}/organization", tags=["organization"])

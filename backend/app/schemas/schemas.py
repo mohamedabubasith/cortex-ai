@@ -7,6 +7,9 @@ class TenantBase(BaseModel):
     name: str
     slug: str
 
+class TenantCreate(TenantBase):
+    pass
+
 class Tenant(TenantBase):
     id: str
     created_at: datetime
@@ -72,6 +75,7 @@ class LLMConfigurationUpdate(BaseModel):
 class LLMConfiguration(LLMConfigurationBase):
     id: str
     user_id: str
+    tenant_id: Optional[str] = None
     created_at: datetime
     
     class Config:
@@ -86,6 +90,7 @@ class KnowledgeBaseBase(BaseModel):
 class KnowledgeBase(KnowledgeBaseBase):
     id: str
     user_id: str
+    tenant_id: Optional[str] = None
     created_at: datetime
     
     class Config:
@@ -93,7 +98,7 @@ class KnowledgeBase(KnowledgeBaseBase):
 
 class KBQueryRequest(BaseModel):
     query: str
-    llm_config_id: str
+    llm_config_id: Optional[str] = None
     dataset_names: Optional[List[str]] = []
 
 # Database Schemas
@@ -122,6 +127,7 @@ class DatabaseConnectionUpdate(BaseModel):
 class DatabaseConnectionResponse(DatabaseConnectionBase):
     id: str
     user_id: str
+    tenant_id: Optional[str] = None
     
     class Config:
         from_attributes = True
@@ -153,6 +159,7 @@ class MCPConfig(BaseModel):
 class MCPConnectionResponse(MCPConnectionBase):
     id: str
     user_id: str
+    tenant_id: Optional[str] = None
     summary: Optional[str] = None
     tools_metadata: Optional[List[dict]] = None
     
@@ -167,7 +174,7 @@ class AgentBase(BaseModel):
     first_message: Optional[str] = "Hello! How can I help you today?"
     llm_config_id: Optional[str] = None
     mcp_config: Optional[dict] = None
-    is_public: Optional[bool] = True
+    is_public: Optional[bool] = False
 
 class AgentCreate(AgentBase):
     kb_ids: Optional[List[str]] = []
@@ -189,6 +196,7 @@ class AgentUpdate(BaseModel):
 class Agent(AgentBase):
     id: str
     owner_id: str
+    tenant_id: Optional[str] = None
     share_token: str
     created_at: datetime
     updated_at: Optional[datetime] = None

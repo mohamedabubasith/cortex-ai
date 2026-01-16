@@ -11,6 +11,8 @@ import Dialog from "@/components/ui/Dialog";
 import { useTheme } from "@/contexts/ThemeContext";
 import { cn } from "@/lib/utils";
 import CustomDropdown from "@/components/ui/CustomDropdown";
+import ShareResourceModal from "@/components/ShareResourceModal";
+import ResourceMenu from "@/components/ResourceMenu";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
@@ -24,6 +26,7 @@ interface LLMConfig {
     model: string;
     api_key?: string;
     base_url?: string;
+    tenant_id?: string;
 }
 
 interface MCPConnection {
@@ -34,6 +37,7 @@ interface MCPConnection {
     status?: string;
     auth_headers?: string;
     protocol?: 'sse' | 'http';
+    tenant_id?: string;
 }
 
 interface HubItem {
@@ -94,7 +98,12 @@ export default function ProvidersPage() {
     const [testingMcp, setTestingMcp] = useState(false);
 
     // --- Hub State ---
+    // --- Hub State ---
     const [hubItems, setHubItems] = useState<HubItem[]>([]);
+
+    // --- Sharing State ---
+    const [shareModalOpen, setShareModalOpen] = useState(false);
+    const [resourceToShare, setResourceToShare] = useState<{ id: string; name: string; type: "llm_config" | "mcp_connection"; tenant_id?: string } | null>(null);
 
 
     useEffect(() => {
@@ -410,20 +419,18 @@ export default function ProvidersPage() {
                         if (activeTab === 'models') {
                             resetLlmForm();
                             setIsLlmModalOpen(true);
-                        } else if (activeTab === 'mcp') {
-                            handleOpenMcpDialog();
                         } else {
-                            // In Hub tab, maybe focus search if we had one, or just scroll top
-                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                            // In merged Hub/MCP tab, add custom connection
+                            handleOpenMcpDialog();
                         }
                     }}
                     className={cn(
                         "flex items-center justify-center w-full md:w-auto px-6 py-3 font-bold rounded-lg transition-all transform hover:scale-105 shadow-[0_0_20px_rgba(118,185,0,0.3)]",
-                        activeTab === 'hub' ? "hidden" : "bg-nvidia-green text-black hover:bg-[#8CD600]"
+                        "bg-nvidia-green text-black hover:bg-[#8CD600]"
                     )}
                 >
                     <Plus className="w-5 h-5 mr-2" />
-                    {activeTab === 'models' ? "Add Model" : "Add Connection"}
+                    {activeTab === 'models' ? "Add Model" : "Add Custom MCP"}
                 </button>
             </div>
 
@@ -442,23 +449,11 @@ export default function ProvidersPage() {
                     )}
                 </button>
                 <button
-                    onClick={() => setActiveTab('mcp')}
-                    className={`pb-4 text-base md:text-sm font-bold transition-colors relative ${activeTab === 'mcp' ? 'text-nvidia-green' : isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}
-                >
-                    <div className="flex items-center gap-2">
-                        <Server className="w-4 h-4" />
-                        MCP Servers
-                    </div>
-                    {activeTab === 'mcp' && (
-                        <div className="absolute bottom-0 left-0 w-full h-0.5 bg-nvidia-green rounded-t-full" />
-                    )}
-                </button>
-                <button
                     onClick={() => setActiveTab('hub')}
                     className={`pb-4 text-base md:text-sm font-bold transition-colors relative ${activeTab === 'hub' ? 'text-nvidia-green' : isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}
                 >
                     <div className="flex items-center gap-2">
-                        <Plug className="w-4 h-4" />
+                        <Server className="w-4 h-4" />
                         MCP Hub
                     </div>
                     {activeTab === 'hub' && (
@@ -492,13 +487,15 @@ export default function ProvidersPage() {
                                             >
                                                 <Edit2 className="w-4 h-4" />
                                             </button>
-                                            <button
-                                                onClick={() => confirmDeleteLLM(config.id)}
-                                                className="text-gray-500 hover:text-red-500 transition-colors p-1 rounded-md hover:bg-red-500/10"
-                                                title="Delete"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
+                                            <ResourceMenu
+                                                isDark={isDark}
+                                                resourceType="Configuration"
+                                                onShare={() => {
+                                                    setResourceToShare({ id: config.id, name: config.name, type: "llm_config", tenant_id: config.tenant_id });
+                                                    setShareModalOpen(true);
+                                                }}
+                                                onDelete={() => confirmDeleteLLM(config.id)}
+                                            />
                                         </div>
                                     </div>
                                     <h3 className={cn("text-base md:text-lg font-bold mb-2", isDark ? "text-white" : "text-gray-900")}>{config.name}</h3>
@@ -525,112 +522,114 @@ export default function ProvidersPage() {
                             </div>
                         )}
                     </div>
-                ) : activeTab === 'mcp' ? (
-                    // MCP Tab Content
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {mcpConnections.map((conn) => (
-                            <div
-                                key={conn.id}
-                                onClick={() => handleOpenMcpDialog(conn)}
-                                className={cn(
-                                    "backdrop-blur-sm border rounded-xl p-6 transition-all group flex flex-col justify-between h-full min-h-[180px] cursor-pointer",
-                                    isDark ? "bg-nvidia-dark/80 border-white/10 hover:border-nvidia-green/50 hover:bg-white/5" : "bg-white border-gray-200 hover:border-nvidia-green/50 shadow-sm hover:shadow-md"
-                                )}
-                            >
-                                <div>
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className={cn("p-3 rounded-lg transition-colors", isDark ? "bg-white/5 group-hover:bg-nvidia-green/10" : "bg-gray-100 group-hover:bg-nvidia-green/10")}>
-                                            <Server className={cn("w-6 h-6 transition-colors", isDark ? "text-gray-400 group-hover:text-nvidia-green" : "text-gray-600 group-hover:text-nvidia-green")} />
+                ) : (
+                    // Unified MCP Hub Content
+                    <div className="space-y-8">
+                        {/* Section 1: My Connections */}
+                        {mcpConnections.length > 0 && (
+                            <div className="space-y-4">
+                                <h3 className={cn("text-lg font-bold", isDark ? "text-white" : "text-gray-900")}>My Connections</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {mcpConnections.map((conn) => (
+                                        <div
+                                            key={conn.id}
+                                            onClick={() => handleOpenMcpDialog(conn)}
+                                            className={cn(
+                                                "backdrop-blur-sm border rounded-xl p-6 transition-all group flex flex-col justify-between h-full min-h-[180px] cursor-pointer",
+                                                isDark ? "bg-nvidia-dark/80 border-white/10 hover:border-nvidia-green/50 hover:bg-white/5" : "bg-white border-gray-200 hover:border-nvidia-green/50 shadow-sm hover:shadow-md"
+                                            )}
+                                        >
+                                            <div>
+                                                <div className="flex justify-between items-start mb-4">
+                                                    <div className={cn("p-3 rounded-lg transition-colors", isDark ? "bg-white/5 group-hover:bg-nvidia-green/10" : "bg-gray-100 group-hover:bg-nvidia-green/10")}>
+                                                        <Server className={cn("w-6 h-6 transition-colors", isDark ? "text-gray-400 group-hover:text-nvidia-green" : "text-gray-600 group-hover:text-nvidia-green")} />
+                                                    </div>
+                                                    <div className="flex space-x-2">
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleSyncMcp(conn.id);
+                                                            }}
+                                                            disabled={syncingMcp === conn.id}
+                                                            className={cn("text-gray-500 hover:text-white transition-colors p-1 rounded-md hover:bg-white/10", syncingMcp === conn.id && "animate-spin text-nvidia-green")}
+                                                            title="Sync Tools"
+                                                        >
+                                                            <RefreshCw className="w-4 h-4" />
+                                                        </button>
+                                                        <ResourceMenu
+                                                            isDark={isDark}
+                                                            resourceType="Connection"
+                                                            onShare={() => {
+                                                                setResourceToShare({ id: conn.id, name: conn.name, type: "mcp_connection", tenant_id: conn.tenant_id });
+                                                                setShareModalOpen(true);
+                                                            }}
+                                                            onDelete={() => confirmDeleteMcp(conn.id)}
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <h3 className={cn("text-base md:text-lg font-bold mb-2", isDark ? "text-white" : "text-gray-900")}>{conn.name}</h3>
+                                                <p className={cn("text-sm mb-4 line-clamp-3", isDark ? "text-gray-400" : "text-gray-600")}>
+                                                    {conn.summary || "No summary available. Sync to fetch tools."}
+                                                </p>
+                                            </div>
+                                            <div className={cn("mt-4 pt-4 border-t flex justify-between items-center", isDark ? "border-white/5" : "border-gray-100")}>
+                                                <p className="text-xs text-gray-500 truncate max-w-[70%]" title={conn.server_url}>
+                                                    {conn.server_url}
+                                                </p>
+                                                <span className={cn("text-[10px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wider",
+                                                    conn.status !== 'error' ? "bg-nvidia-green/20 text-nvidia-green" : "bg-red-500/20 text-red-400"
+                                                )}>
+                                                    {conn.status || 'Active'}
+                                                </span>
+                                            </div>
                                         </div>
-                                        <div className="flex space-x-2">
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleSyncMcp(conn.id);
-                                                }}
-                                                disabled={syncingMcp === conn.id}
-                                                className={cn("text-gray-500 hover:text-white transition-colors p-1 rounded-md hover:bg-white/10", syncingMcp === conn.id && "animate-spin text-nvidia-green")}
-                                                title="Sync Tools"
-                                            >
-                                                <RefreshCw className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    confirmDeleteMcp(conn.id);
-                                                }}
-                                                className="text-gray-500 hover:text-red-500 transition-colors p-1 rounded-md hover:bg-red-500/10"
-                                                title="Delete"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <h3 className={cn("text-base md:text-lg font-bold mb-2", isDark ? "text-white" : "text-gray-900")}>{conn.name}</h3>
-                                    <p className={cn("text-sm mb-4 line-clamp-3", isDark ? "text-gray-400" : "text-gray-600")}>
-                                        {conn.summary || "No summary available. Sync to fetch tools."}
-                                    </p>
+                                    ))}
                                 </div>
-                                <div className={cn("mt-4 pt-4 border-t flex justify-between items-center", isDark ? "border-white/5" : "border-gray-100")}>
-                                    <p className="text-xs text-gray-500 truncate max-w-[70%]" title={conn.server_url}>
-                                        {conn.server_url}
-                                    </p>
-                                    <span className={cn("text-[10px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wider",
-                                        conn.status !== 'error' ? "bg-nvidia-green/20 text-nvidia-green" : "bg-red-500/20 text-red-400"
-                                    )}>
-                                        {conn.status || 'Active'}
-                                    </span>
-                                </div>
-                            </div>
-                        ))}
-                        {mcpConnections.length === 0 && (
-                            <div className={cn("col-span-full flex flex-col items-center justify-center py-20 border rounded-2xl border-dashed", isDark ? "bg-nvidia-dark/30 border-white/10" : "bg-gray-50 border-gray-300")}>
-                                <Server className="w-16 h-16 text-gray-600 mb-4" />
-                                <h3 className={cn("text-xl font-bold mb-2", isDark ? "text-white" : "text-gray-900")}>No MCP Connections</h3>
-                                <p className={isDark ? "text-gray-400" : "text-gray-600"}>Connect to an MCP server to add tools.</p>
                             </div>
                         )}
-                    </div>
-                ) : (
-                    // MCP Hub Content
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {hubItems.map((item) => (
-                            <div key={item.id} className={cn("backdrop-blur-sm border rounded-xl p-6 transition-all group flex flex-col justify-between h-full min-h-[180px]", isDark ? "bg-nvidia-dark/80 border-white/10 hover:border-nvidia-green/50" : "bg-white border-gray-200 hover:border-nvidia-green/50 shadow-sm")}>
-                                <div>
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className={cn("p-3 rounded-lg transition-colors", isDark ? "bg-white/5 group-hover:bg-nvidia-green/10" : "bg-gray-100 group-hover:bg-nvidia-green/10")}>
-                                            {/* Simple icon mapping */}
-                                            {item.icon === 'Github' ? <Plug className="w-6 h-6 text-gray-500" /> :
-                                                item.icon === 'Database' ? <Server className="w-6 h-6 text-gray-500" /> :
-                                                    item.icon === 'Globe' ? <Server className="w-6 h-6 text-gray-500" /> :
-                                                        item.icon === 'Mail' ? <Server className="w-6 h-6 text-gray-500" /> :
-                                                            item.icon === 'MessageSquare' ? <Server className="w-6 h-6 text-gray-500" /> :
-                                                                <FolderOpen className={cn("w-6 h-6 transition-colors", isDark ? "text-gray-400 group-hover:text-nvidia-green" : "text-gray-600 group-hover:text-nvidia-green")} />
-                                            }
+
+                        {/* Section 2: Explore Hub */}
+                        <div className="space-y-4">
+                            <h3 className={cn("text-lg font-bold", isDark ? "text-white" : "text-gray-900")}>Explore Hub</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {hubItems.map((item) => (
+                                    <div key={item.id} className={cn("backdrop-blur-sm border rounded-xl p-6 transition-all group flex flex-col justify-between h-full min-h-[180px]", isDark ? "bg-nvidia-dark/80 border-white/10 hover:border-nvidia-green/50" : "bg-white border-gray-200 hover:border-nvidia-green/50 shadow-sm")}>
+                                        <div>
+                                            <div className="flex justify-between items-start mb-4">
+                                                <div className={cn("p-3 rounded-lg transition-colors", isDark ? "bg-white/5 group-hover:bg-nvidia-green/10" : "bg-gray-100 group-hover:bg-nvidia-green/10")}>
+                                                    {item.icon === 'Github' ? <Plug className="w-6 h-6 text-gray-500" /> :
+                                                        item.icon === 'Database' ? <Server className="w-6 h-6 text-gray-500" /> :
+                                                            item.icon === 'Globe' ? <Server className="w-6 h-6 text-gray-500" /> :
+                                                                item.icon === 'Mail' ? <Server className="w-6 h-6 text-gray-500" /> :
+                                                                    item.icon === 'MessageSquare' ? <Server className="w-6 h-6 text-gray-500" /> :
+                                                                        <FolderOpen className={cn("w-6 h-6 transition-colors", isDark ? "text-gray-400 group-hover:text-nvidia-green" : "text-gray-600 group-hover:text-nvidia-green")} />
+                                                    }
+                                                </div>
+                                                <div className="flex space-x-2">
+                                                    {/* Could add a 'View Documentation' button/link here */}
+                                                </div>
+                                            </div>
+                                            <h3 className={cn("text-base md:text-lg font-bold mb-2", isDark ? "text-white" : "text-gray-900")}>{item.name}</h3>
+                                            <p className={cn("text-sm mb-4 line-clamp-3", isDark ? "text-gray-400" : "text-gray-600")}>
+                                                {item.description}
+                                            </p>
                                         </div>
-                                        <div className="flex space-x-2">
-                                            {/* Could add a 'View Documentation' button/link here */}
+                                        <div className={cn("mt-4 pt-4 border-t", isDark ? "border-white/5" : "border-gray-100")}>
+                                            <button
+                                                onClick={() => handleInstallFromHub(item)}
+                                                className={cn("w-full py-2 px-4 rounded-lg font-medium text-sm transition-colors flex items-center justify-center", isDark ? "bg-white/10 hover:bg-white/20 text-white" : "bg-gray-100 hover:bg-gray-200 text-gray-900")}
+                                            >
+                                                <Plug className="w-4 h-4 mr-2" />
+                                                Connect
+                                            </button>
+                                            <p className="text-[10px] text-gray-500 mt-2 text-center" title={item.documentation}>
+                                                {item.documentation ? "See documentation for setup command" : ""}
+                                            </p>
                                         </div>
                                     </div>
-                                    <h3 className={cn("text-base md:text-lg font-bold mb-2", isDark ? "text-white" : "text-gray-900")}>{item.name}</h3>
-                                    <p className={cn("text-sm mb-4 line-clamp-3", isDark ? "text-gray-400" : "text-gray-600")}>
-                                        {item.description}
-                                    </p>
-                                </div>
-                                <div className={cn("mt-4 pt-4 border-t", isDark ? "border-white/5" : "border-gray-100")}>
-                                    <button
-                                        onClick={() => handleInstallFromHub(item)}
-                                        className={cn("w-full py-2 px-4 rounded-lg font-medium text-sm transition-colors flex items-center justify-center", isDark ? "bg-white/10 hover:bg-white/20 text-white" : "bg-gray-100 hover:bg-gray-200 text-gray-900")}
-                                    >
-                                        <Plug className="w-4 h-4 mr-2" />
-                                        Connect
-                                    </button>
-                                    <p className="text-[10px] text-gray-500 mt-2 text-center" title={item.documentation}>
-                                        {item.documentation ? "See documentation for setup command" : ""}
-                                    </p>
-                                </div>
+                                ))}
                             </div>
-                        ))}
+                        </div>
                     </div>
                 )}
             </div>
@@ -798,6 +797,20 @@ export default function ProvidersPage() {
                     { label: "Delete", onClick: handleDeleteLLM, variant: "danger" }
                 ]}
             />
+
+            {resourceToShare && (
+                <ShareResourceModal
+                    isOpen={shareModalOpen}
+                    onClose={() => {
+                        setShareModalOpen(false);
+                        setResourceToShare(null);
+                    }}
+                    resourceId={resourceToShare.id}
+                    resourceType={resourceToShare.type}
+                    resourceName={resourceToShare.name}
+                    tenantId={resourceToShare.tenant_id}
+                />
+            )}
 
             {/* Delete MCP Dialog */}
             <Dialog

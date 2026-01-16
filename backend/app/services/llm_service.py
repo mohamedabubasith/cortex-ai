@@ -240,6 +240,28 @@ class LLMService:
         """Get token usage from last request"""
         return getattr(self, 'last_token_usage', {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0})
 
+    async def reformulate_query(self, query: str, llm_config: LLMConfiguration) -> str:
+        """
+        Rewrite query for better RAG retrieval.
+        """
+        try:
+            prompt = f"""You are an AI search optimizer. Rewrite the following user query to be more effective for vector database retrieval.
+            - Remove conversational filler ("hello", "please").
+            - Focus on identifying key entities and technical terms.
+            - If it's a question, phrase it as a statement or a keyword-rich query.
+            - Output ONLY the rewritten query, nothing else.
+
+            User Query: {query}
+            Rewritten Query:"""
+            
+            rewritten = await self.generate_text(prompt, llm_config)
+            cleaned = rewritten.strip().replace('"', '').replace("'", "")
+            logger.info(f"Query Reformulation: '{query}' -> '{cleaned}'")
+            return cleaned
+        except Exception as e:
+            logger.warning(f"Query reformulation failed: {e}. Using original query.")
+            return query
+
     async def generate_text(self, prompt: str, llm_config: LLMConfiguration) -> str:
         """Generate a single text response (non-streaming usage)"""
         try:

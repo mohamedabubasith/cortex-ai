@@ -4,11 +4,13 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState } from "react";
-import { Database, FileText, Trash2, Loader2, Plus, Upload, Search, X, Edit, Check, AlertTriangle, Server, RefreshCw, Link } from "lucide-react";
+import { Database, FileText, Trash2, Loader2, Plus, Upload, Search, X, Edit, Check, AlertTriangle, Server, RefreshCw, Link, Sparkles } from "lucide-react";
 import api from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
 import Dialog from "@/components/ui/Dialog";
 import SidePanel from "@/components/ui/SidePanel";
+import ShareResourceModal from "@/components/ShareResourceModal";
+import ResourceMenu from "@/components/ResourceMenu";
 import { useTheme } from "@/contexts/ThemeContext";
 import { cn } from "@/lib/utils";
 import CustomDropdown from "@/components/ui/CustomDropdown";
@@ -23,6 +25,7 @@ interface KnowledgeBase {
     file_type: string;
     status: string;
     created_at: string;
+    tenant_id?: string;
 }
 
 interface DatabaseConnection {
@@ -35,6 +38,7 @@ interface DatabaseConnection {
     database_name: string;
     status: string;
     ssl_mode?: string;
+    tenant_id?: string;
 }
 
 interface MCPConnection {
@@ -84,9 +88,14 @@ export default function KnowledgeBasePage() {
     const [queryDocId, setQueryDocId] = useState<string | null>(null);
     const [queryText, setQueryText] = useState("");
     const [queryResults, setQueryResults] = useState<any[] | null>(null);
+    const [queryMeta, setQueryMeta] = useState<any>(null);
     const [querying, setQuerying] = useState(false);
     const [llmConfigs, setLlmConfigs] = useState<any[]>([]);
     const [selectedLlmId, setSelectedLlmId] = useState<string>("");
+
+    // Share State
+    const [shareModalOpen, setShareModalOpen] = useState(false);
+    const [resourceToShare, setResourceToShare] = useState<{ id: string; name: string; type: "knowledge_base" | "database_connection"; tenant_id?: string } | null>(null);
 
 
     useEffect(() => {
@@ -99,7 +108,7 @@ export default function KnowledgeBasePage() {
     // Polling for status updates with exponential backoff
     useEffect(() => {
         const filesToPoll = kbFiles.filter(f =>
-            ['pending', 'processing', 'initiated', 'unknown'].includes(f.status || '') || !f.status
+            ['pending', 'processing', 'indexing', 'initiated', 'unknown'].includes(f.status || '') || !f.status
         );
 
         if (filesToPoll.length === 0) return;
@@ -133,7 +142,7 @@ export default function KnowledgeBasePage() {
 
             // Continue polling only if there are still processing files
             const stillProcessing = newFiles.some(f =>
-                ['pending', 'processing', 'initiated', 'unknown'].includes(f.status || '') || !f.status
+                ['pending', 'processing', 'indexing', 'initiated', 'unknown'].includes(f.status || '') || !f.status
             );
 
             if (stillProcessing) {
@@ -324,7 +333,12 @@ export default function KnowledgeBasePage() {
                 llm_config_id: selectedLlmId
             });
 
-            if (res.data.success && Array.isArray(res.data.data)) {
+            setQueryMeta(res.data.meta || null);
+
+            if (res.data.success && Array.isArray(res.data.results)) {
+                // Standard LangChain Service Response
+                setQueryResults(res.data.results);
+            } else if (res.data.success && Array.isArray(res.data.data)) {
                 // Handle Cognee structure where results are nested in search_result
                 const results = res.data.data.flatMap((item: any) => {
                     if (item.search_result && Array.isArray(item.search_result)) {
@@ -411,28 +425,38 @@ export default function KnowledgeBasePage() {
                                         <div className="flex space-x-2">
                                             <button
                                                 onClick={() => openQueryDialog(file.id)}
-                                                className="text-gray-500 hover:text-white transition-colors p-1 rounded-md hover:bg-white/10"
-                                                title="Query Document"
+                                                disabled={file.status !== 'ready' && file.status !== 'indexed'}
+                                                className={cn(
+                                                    "transition-colors p-1 rounded-md",
+                                                    (file.status === 'ready' || file.status === 'indexed')
+                                                        ? "text-gray-500 hover:text-white hover:bg-white/10"
+                                                        : "text-gray-600 opacity-40 cursor-not-allowed"
+                                                )}
+                                                title={(file.status === 'ready' || file.status === 'indexed') ? "Query Document" : "Processing in progress..."}
                                             >
                                                 <Search className="w-4 h-4" />
                                             </button>
-                                            <button
-                                                onClick={() => confirmDelete(file.id, 'kb')}
-                                                className="text-gray-500 hover:text-red-500 transition-colors p-1 rounded-md hover:bg-red-500/10"
-                                                title="Delete"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
+                                            <ResourceMenu
+                                                isDark={isDark}
+                                                resourceType="Document"
+                                                onShare={() => {
+                                                    setResourceToShare({ id: file.id, name: file.name, type: "knowledge_base", tenant_id: file.tenant_id });
+                                                    setShareModalOpen(true);
+                                                }}
+                                                onDelete={() => confirmDelete(file.id, 'kb')}
+                                            />
                                         </div>
                                     </div>
                                     <h3 className={cn("text-base md:text-lg font-bold mb-1 truncate", isDark ? "text-white" : "text-gray-900")} title={file.name}>{file.name}</h3>
                                     <div className="flex justify-between items-center mt-4">
                                         <span className="text-xs text-gray-400 uppercase">{file.file_type}</span>
-                                        <span className={`text-xs font-bold px-2 py-1 rounded uppercase ${file.status === 'indexed' ? 'text-nvidia-green bg-nvidia-green/10' :
-                                            file.status === 'failed' ? 'text-red-500 bg-red-500/10' :
-                                                'text-yellow-500 bg-yellow-500/10'
+                                        <span className={`text-xs font-bold px-2 py-1 rounded uppercase ${file.status === 'ready' || file.status === 'indexed' ? 'text-nvidia-green bg-nvidia-green/10' :
+                                            file.status === 'indexing' ? 'text-blue-500 bg-blue-500/10' :
+                                                file.status === 'processing' ? 'text-yellow-500 bg-yellow-500/10' :
+                                                    file.status === 'failed' ? 'text-red-500 bg-red-500/10' :
+                                                        'text-yellow-500 bg-yellow-500/10'
                                             }`}>
-                                            {file.status}
+                                            {file.status === 'indexed' ? 'ready' : file.status || 'processing'}
                                         </span>
                                     </div>
                                 </div>
@@ -676,6 +700,21 @@ export default function KnowledgeBasePage() {
                 ]}
             />
 
+            {/* Share Modal */}
+            {resourceToShare && (
+                <ShareResourceModal
+                    isOpen={shareModalOpen}
+                    onClose={() => {
+                        setShareModalOpen(false);
+                        setResourceToShare(null);
+                    }}
+                    resourceId={resourceToShare.id}
+                    resourceType={resourceToShare.type}
+                    resourceName={resourceToShare.name}
+                    tenantId={resourceToShare.tenant_id}
+                />
+            )}
+
             {/* Query Side Panel */}
             <SidePanel
                 isOpen={queryDialogOpen}
@@ -746,6 +785,15 @@ export default function KnowledgeBasePage() {
                     {/* Results */}
                     {queryResults && (
                         <div className="pt-6 border-t border-white/10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            {queryMeta?.reformulated && (
+                                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 mb-4 text-xs md:text-sm text-blue-400 flex items-start gap-2">
+                                    <Sparkles className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                                    <div>
+                                        <span className="font-semibold">Query Optimized:</span> We searched for <span className="font-mono bg-blue-500/20 px-1 rounded">"{queryMeta.actual_query}"</span> to improve results.
+                                    </div>
+                                </div>
+                            )}
+
                             <h3 className="text-lg font-bold text-white mb-4 flex items-center">
                                 <span className="w-1 h-6 bg-nvidia-green rounded-full mr-3"></span>
                                 Results
@@ -760,23 +808,54 @@ export default function KnowledgeBasePage() {
                                         <p className="text-gray-400">No relevant results found in this document.</p>
                                     </div>
                                 ) : (
-                                    queryResults.map((chunk, i) => (
-                                        <div key={i} className="bg-white/5 rounded-xl border border-white/10 overflow-hidden group hover:border-nvidia-green/30 transition-all">
-                                            <div className="p-4">
-                                                <p className="text-sm md:text-base text-gray-300 leading-relaxed whitespace-pre-wrap">{chunk.text}</p>
-                                            </div>
-                                            {chunk.metadata && Object.keys(chunk.metadata).length > 0 && (
-                                                <div className="bg-black/20 px-4 py-3 border-t border-white/5 flex flex-wrap gap-2">
-                                                    {Object.entries(chunk.metadata).map(([k, v]) => (
-                                                        <div key={k} className="flex items-center text-xs text-gray-500 bg-white/5 px-2 py-1 rounded border border-white/5">
-                                                            <span className="font-medium text-gray-400 mr-1">{k}:</span>
-                                                            <span className="truncate max-w-[200px]">{String(v)}</span>
-                                                        </div>
-                                                    ))}
+                                    queryResults.map((chunk, i) => {
+                                        // Calculate match percentage (1 - distance)
+                                        const score = chunk.score || 0;
+                                        const matchPercentage = Math.round(Math.max(0, Math.min(100, (1 - score) * 100)));
+
+                                        // Determine color based on quality
+                                        let scoreColor = "text-red-400 bg-red-500/10 border-red-500/20"; // < 40
+                                        if (matchPercentage >= 80) scoreColor = "text-nvidia-green bg-nvidia-green/10 border-nvidia-green/20"; // 80-100
+                                        else if (matchPercentage >= 60) scoreColor = "text-blue-400 bg-blue-500/10 border-blue-500/20"; // 60-80
+                                        else if (matchPercentage >= 40) scoreColor = "text-orange-400 bg-orange-500/10 border-orange-500/20"; // 40-60
+
+                                        return (
+                                            <div key={i} className="bg-white/5 rounded-xl border border-white/10 overflow-hidden group hover:border-nvidia-green/30 transition-all">
+                                                {/* Header with Score */}
+                                                <div className="px-4 py-2 border-b border-white/5 bg-black/20 flex justify-between items-center">
+                                                    <span className="text-xs text-gray-400 font-mono">#{i + 1}</span>
+                                                    <div className={cn("text-xs font-bold px-2 py-0.5 rounded border flex items-center gap-1", scoreColor)}>
+                                                        <span>{matchPercentage}% Match</span>
+                                                    </div>
                                                 </div>
-                                            )}
-                                        </div>
-                                    ))
+
+                                                <div className="p-4">
+                                                    <div className="prose prose-invert prose-sm max-w-none">
+                                                        {/* Render markdown content properly if possible, or just text */}
+                                                        <div className="text-sm md:text-base text-gray-300 leading-relaxed whitespace-pre-wrap font-sans">
+                                                            {chunk.content || chunk.text}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {chunk.metadata && Object.keys(chunk.metadata).length > 0 && (
+                                                    <div className="bg-black/20 px-4 py-3 border-t border-white/5 flex flex-wrap gap-2">
+                                                        {Object.entries(chunk.metadata).map(([k, v]) => {
+                                                            if (k === 'source' || k === 'file_type' || k === 'page') {
+                                                                return (
+                                                                    <div key={k} className="flex items-center text-xs text-gray-500 bg-white/5 px-2 py-1 rounded border border-white/5">
+                                                                        <span className="font-medium text-gray-400 mr-1 capitalize">{k.replace('_', ' ')}:</span>
+                                                                        <span className="truncate max-w-[200px] text-gray-300">{String(v)}</span>
+                                                                    </div>
+                                                                );
+                                                            }
+                                                            return null;
+                                                        })}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })
                                 )}
                             </div>
                         </div>

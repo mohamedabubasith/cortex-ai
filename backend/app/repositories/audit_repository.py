@@ -16,6 +16,7 @@ class AuditLogRepository:
         resource_type: str,
         user_id: Optional[str] = None,
         resource_id: Optional[str] = None,
+        tenant_id: Optional[str] = None,
         details: dict = None,
         ip_address: Optional[str] = None,
         user_agent: Optional[str] = None
@@ -26,7 +27,10 @@ class AuditLogRepository:
             user_id=user_id,
             action=action,
             resource_type=resource_type,
+            action=action,
+            resource_type=resource_type,
             resource_id=resource_id,
+            tenant_id=tenant_id,
             details=details or {},
             ip_address=ip_address,
             user_agent=user_agent
@@ -39,6 +43,7 @@ class AuditLogRepository:
     async def get_logs(
         self,
         user_id: Optional[str] = None,
+        tenant_id: Optional[str] = None,
         resource_type: Optional[str] = None,
         action: Optional[str] = None,
         limit: int = 100
@@ -48,6 +53,8 @@ class AuditLogRepository:
         
         if user_id:
             query = query.where(models.AuditLog.user_id == user_id)
+        if tenant_id:
+            query = query.where(models.AuditLog.tenant_id == tenant_id)
         if resource_type:
             query = query.where(models.AuditLog.resource_type == resource_type)
         if action:

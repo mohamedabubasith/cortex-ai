@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     # Admin Security
     ADMIN_SECRET_KEY: str = "ec49d476-0757-46c5-a4de-9c0b5a87a20a" # Default secret, change in production
     
+    # Default Admin User (created on first startup if no superuser exists)
+    DEFAULT_ADMIN_EMAIL: str = "admin@cortex.ai"
+    DEFAULT_ADMIN_PASSWORD: str = "admin123"
+    DEFAULT_ADMIN_NAME: str = "System Administrator"
+    
     # Keycloak (Example config)
     KEYCLOAK_URL: Optional[str] = None # Set to enable SSO
     KEYCLOAK_REALM: str = "master"

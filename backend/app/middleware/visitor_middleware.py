@@ -100,6 +100,41 @@ class VisitorMiddleware(BaseHTTPMiddleware):
                     # logger.warning(f"Failed to resolve country for {ip}: {e}")
                     pass
 
+            # Resolve User and Tenant from Token
+            user_id = None
+            tenant_id = None
+            
+            if auth_header and auth_header.startswith("Bearer "):
+                try:
+                    token = auth_header.split(" ")[1]
+                    # Import here to avoid circular dependencies
+                    from jose import jwt
+                    from app.core.config import settings
+                    
+                    # Basic decode to get user email
+                    payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+                    user_email = payload.get("sub")
+                    
+                    if user_email:
+                        async with AsyncSessionLocal() as session:
+                            from app.models import models
+                            from sqlalchemy import select
+                            from sqlalchemy.orm import selectinload
+                            
+                            result = await session.execute(
+                                select(models.User)
+                                .where(models.User.email == user_email)
+                                .options(selectinload(models.User.tenant_memberships))
+                            )
+                            user = result.scalars().first()
+                            if user:
+                                user_id = user.id
+                                if user.tenant_memberships:
+                                    tenant_id = user.tenant_memberships[0].tenant_id
+                except Exception:
+                    # Token invalid or other error - treat as anonymous
+                    pass
+
             # Log to DB
             async with AsyncSessionLocal() as session:
                 try:
@@ -116,6 +151,8 @@ class VisitorMiddleware(BaseHTTPMiddleware):
                     
                     await service.log_event(
                         event_type="api_hit",
+                        user_id=user_id,
+                        tenant_id=tenant_id,
                         event_data={
                             "path": path,
                             "method": method
