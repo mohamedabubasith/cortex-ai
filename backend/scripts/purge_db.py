@@ -5,6 +5,7 @@ Drops all tables and recreates them using SQLAlchemy
 import asyncio
 import sys
 import os
+import argparse
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
@@ -16,17 +17,23 @@ from app.models.models import Base
 async def purge_database():
     """Drop all tables and recreate them"""
     
+    parser = argparse.ArgumentParser(description='Purge database')
+    parser.add_argument('--force', '-f', action='store_true', help='Force purge without confirmation')
+    args = parser.parse_args()
+
     print("=" * 60)
     print("DATABASE PURGE - WARNING")
     print("=" * 60)
     print("This will DELETE ALL DATA in the database!")
     print("")
-    confirm = input("Are you sure? Type 'yes' to continue: ")
-    
-    if confirm.lower() != 'yes':
-        print("Aborted.")
-        return
-    
+
+    if not args.force:
+        confirm = input("Are you sure? Type 'yes' to continue: ")
+        
+        if confirm.lower() != 'yes':
+            print("Aborted.")
+            return
+
     print("\nPurging database...")
     print(f"Database URL: {settings.DATABASE_URL}")
     

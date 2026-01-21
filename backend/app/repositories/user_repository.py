@@ -10,6 +10,8 @@ class UserRepository(BaseRepository[User]):
         super().__init__(User, db)
 
     async def get_by_email(self, email: str) -> Optional[User]:
-        query = select(self.model).where(self.model.email == email)
+        query = select(self.model).where(self.model.email == email).options(
+            selectinload(self.model.tenant_memberships)
+        )
         result = await self.db.execute(query)
         return result.scalars().first()

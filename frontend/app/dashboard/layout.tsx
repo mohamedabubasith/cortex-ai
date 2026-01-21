@@ -29,7 +29,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         { name: "Providers", href: "/dashboard/providers", icon: Cpu },
         { name: "Knowledge Base", href: "/dashboard/kb", icon: Database },
         { name: "Agents", href: "/dashboard/agents", icon: Bot },
-        { name: "Organization", href: "/dashboard/organization", icon: Users },
         { name: "Audit Logs", href: "/dashboard/audit", icon: FileText },
     ];
 
@@ -164,6 +163,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                     {/* User / Logout */}
                     <div className={`p-4 border-t ${isDark ? "border-white/10" : "border-gray-200"}`}>
+                        <Link
+                            href="/dashboard/organization"
+                            className={`flex items-center w-full px-4 py-3 text-sm font-medium rounded-xl transition-colors mb-2 ${pathname === "/dashboard/organization"
+                                ? "bg-nvidia-green text-black shadow-[0_0_15px_rgba(118,185,0,0.3)]"
+                                : isDark ? "text-gray-400 hover:bg-white/5 hover:text-white" : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"}`}
+                        >
+                            <Users className={`w-5 h-5 mr-3 ${pathname === "/dashboard/organization" ? "text-black" : "text-gray-400"}`} />
+                            Organization
+                        </Link>
                         <button
                             onClick={toggleTheme}
                             className={`flex items-center w-full px-4 py-3 text-sm font-medium rounded-xl transition-colors mb-2 ${isDark ? "text-gray-400 hover:bg-white/5 hover:text-white" : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"}`}

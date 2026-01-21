@@ -241,11 +241,17 @@ export default function OrganizationPage() {
     };
 
     const handleCreateTenant = async () => {
+        const token = localStorage.getItem("token");
+        console.log("DEBUG: handleCreateTenant called. Token from localStorage:", token);
         setCreatingTenant(true);
         try {
-            await api.post("/tenants", {
+            await api.post("/tenants/", {
                 name: newTenantName,
                 slug: newTenantSlug
+            }, {
+                headers: {
+                    "Authorization": `Bearer ${localStorage.getItem("token")}`
+                }
             });
             alert("Organization created successfully! You are now the owner.");
             setIsCreateTenantOpen(false);

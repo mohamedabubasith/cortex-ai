@@ -20,9 +20,9 @@ class LangChainService:
         if not os.path.exists(self.cache_dir):
             os.makedirs(self.cache_dir, exist_ok=True)
             
-        # Using HuggingFaceEmbeddings with the requested multilingual-e5-large-instruct
+        # Using HuggingFaceEmbeddings with the configured model
         self.embeddings = HuggingFaceEmbeddings(
-            model_name="intfloat/multilingual-e5-large-instruct",
+            model_name=settings.EMBEDDING_MODEL,
             cache_folder=self.cache_dir,
             model_kwargs={'device': 'cpu'}, # Can be changed to 'cuda' or 'mps' if available
             encode_kwargs={'normalize_embeddings': True}

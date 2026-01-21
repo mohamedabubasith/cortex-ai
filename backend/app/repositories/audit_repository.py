@@ -27,8 +27,6 @@ class AuditLogRepository:
             user_id=user_id,
             action=action,
             resource_type=resource_type,
-            action=action,
-            resource_type=resource_type,
             resource_id=resource_id,
             tenant_id=tenant_id,
             details=details or {},

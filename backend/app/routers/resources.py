@@ -322,9 +322,24 @@ async def test_mcp_connection(
 async def get_mcp_connections(
     current_user: models.User = Depends(get_current_active_user),
     current_tenant: models.Tenant = Depends(get_current_tenant),
-    repo: MCPRepository = Depends(get_mcp_repo)
+    repo: MCPRepository = Depends(get_mcp_repo),
+    access_service: AccessControlService = Depends(get_access_service)
 ):
-    return await repo.get_all(user=current_user, tenant_id=current_tenant.id)
+    all_connections = await repo.get_all(user=current_user, tenant_id=current_tenant.id)
+    
+    # Filter by access
+    allowed_connections = []
+    for conn in all_connections:
+        if await access_service.has_access(
+            user=current_user, 
+            resource_id=conn.id, 
+            resource_type="mcp_connection", 
+            required_level="viewer",
+            tenant_id=current_tenant.id
+        ):
+            allowed_connections.append(conn)
+            
+    return allowed_connections
 
 @router.post("/mcp/{mcp_id}/sync", response_model=schemas.MCPConnectionResponse)
 async def sync_mcp_connection(

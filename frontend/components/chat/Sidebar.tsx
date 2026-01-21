@@ -6,6 +6,8 @@ import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import ChatList, { ChatSession } from "./ChatList";
 import Dialog from "@/components/ui/Dialog";
+import { useEffect } from "react";
+import api from "@/lib/api";
 
 interface SidebarProps {
     isOpen: boolean;
@@ -31,6 +33,47 @@ export default function Sidebar({
     const [chatsExpanded, setChatsExpanded] = useState(true);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [sessionToDelete, setSessionToDelete] = useState<{ id: string; title: string } | null>(null);
+
+    // Organization State
+    const [orgExpanded, setOrgExpanded] = useState(false);
+    const [userOrgs, setUserOrgs] = useState<any[]>([]);
+    const [currentOrgName, setCurrentOrgName] = useState("Loading...");
+
+    // Fetch user organizations on mount
+    useEffect(() => {
+        const fetchUserOrgs = async () => {
+            try {
+                const res = await api.get("/auth/me");
+                const memberships = res.data.tenant_memberships || [];
+                setUserOrgs(memberships);
+
+                const activeId = localStorage.getItem("activeTenantId");
+                if (activeId) {
+                    const active = memberships.find((m: any) => m.tenant_id === activeId);
+                    if (active) setCurrentOrgName(active.tenant.name);
+                    else if (memberships.length > 0) {
+                        // Fallback if active ID invalid
+                        setCurrentOrgName(memberships[0].tenant.name);
+                        localStorage.setItem("activeTenantId", memberships[0].tenant_id);
+                    }
+                } else if (memberships.length > 0) {
+                    setCurrentOrgName(memberships[0].tenant.name);
+                    localStorage.setItem("activeTenantId", memberships[0].tenant_id);
+                }
+            } catch (err) {
+                console.error("Failed to fetch organizations", err);
+                setCurrentOrgName("My Workspace");
+            }
+        };
+        fetchUserOrgs();
+    }, []);
+
+    const handleSwitchOrg = (tenantId: string) => {
+        localStorage.setItem("activeTenantId", tenantId);
+        setOrgExpanded(false);
+        // Reload to apply new tenant context globally
+        window.location.reload();
+    };
 
     const groupSessionsByDate = (sessions: ChatSession[]) => {
         const now = Date.now();
@@ -121,7 +164,74 @@ export default function Sidebar({
                         </div>
 
                         {/* Action Items */}
-                        <div className="px-3 py-4">
+                        <div className="px-3 py-4 space-y-2">
+                            {/* Organization Switcher */}
+                            <div className="relative">
+                                <button
+                                    onClick={() => setOrgExpanded(!orgExpanded)}
+                                    className={cn(
+                                        "w-full flex items-center justify-between px-3 py-2 rounded-lg transition-all duration-200 text-sm font-medium border",
+                                        theme === 'dark'
+                                            ? "bg-white/5 border-white/5 hover:border-white/10 text-gray-200"
+                                            : "bg-white border-gray-200 hover:border-gray-300 text-gray-700"
+                                    )}
+                                >
+                                    <div className="flex items-center gap-2 overflow-hidden">
+                                        <div className="w-5 h-5 rounded bg-blue-500/20 flex items-center justify-center shrink-0">
+                                            <Library className="w-3 h-3 text-blue-500" />
+                                        </div>
+                                        <span className="truncate">{currentOrgName}</span>
+                                    </div>
+                                    <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", orgExpanded ? "rotate-180" : "")} />
+                                </button>
+
+                                <AnimatePresence>
+                                    {orgExpanded && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: -5 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -5 }}
+                                            className={cn(
+                                                "absolute top-full left-0 right-0 mt-1 rounded-lg border shadow-xl z-20 overflow-hidden",
+                                                theme === 'dark' ? "bg-[#0A0C10] border-white/10" : "bg-white border-gray-200"
+                                            )}
+                                        >
+                                            <div className="max-h-48 overflow-y-auto custom-scrollbar p-1">
+                                                {userOrgs.map((org: any) => (
+                                                    <button
+                                                        key={org.tenant_id}
+                                                        onClick={() => handleSwitchOrg(org.tenant_id)}
+                                                        className={cn(
+                                                            "w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
+                                                            localStorage.getItem('activeTenantId') === org.tenant_id
+                                                                ? theme === 'dark' ? "bg-blue-500/20 text-blue-400" : "bg-blue-50 text-blue-600"
+                                                                : theme === 'dark' ? "text-gray-400 hover:bg-white/5 hover:text-gray-200" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                                                        )}
+                                                    >
+                                                        <div className="w-2 h-2 rounded-full bg-current shrink-0" />
+                                                        <span className="truncate text-left">{org.tenant.name}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            <div className={cn("border-t p-1", theme === 'dark' ? "border-white/5" : "border-gray-100")}>
+                                                <a
+                                                    href="/dashboard/organization"
+                                                    className={cn(
+                                                        "flex items-center gap-2 w-full px-3 py-2 text-xs font-medium rounded-md transition-colors",
+                                                        theme === 'dark'
+                                                            ? "text-gray-500 hover:text-gray-300 hover:bg-white/5"
+                                                            : "text-gray-400 hover:text-gray-700 hover:bg-gray-50"
+                                                    )}
+                                                >
+                                                    <Plus className="w-3 h-3" />
+                                                    Manage Organizations
+                                                </a>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
+
                             {/* New Chat */}
                             <button
                                 onClick={() => {

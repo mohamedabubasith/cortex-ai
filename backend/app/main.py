@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 import logging
@@ -66,12 +66,20 @@ app.add_middleware(
 from app.middleware.visitor_middleware import VisitorMiddleware
 app.add_middleware(VisitorMiddleware)
 
+@app.middleware("http")
+async def log_request_headers(request: Request, call_next):
+    if "/tenants" in request.url.path:
+        print(f"DEBUG MIDDLEWARE: {request.method} {request.url}")
+        print(f"DEBUG HEADERS: {request.headers}")
+    response = await call_next(request)
+    return response
+
+
 from app.middleware.audit_middleware import AuditMiddleware
 # app.add_middleware(AuditMiddleware)
 
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from fastapi import Request
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):

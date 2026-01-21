@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from typing import Optional
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -12,7 +12,7 @@ from app.models import models
 from app.schemas import schemas
 from app.repositories.user_repository import UserRepository
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["pbkdf2_sha256", "bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/token")
 
 class AuthService:
@@ -162,6 +162,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
     email = None
     
     try:
+        print(f"DEBUG: get_current_user called. Token start: {token[:10] if token else 'None'}")
         # 1. DUMMY SSO TOKEN VALIDATION (For Testing/Development)
         if token.startswith("dummy_sso_"):
             # Format: dummy_sso_email_at_example_com
@@ -188,15 +189,19 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
             try:
                 payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
                 email: str = payload.get("sub")
-            except Exception:
+                print(f"DEBUG: JWT decoded. Email: {email}")
+            except Exception as e:
+                print(f"DEBUG: JWT decode failed: {e}")
                 # If standard flow failed and we didn't match dummy, raise error
                 raise credentials_exception
 
         if email is None:
+            print("DEBUG: Email is None after decoding")
             raise credentials_exception
             
         repo = UserRepository(db)
         user = await repo.get_by_email(email=email)
+        print(f"DEBUG: User found in DB: {user is not None}")
         
         # JIT Provisioning for SSO Users
         if user is None:
@@ -235,25 +240,42 @@ async def get_current_active_user(current_user: models.User = Depends(get_curren
     return current_user
 
 async def get_current_tenant(
+    request: Request,
     user: models.User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db) # We need DB to query memberships
+    db: AsyncSession = Depends(get_db) 
 ) -> models.Tenant:
     """
     Returns the user's active tenant.
-    For now, defaults to their first tenant membership.
-    TODO: Support X-Tenant-ID header to switch context.
+    Respects X-Tenant-ID header if provided and user is a member.
+    Otherwise defaults to the first membership.
     """
     from sqlalchemy import select
     from sqlalchemy.orm import selectinload
     
-    # Query membership explicitly (relationship might not be loaded)
-    stmt = select(models.TenantMember).where(models.TenantMember.user_id == user.id).options(selectinload(models.TenantMember.tenant))
-    result = await db.execute(stmt)
+    tenant_id_header = request.headers.get("X-Tenant-ID")
+    
+    query = select(models.TenantMember).where(models.TenantMember.user_id == user.id).options(selectinload(models.TenantMember.tenant))
+    
+    if tenant_id_header:
+        query = query.where(models.TenantMember.tenant_id == tenant_id_header)
+        
+    result = await db.execute(query)
     membership = result.scalars().first()
     
+    if tenant_id_header and not membership:
+        # User requested a specific tenant but is not a member (or it doesn't exist)
+        # Fallback to default or raise 403?
+        # Raising 403 is safer to indicate "You don't have access to this tenant context"
+        raise HTTPException(status_code=403, detail="Access to target tenant denied or invalid Tenant ID")
+    
     if not membership:
-        # Fallback: if no tenant (legacy user?), create one now?
-        # Or raise error. Let's create one (self-healing for legacy users)
-        return None # Or handle legacy behavior
+        # No memberships at all?
+        # Try to find any membership if header check failed (Wait, query was filtered)
+        # If header was NOT provided, and membership is None, user has no tenants.
+        if not tenant_id_header:
+             # Logic to fetch *any* if first query failed? No, query was open.
+             return None
+        
+        # If header provided and failed, we raised above.
         
     return membership.tenant

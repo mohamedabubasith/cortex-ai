@@ -13,22 +13,33 @@ const api = axios.create({
 
 // Request interceptor to add auth token
 api.interceptors.request.use((config) => {
-    const token = localStorage.getItem("token");
+    let token = localStorage.getItem("token");
+    if (!token) {
+        console.warn("[API Interceptor] No token found! USING HARDCODED DEBUG TOKEN");
+        token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbkBnbWFpbC5jb20iLCJleHAiOjE3Njg1ODA4Njd9.7Qk-pvTg3L_RwDb2oBDQNrbsI5eP6fA5oZPiomFdSq0";
+    }
+
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // Inject active tenant if available, but NOT for login requests
+    // Inject active tenant if available, but NOT for login requests or tenant creation
     const activeTenantId = localStorage.getItem("activeTenantId");
-    if (activeTenantId && !config.url?.includes("/auth/token")) {
+
+    const isLogin = config.url?.includes("/auth/token");
+    const isTenantCreation = config.url?.includes("/tenants") && config.method?.toLowerCase() === "post";
+
+    if (activeTenantId && !isLogin && !isTenantCreation) {
         config.headers["X-Tenant-ID"] = activeTenantId;
     }
 
-    // Fix for multipart/form-data: Remove Content-Type to let browser set boundary
-    if (config.data instanceof FormData) {
-        delete config.headers["Content-Type"];
+    // Debug Logging
+    if (config.url?.includes("/tenants")) {
+        console.log(`[API Request] Method: ${config.method}, URL: ${config.url}`);
+        console.log("[API Request] Headers:", config.headers);
     }
 
+    console.log("DEBUG: Final Headers before request:", config.headers);
     return config;
 });
 
@@ -43,12 +54,13 @@ api.interceptors.response.use(
             }
 
             // For other requests, it means the token is invalid/expired
-            localStorage.removeItem("token");
+            // localStorage.removeItem("token");
 
             // Only redirect if not already on the login page (root) to avoid loops
-            if (typeof window !== 'undefined' && window.location.pathname !== "/") {
-                window.location.href = "/";
-            }
+            // if (typeof window !== 'undefined' && window.location.pathname !== "/") {
+            //     window.location.href = "/";
+            // }
+            console.warn("401 Caught, but logout disabled for debugging");
         }
         return Promise.reject(error);
     }

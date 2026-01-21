@@ -70,8 +70,45 @@ class AccessControlService:
                 
                 # Check Custom Roles
                 elif resource and hasattr(resource, 'tenant_id') and resource.tenant_id == tenant_id:
-                    if await self._check_custom_role_permission(member.role, resource_type, required_level):
+                    # Skip standard roles that are not UUIDs (or explicitly defined standard ones)
+                    if member.role not in ["member", "viewer"]:
+                         if await self._check_custom_role_permission(member.role, resource_type, required_level):
+                            return True
+
+
+        # 4. Check explicit resource access (sharing permissions)
+        # This checks for direct user-level access OR role-based access for the tenant
+        access_query = select(ResourceAccess).where(
+            and_(
+                ResourceAccess.resource_id == resource_id,
+                ResourceAccess.resource_type == resource_type,
+                or_(
+                    ResourceAccess.user_id == user.id,
+                    and_(
+                        ResourceAccess.tenant_id == tenant_id,
+                        ResourceAccess.tenant_role.is_not(None)
+                    )
+                )
+            )
+        )
+        
+        access_result = await self.db.execute(access_query)
+        permissions = access_result.scalars().all()
+        
+        for perm in permissions:
+            # If shared with specific user, check level
+            if perm.user_id == user.id:
+                if level_map.get(perm.access_level, 0) >= req_val:
+                    return True
+            
+            # If shared with specific role, check if user has that role in the tenant
+            if perm.tenant_role and tenant_id:
+                # We already fetched 'member' above
+                if member and member.role == perm.tenant_role:
+                    if level_map.get(perm.access_level, 0) >= req_val:
                         return True
+                        
+        return False
 
     async def _check_custom_role_permission(self, role_id: str, resource_type: str, required_level: str) -> bool:
         """Helper to check permissions for a custom role."""
@@ -115,40 +152,6 @@ class AccessControlService:
             if resource_perms.get("delete") is True:
                 return True
                 
-        return False
-
-        # 4. Check explicit resource access (sharing permissions)
-        # This checks for direct user-level access OR role-based access for the tenant
-        access_query = select(ResourceAccess).where(
-            and_(
-                ResourceAccess.resource_id == resource_id,
-                ResourceAccess.resource_type == resource_type,
-                or_(
-                    ResourceAccess.user_id == user.id,
-                    and_(
-                        ResourceAccess.tenant_id == tenant_id,
-                        ResourceAccess.tenant_role.is_not(None)
-                    )
-                )
-            )
-        )
-        
-        access_result = await self.db.execute(access_query)
-        permissions = access_result.scalars().all()
-        
-        for perm in permissions:
-            # If shared with specific user, check level
-            if perm.user_id == user.id:
-                if level_map.get(perm.access_level, 0) >= req_val:
-                    return True
-            
-            # If shared with specific role, check if user has that role in the tenant
-            if perm.tenant_role and tenant_id:
-                # We already fetched 'member' above
-                if member and member.role == perm.tenant_role:
-                    if level_map.get(perm.access_level, 0) >= req_val:
-                        return True
-                        
         return False
 
     async def share_resource(
