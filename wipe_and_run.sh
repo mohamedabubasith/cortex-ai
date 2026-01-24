@@ -32,9 +32,9 @@ until [ "`docker inspect -f {{.State.Health.Status}} chatbot_db`" == "healthy" ]
 done
 echo "✅ Database is ready!"
 
-# 4. Build and start Backend and Frontend
-echo "🚀 Starting Backend and Frontend services..."
-docker compose -f docker-compose.prod.yml up -d --build backend frontend
+# 4. Build and start Backend, Frontend, and Nginx
+echo "🚀 Starting Backend, Frontend, and Nginx services..."
+docker compose -f docker-compose.prod.yml up -d --build backend frontend nginx
 
 # 5. Run Migrations
 ./migrate.sh
