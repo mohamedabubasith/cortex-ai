@@ -23,6 +23,8 @@ async def upload_kb_file(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     llm_config_id: Optional[str] = Form(None),
+    chunk_size: int = Form(1000),
+    chunk_overlap: int = Form(200),
     db: AsyncSession = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user),
     kb_service: KBService = Depends(get_kb_service)
@@ -43,9 +45,6 @@ async def upload_kb_file(
         os.makedirs(user_upload_dir, exist_ok=True)
         
         file_path = os.path.join(user_upload_dir, f"{uuid.uuid4()}_{file.filename}")
-        
-        # Check available disk space (optional, but good practice)
-        # shutil.disk_usage(user_upload_dir).free < file.size ...
         
         with open(file_path, "wb") as f:
             content = await file.read()
@@ -86,8 +85,14 @@ async def upload_kb_file(
             filename=file.filename,
             file_path=file_path,
             file_type=file_ext,
-            file_size=file_size
+            file_size=file_size,
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap
         )
+        
+        # Get tenant ID (simplified: fetch user's first tenant or None)
+        # For now we can pass None or handle it inside service
+        tenant_id = None 
         
         # Process in background
         if llm_config:
@@ -95,6 +100,10 @@ async def upload_kb_file(
                 kb_service.process_kb,
                 kb.id,
                 file_path,
+                current_user.id,
+                tenant_id,
+                chunk_size,
+                chunk_overlap,
                 llm_config,
                 current_user.email
             )
