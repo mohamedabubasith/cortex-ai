@@ -58,7 +58,6 @@ class KBService:
                     tenant_id=tenant_id,
                     chunk_size=chunk_size,
                     chunk_overlap=chunk_overlap,
-                    chunk_overlap=chunk_overlap,
                     llm_config=llm_config,
                     embedding_model=embedding_model
                 )
