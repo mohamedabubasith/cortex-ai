@@ -18,6 +18,7 @@ class KBRepository:
         file_size: int,
         chunk_size: int,
         chunk_overlap: int,
+        embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2",
         status: str = "pending"
     ) -> models.KnowledgeBase:
         """Create KB record"""
@@ -31,6 +32,7 @@ class KBRepository:
             file_size=file_size,
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
+            embedding_model=embedding_model,
             status=status
         )
         self.db.add(kb)

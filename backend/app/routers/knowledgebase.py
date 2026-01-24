@@ -25,6 +25,7 @@ async def upload_kb_file(
     llm_config_id: Optional[str] = Form(None),
     chunk_size: int = Form(1000),
     chunk_overlap: int = Form(200),
+    embedding_model: str = Form("sentence-transformers/all-MiniLM-L6-v2"),
     db: AsyncSession = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user),
     kb_service: KBService = Depends(get_kb_service)
@@ -87,7 +88,8 @@ async def upload_kb_file(
             file_type=file_ext,
             file_size=file_size,
             chunk_size=chunk_size,
-            chunk_overlap=chunk_overlap
+            chunk_overlap=chunk_overlap,
+            embedding_model=embedding_model
         )
         
         # Get tenant ID (simplified: fetch user's first tenant or None)
@@ -105,6 +107,7 @@ async def upload_kb_file(
                 chunk_size,
                 chunk_overlap,
                 llm_config,
+                embedding_model,
                 current_user.email
             )
         

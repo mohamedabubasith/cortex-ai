@@ -19,8 +19,10 @@ class KBService:
         file_path: str,
         file_type: str,
         file_size: int,
+        file_size: int,
         chunk_size: int = 1000,
-        chunk_overlap: int = 200
+        chunk_overlap: int = 200,
+        embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     ):
         """Create initial KB record"""
         # Note: We need to ensure repo supports extra fields or we add them manually if not in constructor
@@ -36,10 +38,11 @@ class KBService:
             file_size=file_size, # Ensure this was added to repo/model
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
+            embedding_model=embedding_model,
             status="pending"
         )
             
-    async def process_kb(self, kb_id: str, file_path: str, user_id: str, tenant_id: str, chunk_size: int, chunk_overlap: int, llm_config, user_email: str = None):
+    async def process_kb(self, kb_id: str, file_path: str, user_id: str, tenant_id: str, chunk_size: int, chunk_overlap: int, llm_config, embedding_model: str, user_email: str = None):
         """
         Process KB (Load -> Split -> Embed -> Index) via RAGService.
         """
@@ -56,7 +59,9 @@ class KBService:
                     tenant_id=tenant_id,
                     chunk_size=chunk_size,
                     chunk_overlap=chunk_overlap,
-                    llm_config=llm_config
+                    chunk_overlap=chunk_overlap,
+                    llm_config=llm_config,
+                    embedding_model=embedding_model
                 )
                 
                 # Success
@@ -95,7 +100,7 @@ class KBService:
         # Filter by KB ID for security and reliability
         filters = {"kb_id": kb_id}
         
-        results = await rag_service.search(query_text, filters, llm_config)
+        results = await rag_service.search(query_text, filters, llm_config, embedding_model=kb.embedding_model)
         
         return {"success": True, "data": results}
 

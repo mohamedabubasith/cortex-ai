@@ -22,15 +22,18 @@ class RAGService:
         self.persist_directory = "/app/data/chroma_db"
         os.makedirs(self.persist_directory, exist_ok=True)
         
-    def _get_embeddings(self, llm_config):
-        """Factory for embedding model"""
+    def _get_embeddings(self, llm_config, embedding_model_name: Optional[str] = None):
+        """Factory for embedding model with dynamic model selection"""
+        # 1. Use specific model if provided
+        model_to_use = embedding_model_name or settings.EMBEDDING_MODEL
+
         # Determine provider (default to fastembed if not specified or explicit)
         # We can expand this logic based on llm_config.provider or env vars
         
         # If user wants local/fastembed
         if settings.EMBEDDING_PROVIDER == "fastembed":
             return FastEmbedEmbeddings(
-                model_name=settings.EMBEDDING_MODEL
+                model_name=model_to_use
             )
         
         # If user wants OpenAI or compatible
@@ -40,10 +43,10 @@ class RAGService:
         if not api_key:
              # Fallback to fastembed if no key
              logger.warning("No API key found for embeddings, falling back to FastEmbed")
-             return FastEmbedEmbeddings(model_name=settings.EMBEDDING_MODEL)
+             return FastEmbedEmbeddings(model_name=model_to_use)
 
         return OpenAIEmbeddings(
-            model=settings.EMBEDDING_MODEL,
+            model=model_to_use,
             api_key=api_key,
             base_url=base_url,
             check_embedding_ctx_length=False 
@@ -65,7 +68,8 @@ class RAGService:
         tenant_id: str,
         chunk_size: int, 
         chunk_overlap: int, 
-        llm_config
+        llm_config,
+        embedding_model: Optional[str] = None
     ):
         """
         Load, split, and index a document.
@@ -112,7 +116,7 @@ class RAGService:
             logger.info(f"Created {len(splits)} chunks")
 
             # 4. Index
-            embeddings = self._get_embeddings(llm_config)
+            embeddings = self._get_embeddings(llm_config, embedding_model)
             vector_store = self._get_vector_store("knowledge_base", embeddings)
             
             # Add to Chroma (sync operation, usually fast enough for moderate docs, or run in thread)
@@ -158,13 +162,13 @@ class RAGService:
             logger.error(f"Error deleting KB {kb_id}: {e}")
             return False
 
-    async def search(self, query: str, config_filter: Dict[str, Any], llm_config, k: int = 4):
+    async def search(self, query: str, config_filter: Dict[str, Any], llm_config, embedding_model: Optional[str] = None, k: int = 4):
         """
         Search for context.
         config_filter: e.g. {"user_id": "...", "kb_id": "..."} or just user/tenant context
         """
         try:
-            embeddings = self._get_embeddings(llm_config)
+            embeddings = self._get_embeddings(llm_config, embedding_model)
             vector_store = self._get_vector_store("knowledge_base", embeddings)
             
             results = vector_store.similarity_search_with_score(
