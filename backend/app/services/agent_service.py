@@ -9,7 +9,6 @@ import uuid
 from app.models import models
 from app.schemas import schemas
 from app.repositories.agent_repository import AgentRepository
-from app.services.cognee_service import cognee_service
 from app.services.mcp_service import mcp_service
 
 from sqlalchemy.orm import selectinload

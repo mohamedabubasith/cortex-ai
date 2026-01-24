@@ -13,14 +13,9 @@ logging.basicConfig(
     level=getattr(logging, log_level),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
-# Enable verbose logs for Cognee and DLT if LOG_LEVEL is DEBUG
-if log_level == "DEBUG":
-    logging.getLogger("cognee").setLevel(logging.DEBUG)
+# Enable verbose logs for DLT if LOG_LEVEL is DEBUG
+if settings.LOG_LEVEL == "DEBUG":
     logging.getLogger("dlt").setLevel(logging.DEBUG)
-
-# Apply Cognee patches - REMOVED as per user request
-# from app.core.cognee_patch import apply_cognee_patches
-# apply_cognee_patches()
 
 from contextlib import asynccontextmanager
 
@@ -30,7 +25,6 @@ async def lifespan(app: FastAPI):
     # Validate critical configuration
     settings.validate_providers()
 
-    from app.services.cognee_service import cognee_service
     from app.core.database import engine, Base
     # Import models to ensure they are registered with Base
     from app.models import models
@@ -38,10 +32,6 @@ async def lifespan(app: FastAPI):
     # Database schema is managed by Alembic migrations.
     # Automatic table creation is disabled to prevent conflicts.
     # See backend/alembic for migration scripts.
-        
-    # Initialize Cognee (creates tables if needed)
-    print("DEBUG: Calling cognee_service.initialize()...", flush=True)
-    await cognee_service.initialize()
     
     yield
     # Shutdown logic (if any)

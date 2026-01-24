@@ -8,12 +8,12 @@ class Settings(BaseSettings):
     
     # Database Configuration
     
-    # 1. Cognee Database (Standard DB_ prefix)
-    # These match the standard environment variables Cognee expects.
+    # 1. Vector/RAG Database (Standard DB_ prefix for ChromaDB metadata)
+    # These are used for the LangChain/ChromaDB vector storage metadata.
     DB_PROVIDER: str = "postgres"
     DB_HOST: str = "cognee-postgres"
     DB_PORT: int = 5432
-    DB_NAME: str = "cognee_db"
+    DB_NAME: str = "vector_db"
     DB_USERNAME: str = "admin"
     DB_PASSWORD: str = "admin"
     
