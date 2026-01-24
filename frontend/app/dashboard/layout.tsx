@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Cpu, Database, Bot, LogOut, Menu, X, Sun, Moon, Users, FileText } from "lucide-react";
+import { LayoutDashboard, Cpu, Database, Bot, LogOut, Menu, X, Sun, Moon, Users, FileText, ShoppingBag } from "lucide-react";
 import Logo from "@/components/Logo";
 import { useTheme } from "@/contexts/ThemeContext";
 import api from "@/lib/api";
@@ -26,6 +26,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         { name: "Providers", href: "/dashboard/providers", icon: Cpu },
         { name: "Knowledge Base", href: "/dashboard/kb", icon: Database },
         { name: "Agents", href: "/dashboard/agents", icon: Bot },
+        { name: "MCP Hub", href: "/dashboard/mcp", icon: ShoppingBag },
         { name: "Audit Logs", href: "/dashboard/audit", icon: FileText },
     ];
 
