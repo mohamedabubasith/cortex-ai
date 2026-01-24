@@ -13,6 +13,7 @@ class LLMRepository:
         self,
         user_id: str,
         name: str,
+        provider: str,
         api_key: str,
         model: str,
         base_url: Optional[str] = None
@@ -22,6 +23,7 @@ class LLMRepository:
             id=str(uuid.uuid4()),
             user_id=user_id,
             name=name,
+            provider=provider,
             api_key=api_key,
             model=model,
             base_url=base_url
