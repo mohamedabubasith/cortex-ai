@@ -77,8 +77,8 @@ async def upload_kb_file(
             llm_config = result.scalars().first()
         
         if not llm_config:
-            # We allow upload but warn
-            print("WARNING: No LLM Config found! Indexing will be skipped for now.")
+            # We allow upload and proceed with local embeddings
+            print("INFO: No LLM Config found. Using default/local embeddings for indexing.")
         
         # Create KB record immediately
         kb = await kb_service.create_kb_record(
@@ -96,20 +96,19 @@ async def upload_kb_file(
         # For now we can pass None or handle it inside service
         tenant_id = None 
         
-        # Process in background
-        if llm_config:
-            background_tasks.add_task(
-                kb_service.process_kb,
-                kb.id,
-                file_path,
-                current_user.id,
-                tenant_id,
-                chunk_size,
-                chunk_overlap,
-                llm_config,
-                embedding_model,
-                current_user.email
-            )
+        # Process in background (always)
+        background_tasks.add_task(
+            kb_service.process_kb,
+            kb.id,
+            file_path,
+            current_user.id,
+            tenant_id,
+            chunk_size,
+            chunk_overlap,
+            llm_config,
+            embedding_model,
+            current_user.email
+        )
         
         return kb
         
