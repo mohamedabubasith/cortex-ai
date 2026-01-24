@@ -334,9 +334,10 @@ class CogneeService:
             )
             
             if raw_status is None:
+                # If dataset exists but has no status yet, it's likely just queued/initiated
                 return {
-                    "status": "unknown",
-                    "message": "Could not retrieve dataset status",
+                    "status": "initiated",
+                    "message": "Dataset created, status pending",
                     "details": status_response
                 }
             
