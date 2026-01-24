@@ -14,9 +14,9 @@ services:
           - cognee-postgres
           - db
     environment:
-      POSTGRES_USER: ${DB_USERNAME:-admin}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-admin}
-      POSTGRES_DB: ${DB_NAME:-cognee_db} # Default DB
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: cognee_db
       POSTGRES_MULTIPLE_DATABASES: chat_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -24,7 +24,7 @@ services:
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-admin} -d ${DB_NAME:-cognee_db}"]
+      test: ["CMD-SHELL", "pg_isready -U admin -d cognee_db"]
       interval: 10s
       timeout: 10s
       retries: 10
@@ -40,49 +40,46 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    env_file:
-      - .env
     environment:
       # Core
-      SECRET_KEY: ${SECRET_KEY:-production_secret_key_change_me}
-      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      SECRET_KEY: production_secret_key_change_me
+      ACCESS_TOKEN_EXPIRE_MINUTES: 60
+      LOG_LEVEL: INFO
       
-      # Admin Credentials
-      ADMIN_EMAIL: ${ADMIN_EMAIL}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      # Admin Credentials (Internal)
+      ADMIN_EMAIL: admin@gmail.com
+      ADMIN_PASSWORD: Apple@123
       
       # Database Connection
-      DB_PROVIDER: ${DB_PROVIDER:-postgres}
+      DB_PROVIDER: postgres
       DB_HOST: db
       DB_PORT: 5432
       DB_NAME: cognee_db
-      DB_USERNAME: ${DB_USERNAME:-admin}
-      DB_PASSWORD: ${DB_PASSWORD:-admin}
+      DB_USERNAME: admin
+      DB_PASSWORD: admin
       
       # Cognee Vector DB (Required for persistence)
       VECTOR_DB_PROVIDER: pgvector
-      VECTOR_DB_URL: postgresql://${DB_USERNAME:-admin}:${DB_PASSWORD:-admin}@db:5432/cognee_db
+      VECTOR_DB_URL: postgresql://admin:admin@db:5432/cognee_db
       
       # App Database Connection
       APP_DB_HOST: db
       APP_DB_PORT: 5432
       APP_DB_NAME: chat_db
-      APP_DB_USERNAME: ${APP_DB_USERNAME:-admin}
-      APP_DB_PASSWORD: ${APP_DB_PASSWORD:-admin}
+      APP_DB_USERNAME: admin
+      APP_DB_PASSWORD: admin
       
       # Constructed URLs (Force internal hostnames)
-      DATABASE_URL: postgresql+asyncpg://${APP_DB_USERNAME:-admin}:${APP_DB_PASSWORD:-admin}@db:5432/chat_db
-      # VECTOR_DB_URL is already defined above
+      DATABASE_URL: postgresql+asyncpg://admin:admin@db:5432/chat_db
       
       # Vector DB & Embeddings
-      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-fastembed}
-      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
-      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-384}
+      EMBEDDING_PROVIDER: fastembed
+      EMBEDDING_MODEL: sentence-transformers/all-MiniLM-L6-v2
+      EMBEDDING_DIMENSIONS: 384
       
       # Security & Access Control
-      ENABLE_BACKEND_ACCESS_CONTROL: ${ENABLE_BACKEND_ACCESS_CONTROL:-true}
-      REQUIRE_AUTHENTICATION: ${REQUIRE_AUTHENTICATION:-true}
+      ENABLE_BACKEND_ACCESS_CONTROL: "true"
+      REQUIRE_AUTHENTICATION: "true"
       
     volumes:
       - ./backend/uploads:/app/uploads
@@ -96,14 +93,14 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+        NEXT_PUBLIC_API_URL: http://localhost:8000
         BACKEND_URL: http://chatbot_backend:8000
     container_name: chatbot_frontend
     restart: always
     ports:
       - "3000:3000"
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      NEXT_PUBLIC_API_URL: http://localhost:8000
       BACKEND_URL: http://chatbot_backend:8000
 
 volumes:
