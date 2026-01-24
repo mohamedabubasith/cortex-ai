@@ -154,7 +154,14 @@ class KnowledgeBase(Base):
     filename = Column(String)
     file_path = Column(String)
     file_type = Column(String)
-    status = Column(String, default="pending") # pending, indexed, failed
+    file_size = Column(Integer)
+    status = Column(String, default="pending") # pending, indexing, indexed, failed
+    
+    # RAG Config
+    chunk_size = Column(Integer, default=1000)
+    chunk_overlap = Column(Integer, default=200)
+    embedding_model = Column(String, nullable=True) # Snapshot of model used
+    
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     owner = relationship("User", back_populates="knowledge_bases")

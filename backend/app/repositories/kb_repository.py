@@ -15,6 +15,9 @@ class KBRepository:
         filename: str,
         file_path: str,
         file_type: str,
+        file_size: int,
+        chunk_size: int,
+        chunk_overlap: int,
         status: str = "pending"
     ) -> models.KnowledgeBase:
         """Create KB record"""
@@ -25,6 +28,9 @@ class KBRepository:
             filename=filename,
             file_path=file_path,
             file_type=file_type,
+            file_size=file_size,
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
             status=status
         )
         self.db.add(kb)
