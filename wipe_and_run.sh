@@ -32,6 +32,16 @@ until [ "`docker inspect -f {{.State.Health.Status}} chatbot_db`" = "healthy" ];
 done
 echo "✅ Database is ready!"
 
+# 3.1 Ensure chat_db exists (Robustness fallback)
+echo "🛠️  Verifying database 'chat_db' exists..."
+if docker exec chatbot_db psql -U admin -lqt | cut -d \| -f 1 | grep -qw chat_db; then
+    echo "   - Database 'chat_db' already exists."
+else
+    echo "   - Database 'chat_db' not found. Creating it..."
+    docker exec chatbot_db createdb -U admin chat_db
+    echo "   - Database 'chat_db' created."
+fi
+
 # 4. Build and start Backend, Frontend, and Nginx
 echo "🚀 Starting Backend, Frontend, and Nginx services..."
 docker compose -f docker-compose.prod.yml up -d --build backend frontend nginx
