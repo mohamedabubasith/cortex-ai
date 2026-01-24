@@ -96,7 +96,7 @@ export default function ThinkingIndicator({ theme = "dark", isQuerying = false, 
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -5 }}
                     className={cn(
-                        "text-sm font-medium",
+                        "text-sm font-medium animate-pulse",
                         theme === 'dark' ? "text-gray-200" : "text-gray-800"
                     )}
                 >

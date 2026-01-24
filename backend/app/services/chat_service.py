@@ -173,45 +173,56 @@ class ChatService:
 
             # --- KNOWLEDGE BASE RAG ---
             if kb_enabled and agent.knowledge_bases and agent.llm_config:
-                # ... existing KB logic ...
-                kb_map = {f"doc_{kb.id}": kb.filename for kb in agent.knowledge_bases}
-                dataset_names = list(kb_map.keys())
-                
                 kb_repo = KBRepository(self.db)
                 kb_service = KBService(kb_repo)
                 
-                try:
-                    yield f"<KB_QUERY>{message[:50]}...</KB_QUERY>"
-                    search_result = await kb_service.query_datasets(
-                        dataset_names, 
-                        message, 
-                        agent.llm_config,
-                        user_email=agent.owner.email if agent.owner else None
-                    )
-                    if search_result and search_result.get("success") and search_result.get("data"):
-                        for result in search_result["data"]:
-                            # Robustly extract text and source dataset
-                            # Cognee results can be dicts or objects with attributes
-                            text = ""
-                            source_dataset = "unknown"
+                # Group KBs by embedding model
+                kbs_by_model = {}
+                for kb in agent.knowledge_bases:
+                    model = kb.embedding_model or "sentence-transformers/all-MiniLM-L6-v2" # Default fallback
+                    if model not in kbs_by_model:
+                        kbs_by_model[model] = []
+                    kbs_by_model[model].append(kb)
+                
+                if kbs_by_model:
+                     yield f"<KB_QUERY>{message[:30]}...</KB_QUERY>"
+                
+                all_results = []
+                for model, kbs in kbs_by_model.items():
+                    kb_ids = [kb.id for kb in kbs]
+                    try:
+                        search_result = await kb_service.query_multiple(
+                            kb_ids, 
+                            message, 
+                            agent.llm_config,
+                            embedding_model=model,
+                            user_email=agent.owner.email if agent.owner else None
+                        )
+                        
+                        if search_result and search_result.get("success") and search_result.get("data"):
+                            all_results.extend(search_result["data"])
                             
-                            if isinstance(result, dict):
-                                text = result.get("text") or result.get("content") or str(result)
-                                source_dataset = result.get("belongs_to_set") or result.get("dataset_name") or "unknown"
-                            else:
-                                # Try attribute access for objects
-                                text = getattr(result, "text", getattr(result, "content", str(result)))
-                                source_dataset = getattr(result, "belongs_to_set", getattr(result, "dataset_name", "unknown"))
-                            
-                            filename = kb_map.get(source_dataset, "Unknown File")
-                            
-                            # Fallback: if we still have "Unknown File", check if the text itself contains a hint or if we only have one KB
-                            if filename == "Unknown File" and len(kb_map) == 1:
-                                filename = list(kb_map.values())[0]
-                                
-                            context_parts.append(f"SOURCE: [{filename}]\nCONTENT: {text}")
-                except Exception as e:
-                    logger.error(f"RAG Error: {e}")
+                    except Exception as e:
+                        logger.error(f"RAG Error for model {model}: {e}")
+
+                # Process all gathered results
+                if all_results:
+                    # Sort by score if available (descending for cosine/similarity? or ascending for distance?)
+                    # Chroma returns distance usually? Or similarity? 
+                    # LangChain similarity_search_with_score documentation says: "score: float, similarity score"
+                    # But often it is distance (lower is better).
+                    # Let's assume lower is better for L2, but we print them directly.
+                    # We'll just take top K overall if we wanted, but context window logic handles token limit.
+                    
+                    kb_filename_map = {kb.id: kb.filename for kb in agent.knowledge_bases}
+
+                    for result in all_results:
+                        text = result.get("content", "")
+                        metadata = result.get("metadata", {})
+                        kb_id = metadata.get("kb_id")
+                        filename = kb_filename_map.get(kb_id, metadata.get("source", "Unknown File"))
+                        
+                        context_parts.append(f"SOURCE: [{filename}]\nCONTENT: {text}")
 
             # --- CONTEXT INJECTION ---
             full_context = ""

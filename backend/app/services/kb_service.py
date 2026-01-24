@@ -102,6 +102,19 @@ class KBService:
         
         return {"success": True, "data": results}
 
+    async def query_multiple(self, kb_ids: List[str], query_text: str, llm_config, embedding_model: str, user_email: str = None):
+        """Query multiple KBs (must share same embedding model)"""
+        if not kb_ids:
+             return {"success": True, "data": []}
+        
+        # Search via RAG Service
+        # Filter by KB IDs using $in operator
+        filters = {"kb_id": {"$in": kb_ids}}
+        
+        results = await rag_service.search(query_text, filters, llm_config, embedding_model=embedding_model)
+        
+        return {"success": True, "data": results}
+
     async def delete(self, kb_id: str, user_id: str, user_email: str = None) -> Dict[str, Any]:
         """Delete KB and vectors"""
         kb = await self.kb_repo.get_by_id(kb_id, user_id)
