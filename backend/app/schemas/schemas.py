@@ -93,7 +93,7 @@ class KnowledgeBase(KnowledgeBaseBase):
 
 class KBQueryRequest(BaseModel):
     query: str
-    llm_config_id: str
+    llm_config_id: Optional[str] = None
     dataset_names: Optional[List[str]] = []
 
 # Database Schemas

@@ -160,16 +160,28 @@ async def query_kb(
     kb_service: KBService = Depends(get_kb_service)
 ):
     """Query KB"""
-    result = await db.execute(
-        select(models.LLMConfiguration).where(
-            models.LLMConfiguration.id == query_request.llm_config_id,
-            models.LLMConfiguration.user_id == current_user.id
+    llm_config = None
+    if query_request.llm_config_id:
+        result = await db.execute(
+            select(models.LLMConfiguration).where(
+                models.LLMConfiguration.id == query_request.llm_config_id,
+                models.LLMConfiguration.user_id == current_user.id
+            )
         )
-    )
-    llm_config = result.scalars().first()
-    
-    if not llm_config:
-        raise HTTPException(status_code=404, detail="LLM configuration not found. Please check your settings.")
+        llm_config = result.scalars().first()
+        if not llm_config:
+             raise HTTPException(status_code=404, detail="Selected LLM configuration not found.")
+    else:
+        # Try to find a default/any config for the user to get API Key if needed
+        # If user has no config, it will be None, which is fine for local embeddings
+        result = await db.execute(
+            select(models.LLMConfiguration).where(
+                models.LLMConfiguration.user_id == current_user.id
+            )
+        )
+        llm_config = result.scalars().first()
+
+    # Note: We don't raise 404 if llm_config is None anymore, because local embeddings don't need it.
     
     result = await kb_service.query(kb_id, current_user.id, query_request.query, llm_config, user_email = current_user.email)
     
