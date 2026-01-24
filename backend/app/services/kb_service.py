@@ -92,8 +92,8 @@ class KBService:
             return {"success": False, "message": f"KB not indexed (status: {kb.status})"}
         
         # Search via RAG Service
-        # Filter by KB ID and User ID for security
-        filters = {"kb_id": kb_id, "user_id": user_id}
+        # Filter by KB ID for security and reliability
+        filters = {"kb_id": kb_id}
         
         results = await rag_service.search(query_text, filters, llm_config)
         
