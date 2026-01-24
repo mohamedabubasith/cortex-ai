@@ -77,8 +77,8 @@ async def create_default_admin(db: AsyncSession):
 
 
 async def run_admin_creation():
-    from app.core.database import SessionLocal
-    async with SessionLocal() as db:
+    from app.core.database import AsyncSessionLocal
+    async with AsyncSessionLocal() as db:
         await create_default_admin(db)
 
 if __name__ == "__main__":
