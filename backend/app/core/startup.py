@@ -29,7 +29,7 @@ async def create_default_admin(db: AsyncSession):
     
     # Get credentials from environment or use defaults
     admin_email = settings.admin_email
-    admin_password = settings.admin_password
+    admin_password = settings.admin_password[:72]  # bcrypt max is 72 bytes
     admin_name = getattr(settings, 'DEFAULT_ADMIN_NAME', 'System Administrator')
     
     print(f"\n{'='*60}")
