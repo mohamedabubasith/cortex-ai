@@ -9,26 +9,34 @@ echo "🧹 Starting full clean deployment..."
 echo "🗑️  Removing containers, volumes, and images..."
 docker compose -f docker-compose.prod.yml down -v --rmi all --remove-orphans
 
-# 2. Build and start containers
-echo "🏗️  Building and starting services..."
-docker compose -f docker-compose.prod.yml up -d --build
+# 2. Build and start Database first
+echo "🏗️  Building and starting Database..."
+docker compose -f docker-compose.prod.yml up -d --build db
 
 # 3. Wait for Database to be ready
 echo "⏳ Waiting for Database to be healthy..."
 # Loop until the db container is healthy
+MAX_RETRIES=60 # 2 minutes total (60 * 2s)
+count=0
 until [ "`docker inspect -f {{.State.Health.Status}} chatbot_db`" == "healthy" ]; do
     sleep 2;
     echo -n "."
+    count=$((count+1))
+    if [ $count -ge $MAX_RETRIES ]; then
+        echo ""
+        echo "❌ Timeout waiting for database to be healthy."
+        echo "   Checking logs for chatbot_db:"
+        docker logs --tail 50 chatbot_db
+        exit 1
+    fi
 done
 echo "✅ Database is ready!"
 
-# Explicitly create chat_db to ensure it exists (fallback if init script fails)
-# Note: This is largely redundant if init-multiple-dbs.sh is working correctly, but kept for safety if needed.
-# However, user requested less clumsy code, and init-multiple-dbs.sh handles this.
-# Removing manual creation to rely on the clean init script.
+# 4. Build and start Backend and Frontend
+echo "🚀 Starting Backend and Frontend services..."
+docker compose -f docker-compose.prod.yml up -d --build backend frontend
 
-# 4. Run Migrations
-# 4. Run Migrations
+# 5. Run Migrations
 ./migrate.sh
 
 echo "🚀 Deployment Complete! Services are running."

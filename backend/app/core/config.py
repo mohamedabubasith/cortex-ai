@@ -39,6 +39,22 @@ class Settings(BaseSettings):
     # Admin Security
     ADMIN_SECRET_KEY: str = "ec49d476-0757-46c5-a4de-9c0b5a87a20a" # Default secret, change in production
     
+    # Default Admin User (created on first startup if no superuser exists)
+    DEFAULT_ADMIN_EMAIL: str = "admin@cortex.ai"
+    DEFAULT_ADMIN_PASSWORD: str = "admin123"
+    DEFAULT_ADMIN_NAME: str = "System Administrator"
+
+    # Allow overriding with simpler env vars (ADMIN_EMAIL, ADMIN_PASSWORD)
+    # These will take precedence if set in .env
+    @property
+    def admin_email(self) -> str:
+        import os
+        return os.getenv("ADMIN_EMAIL", self.DEFAULT_ADMIN_EMAIL)
+
+    @property
+    def admin_password(self) -> str:
+        import os
+        return os.getenv("ADMIN_PASSWORD", self.DEFAULT_ADMIN_PASSWORD)
     # Keycloak (Example config)
     KEYCLOAK_URL: Optional[str] = None # Set to enable SSO
     KEYCLOAK_REALM: str = "master"
