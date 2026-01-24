@@ -746,33 +746,64 @@ export default function KnowledgeBasePage() {
                     {/* Results */}
                     {queryResults && (
                         <div className="pt-6 border-t border-white/10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                            <h3 className="text-lg font-bold text-white mb-4 flex items-center">
-                                <span className="w-1 h-6 bg-nvidia-green rounded-full mr-3"></span>
-                                Results
-                                <span className="ml-3 text-xs font-normal text-gray-500 bg-white/5 px-2 py-1 rounded-full">
-                                    {queryResults.length} matches
+                            <h3 className="text-lg font-bold text-white mb-4 flex items-center justify-between">
+                                <div className="flex items-center">
+                                    <span className="w-1 h-6 bg-nvidia-green rounded-full mr-3"></span>
+                                    Results
+                                </div>
+                                <span className="text-xs font-normal text-gray-500 bg-white/5 px-2 py-1 rounded-full border border-white/5">
+                                    {queryResults.length} matches found
                                 </span>
                             </h3>
 
                             <div className="space-y-4">
                                 {queryResults.length === 0 ? (
                                     <div className="text-center py-10 bg-white/5 rounded-xl border border-white/5 border-dashed">
-                                        <p className="text-gray-400">No relevant results found in this document.</p>
+                                        <div className="bg-white/5 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
+                                            <Search className="w-5 h-5 text-gray-400" />
+                                        </div>
+                                        <p className="text-gray-400 font-medium">No relevant results found.</p>
+                                        <p className="text-xs text-gray-500 mt-1">Try rewording your query.</p>
                                     </div>
                                 ) : (
                                     queryResults.map((chunk, i) => (
-                                        <div key={i} className="bg-white/5 rounded-xl border border-white/10 overflow-hidden group hover:border-nvidia-green/30 transition-all">
-                                            <div className="p-4">
-                                                <p className="text-sm md:text-base text-gray-300 leading-relaxed whitespace-pre-wrap">{chunk.text}</p>
-                                            </div>
-                                            {chunk.metadata && Object.keys(chunk.metadata).length > 0 && (
-                                                <div className="bg-black/20 px-4 py-3 border-t border-white/5 flex flex-wrap gap-2">
-                                                    {Object.entries(chunk.metadata).map(([k, v]) => (
-                                                        <div key={k} className="flex items-center text-xs text-gray-500 bg-white/5 px-2 py-1 rounded border border-white/5">
-                                                            <span className="font-medium text-gray-400 mr-1">{k}:</span>
-                                                            <span className="truncate max-w-[200px]">{String(v)}</span>
+                                        <div key={i} className="bg-white/5 rounded-xl border border-white/10 overflow-hidden group hover:border-nvidia-green/30 transition-all shadow-sm">
+                                            {/* Header with Score */}
+                                            <div className="bg-white/5 px-4 py-2 flex justify-between items-center border-b border-white/5">
+                                                <span className="text-xs font-bold text-nvidia-green uppercase tracking-wider">
+                                                    Match #{i + 1}
+                                                </span>
+                                                {chunk.score !== undefined && (
+                                                    <div className="flex items-center space-x-1" title="Similarity Score (lower is better for L2 distance, higher for Cosine)">
+                                                        <div className="w-16 h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                                                            <div
+                                                                className="h-full bg-nvidia-green"
+                                                                style={{ width: `${Math.min((chunk.score || 0) * 100, 100)}%` }} // Adjust specific to your score metric if needed
+                                                            />
                                                         </div>
-                                                    ))}
+                                                        <span className="text-xs font-mono text-gray-400">{typeof chunk.score === 'number' ? chunk.score.toFixed(4) : chunk.score}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div className="p-5">
+                                                {/* Content - Handling both 'content' (new RAG) and 'text' (fallback) */}
+                                                <p className="text-sm md:text-base text-gray-200 leading-relaxed whitespace-pre-wrap font-sans">
+                                                    {chunk.content || chunk.text || "No text content available."}
+                                                </p>
+                                            </div>
+
+                                            {/* Metadata Footer */}
+                                            {chunk.metadata && Object.keys(chunk.metadata).length > 0 && (
+                                                <div className="bg-black/20 px-4 py-3 border-t border-white/5">
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {Object.entries(chunk.metadata).map(([k, v]) => (
+                                                            <div key={k} className="flex items-center text-[10px] md:text-xs text-gray-400 bg-white/5 px-2 py-1.5 rounded border border-white/5 hover:bg-white/10 transition-colors">
+                                                                <span className="font-semibold text-gray-500 uppercase mr-1.5">{k.replace(/_/g, ' ')}:</span>
+                                                                <span className="truncate max-w-[200px] font-mono text-gray-300">{String(v)}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>
