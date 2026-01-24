@@ -186,8 +186,16 @@ export default function MCPHubPage() {
                 await api.put(`/resources/mcp/${editingId}`, payload);
                 toast("Connection updated successfully", "success");
             } else {
-                await api.post("/resources/mcp", payload);
-                toast("MCP Server connected successfully", "success");
+                const res = await api.post("/resources/mcp", payload);
+                toast("MCP Server connected", "success");
+
+                // Auto-sync after create so tools show up immediately
+                try {
+                    await api.post(`/resources/mcp/${res.data.id}/sync`);
+                    toast("Tools synced automatically", "success");
+                } catch (e) {
+                    console.error("Auto-sync failed", e);
+                }
             }
 
             setIsModalOpen(false);
@@ -417,12 +425,23 @@ export default function MCPHubPage() {
                         onChange={e => setFormData({ ...formData, name: e.target.value })}
                     />
 
-                    <Input
-                        label="Server URL"
-                        placeholder="http://localhost:8000/mcp"
-                        value={formData.server_url}
-                        onChange={e => setFormData({ ...formData, server_url: e.target.value })}
-                    />
+                    <div className="grid grid-cols-2 gap-4">
+                        <Select
+                            label="Protocol"
+                            value={formData.protocol}
+                            onChange={(e) => setFormData({ ...formData, protocol: e.target.value })}
+                            options={[
+                                { label: "SSE (Server-Sent Events)", value: "sse" },
+                                { label: "HTTP (Streamable)", value: "http" }
+                            ]}
+                        />
+                        <Input
+                            label="Server URL"
+                            placeholder="http://localhost:8000/mcp"
+                            value={formData.server_url}
+                            onChange={e => setFormData({ ...formData, server_url: e.target.value })}
+                        />
+                    </div>
 
                     <div>
                         <div className="flex justify-between items-center mb-2">
