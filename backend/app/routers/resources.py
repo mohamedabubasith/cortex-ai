@@ -19,7 +19,7 @@ MCP_HUB_REGISTRY = [
         "name": "Local Filesystem",
         "description": "Access and manage local files and directories securely.",
         "icon": "FolderOpen",
-        "server_url": "http://localhost:8000/mcp/filesystem",
+        "server_url": "",
         "protocol": "sse",
         "documentation": "Run: npx -y @modelcontextprotocol/server-filesystem /path/to/allowed/dir",
         "env_vars": []
@@ -29,7 +29,7 @@ MCP_HUB_REGISTRY = [
         "name": "GitHub",
         "description": "Search repositories, manage issues, and view pull requests.",
         "icon": "Github",
-        "server_url": "http://localhost:8000/mcp/github",
+        "server_url": "",
         "protocol": "sse",
         "documentation": "Run: npx -y @modelcontextprotocol/server-github",
         "env_vars": [
@@ -41,7 +41,7 @@ MCP_HUB_REGISTRY = [
         "name": "PostgreSQL",
         "description": "Read-only database access for querying data and schema.",
         "icon": "Database",
-        "server_url": "http://localhost:8000/mcp/postgres",
+        "server_url": "",
         "protocol": "sse",
         "documentation": "Run: npx -y @modelcontextprotocol/server-postgres postgresql://user:pass@localhost:5432/db",
          "env_vars": [
@@ -53,7 +53,7 @@ MCP_HUB_REGISTRY = [
         "name": "Brave Search",
         "description": "Web search capabilities using Brave Search API.",
         "icon": "Globe",
-        "server_url": "http://localhost:8000/mcp/brave",
+        "server_url": "",
         "protocol": "sse",
         "documentation": "Run: npx -y @modelcontextprotocol/server-brave-search",
         "env_vars": [
@@ -65,7 +65,7 @@ MCP_HUB_REGISTRY = [
         "name": "Gmail",
         "description": "Read and manage emails, drafts, and attachments.",
         "icon": "Mail",
-        "server_url": "http://localhost:8000/mcp/gmail",
+        "server_url": "",
         "protocol": "sse",
         "documentation": "Custom Python server required.",
         "env_vars": [
@@ -79,7 +79,7 @@ MCP_HUB_REGISTRY = [
         "name": "Slack",
         "description": "Send messages, read channels, and manage workspace.",
         "icon": "MessageSquare",
-        "server_url": "http://localhost:8000/mcp/slack",
+        "server_url": "",
         "protocol": "sse",
         "documentation": "Custom Python server required.",
         "env_vars": [
