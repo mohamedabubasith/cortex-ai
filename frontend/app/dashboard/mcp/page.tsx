@@ -213,7 +213,7 @@ export default function MCPHubPage() {
     };
 
     const handleSync = async (id: string) => {
-        const toastId = toast("Syncing tools...", "loading"); // Need loading toast support or just standard
+        const toastId = toast("Syncing tools...", "info"); // loading not supported, using info
         try {
             await api.post(`/resources/mcp/${id}/sync`);
             toast("Tools synced successfully", "success");
@@ -407,7 +407,7 @@ export default function MCPHubPage() {
                 <div className="space-y-4">
                     <div className="bg-blue-500/10 border border-blue-500/20 text-blue-200 p-3 rounded-lg text-xs mb-4">
                         <p className="font-bold flex items-center mb-1"><AlertTriangle className="w-3 h-3 mr-1" /> Configuration Note</p>
-                        <p>For generic servers, enter the server URL (SSE). If referencing a registry item, ensure any required environment variables/headers are added below.</p>
+                        <p>Enter the full URL to your MCP server endpoint (e.g. <code>/mcp</code>). Ensure the server is reachable.</p>
                     </div>
 
                     <Input
@@ -418,8 +418,8 @@ export default function MCPHubPage() {
                     />
 
                     <Input
-                        label="Server URL (SSE Endpoint)"
-                        placeholder="http://localhost:8000/sse"
+                        label="Server URL"
+                        placeholder="http://localhost:8000/mcp"
                         value={formData.server_url}
                         onChange={e => setFormData({ ...formData, server_url: e.target.value })}
                     />
