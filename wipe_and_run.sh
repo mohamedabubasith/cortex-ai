@@ -49,6 +49,10 @@ docker compose -f docker-compose.prod.yml up -d --build backend frontend nginx
 # 5. Run Migrations
 ./migrate.sh
 
+# 6. Create Admin User (must run after migrations)
+echo "👤 Creating Default Admin User..."
+docker exec chatbot_backend python -m app.core.startup
+
 echo "🚀 Deployment Complete! Services are running."
 echo "   - App DB: chat_db (Managed by Alembic)"
 echo "   - Cognee DB: cognee_db (Managed by Cognee)"

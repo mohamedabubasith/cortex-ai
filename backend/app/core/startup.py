@@ -76,8 +76,11 @@ async def create_default_admin(db: AsyncSession):
         # Don't raise - let the app start anyway
 
 
-async def initialize_database(db: AsyncSession):
-    """
-    Initialize database with default data on startup.
-    """
-    await create_default_admin(db)
+async def run_admin_creation():
+    from app.core.database import SessionLocal
+    async with SessionLocal() as db:
+        await create_default_admin(db)
+
+if __name__ == "__main__":
+    print("🚀 Starting admin user creation script...")
+    asyncio.run(run_admin_creation())
