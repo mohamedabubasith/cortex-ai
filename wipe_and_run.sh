@@ -18,7 +18,7 @@ echo "⏳ Waiting for Database to be healthy..."
 # Loop until the db container is healthy
 MAX_RETRIES=60 # 2 minutes total (60 * 2s)
 count=0
-until [ "`docker inspect -f {{.State.Health.Status}} chatbot_db`" == "healthy" ]; do
+until [ "`docker inspect -f {{.State.Health.Status}} chatbot_db`" = "healthy" ]; do
     sleep 2;
     echo -n "."
     count=$((count+1))
