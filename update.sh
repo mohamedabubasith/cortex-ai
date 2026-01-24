@@ -17,4 +17,8 @@ docker compose -f docker-compose.prod.yml up -d --build
 # 3. Run Migrations (just in case)
 ./migrate.sh
 
+# 4. Create Admin User (idempotent, ensures it exists)
+echo "👤 Ensuring Default Admin User exists..."
+docker exec chatbot_backend python -m app.core.startup
+
 echo "✅ Update Complete! Services are running with latest code."
