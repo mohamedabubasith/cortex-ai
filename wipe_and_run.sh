@@ -11,7 +11,8 @@ docker compose -f docker-compose.prod.yml down -v --rmi all --remove-orphans
 
 # 2. Build and start Database first
 echo "🏗️  Building and starting Database..."
-docker compose -f docker-compose.prod.yml up -d --build db
+docker compose -f docker-compose.prod.yml build --no-cache db
+docker compose -f docker-compose.prod.yml up -d db
 
 # 3. Wait for Database to be ready
 echo "⏳ Waiting for Database to be healthy..."
@@ -43,8 +44,10 @@ else
 fi
 
 # 4. Build and start Backend, Frontend, and Nginx
+echo "🚀 Building Backend (with fresh dependencies)..."
+docker compose -f docker-compose.prod.yml build --no-cache backend
 echo "🚀 Starting Backend, Frontend, and Nginx services..."
-docker compose -f docker-compose.prod.yml up -d --build backend frontend nginx
+docker compose -f docker-compose.prod.yml up -d backend frontend nginx
 
 # 5. Run Migrations
 ./migrate.sh
