@@ -22,9 +22,19 @@ class TenantMember(TenantMemberBase):
     user_id: str
     created_at: datetime
     tenant: Tenant
+    user: Optional["UserSimple"] = None
     
     class Config:
         from_attributes = True
+
+class TenantUserInvite(BaseModel):
+    email: EmailStr
+    role: str = "member"
+    password: Optional[str] = None
+    full_name: Optional[str] = None
+
+class TenantUserUpdate(BaseModel):
+    role: str
 
 # User Schemas
 class UserBase(BaseModel):
@@ -40,6 +50,11 @@ class User(UserBase):
     id: str
     tenant_memberships: List[TenantMember] = []
     
+    class Config:
+        from_attributes = True
+
+class UserSimple(UserBase):
+    id: str
     class Config:
         from_attributes = True
 

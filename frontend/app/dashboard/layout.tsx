@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Cpu, Database, Bot, LogOut, Menu, X, Sun, Moon, Users, FileText, ShoppingBag } from "lucide-react";
+import { LayoutDashboard, Cpu, Database, Bot, LogOut, Menu, X, Sun, Moon, Users, FileText, ShoppingBag, Shield } from "lucide-react";
 import Logo from "@/components/Logo";
 import { useTheme } from "@/contexts/ThemeContext";
 import api from "@/lib/api";
@@ -77,7 +77,40 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         })}
                     </nav>
 
-                    {/* User / Logout */}
+                    {/* Administration Section */}
+                    {user?.tenant_memberships?.some((m: any) => ["owner", "admin"].includes(m.role)) && (
+                        <div className="px-4 py-2">
+                            <div className={`text-xs font-bold uppercase mb-2 ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+                                Administration
+                            </div>
+                            <div className="space-y-1">
+                                {[
+                                    { name: "Users & Groups", href: "/dashboard/admin/users", icon: Users },
+                                    { name: "Roles & Permissions", href: "/dashboard/admin/roles", icon: Shield }
+                                ].map((item) => {
+                                    const isActive = pathname === item.href;
+                                    return (
+                                        <Link
+                                            key={item.name}
+                                            href={item.href}
+                                            onClick={() => setIsMobileMenuOpen(false)}
+                                            className={`flex items-center px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200 ${isActive
+                                                ? "bg-nvidia-green text-black shadow-[0_0_15px_rgba(118,185,0,0.3)]"
+                                                : isDark
+                                                    ? "text-gray-400 hover:bg-white/5 hover:text-white"
+                                                    : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                                                }`}
+                                        >
+                                            <item.icon className={`w-4 h-4 mr-3 ${isActive ? "text-black" : isDark ? "text-gray-400" : "text-gray-600"}`} />
+                                            {item.name}
+                                        </Link>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="flex-1" />
                     <div className={`p-4 border-t ${isDark ? "border-white/10" : "border-gray-200"}`}>
                         <button
                             onClick={toggleTheme}
