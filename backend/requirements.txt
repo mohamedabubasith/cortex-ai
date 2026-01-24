@@ -11,7 +11,12 @@ httpx
 python-multipart
 alembic
 openai
-cognee==0.3.6
+langchain
+langchain-community
+langchain-chroma
+langchain-text-splitters
+langchain-openai
+chromadb
 qdrant-client
 pypdf
 python-docx
