@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)
 
 class RAGService:
     def __init__(self):
-        self.persist_directory = os.path.join(os.getcwd(), "backend/data/chroma_db")
+        # Use absolute path for ChromaDB persistence (Docker-friendly)
+        self.persist_directory = "/app/data/chroma_db"
         os.makedirs(self.persist_directory, exist_ok=True)
         
     def _get_embeddings(self, llm_config):
@@ -33,7 +34,7 @@ class RAGService:
             )
         
         # If user wants OpenAI or compatible
-        api_key = llm_config.api_key if llm_config else settings.OPENAI_API_KEY
+        api_key = llm_config.api_key if llm_config else None
         base_url = llm_config.base_url if llm_config else None
         
         if not api_key:
