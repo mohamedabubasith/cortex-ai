@@ -14,16 +14,7 @@ router = APIRouter()
 
 # MCP Hub Registry
 MCP_HUB_REGISTRY = [
-    {
-        "id": "filesystem",
-        "name": "Local Filesystem",
-        "description": "Access and manage local files and directories securely.",
-        "icon": "FolderOpen",
-        "server_url": "",
-        "protocol": "sse",
-        "documentation": "Run: npx -y @modelcontextprotocol/server-filesystem /path/to/allowed/dir",
-        "env_vars": []
-    },
+
     {
         "id": "github",
         "name": "GitHub",

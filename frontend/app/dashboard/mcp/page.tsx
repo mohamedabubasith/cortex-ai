@@ -339,8 +339,8 @@ export default function MCPHubPage() {
                             {connections.length === 0 && (
                                 <div className={cn("col-span-full flex flex-col items-center justify-center py-20 border rounded-2xl border-dashed", isDark ? "bg-nvidia-dark/30 border-white/10" : "bg-gray-50 border-gray-300")}>
                                     <ShoppingBag className="w-16 h-16 text-gray-600 mb-4" />
-                                    <h3 className="text-xl font-bold text-white mb-2">No Installed Servers</h3>
-                                    <p className="text-gray-400 mb-6">Install servers from the Registry or add a custom one.</p>
+                                    <h3 className={cn("text-xl font-bold mb-2", isDark ? "text-white" : "text-gray-900")}>No Installed Servers</h3>
+                                    <p className={cn("mb-6", isDark ? "text-gray-400" : "text-gray-600")}>Install servers from the Registry or add a custom one.</p>
                                     <button
                                         onClick={() => setActiveTab('hub')}
                                         className="text-nvidia-green hover:underline font-bold"
@@ -377,7 +377,7 @@ export default function MCPHubPage() {
 
                                         <div className="pt-4 border-t border-white/5 space-y-3">
                                             {item.documentation && (
-                                                <div className="text-xs font-mono p-2 rounded bg-black/30 text-gray-400 truncate" title={item.documentation}>
+                                                <div className={cn("text-xs font-mono p-2 rounded truncate", isDark ? "bg-black/30 text-gray-400" : "bg-gray-100 text-gray-600")} title={item.documentation}>
                                                     {item.documentation}
                                                 </div>
                                             )}
@@ -385,10 +385,10 @@ export default function MCPHubPage() {
                                                 onClick={() => handleOpenModal(null, item)}
                                                 disabled={isInstalled}
                                                 className={cn(
-                                                    "w-full py-2 rounded-lg font-bold text-sm transition-all flex items-center justify-center",
+                                                    "w-full py-2 rounded-lg font-bold text-sm transition-all flex items-center justify-center border",
                                                     isInstalled
-                                                        ? "bg-white/5 text-gray-500 cursor-not-allowed"
-                                                        : "bg-white/10 text-white hover:bg-white/20 hover:text-nvidia-green border border-white/5"
+                                                        ? (isDark ? "bg-white/5 text-gray-500 border-transparent cursor-not-allowed" : "bg-gray-100 text-gray-400 border-transparent cursor-not-allowed")
+                                                        : (isDark ? "bg-white/10 text-white hover:bg-white/20 hover:text-nvidia-green border-white/5" : "bg-white text-gray-900 border-gray-200 hover:border-nvidia-green hover:text-nvidia-green shadow-sm")
                                                 )}
                                             >
                                                 {isInstalled ? "Already Installed" : "Configure & Install"}
@@ -413,7 +413,7 @@ export default function MCPHubPage() {
                 ]}
             >
                 <div className="space-y-4">
-                    <div className="bg-blue-500/10 border border-blue-500/20 text-blue-200 p-3 rounded-lg text-xs mb-4">
+                    <div className={cn("border p-3 rounded-lg text-xs mb-4", isDark ? "bg-blue-500/10 border-blue-500/20 text-blue-200" : "bg-blue-50 border-blue-200 text-blue-800")}>
                         <p className="font-bold flex items-center mb-1"><AlertTriangle className="w-3 h-3 mr-1" /> Configuration Note</p>
                         <p>Enter the full URL to your MCP server endpoint (e.g. <code>/mcp</code>). Ensure the server is reachable.</p>
                     </div>
@@ -481,7 +481,12 @@ export default function MCPHubPage() {
                         <button
                             onClick={handleTestConnection}
                             disabled={testing || !formData.server_url}
-                            className="w-full bg-white/10 text-white font-medium px-4 py-2 rounded-lg hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center border border-white/5"
+                            className={cn(
+                                "w-full font-medium px-4 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center border",
+                                isDark
+                                    ? "bg-white/10 text-white hover:bg-white/20 border-white/5"
+                                    : "bg-gray-100 text-gray-900 hover:bg-gray-200 border-gray-200"
+                            )}
                         >
                             {testing ? (
                                 <>
