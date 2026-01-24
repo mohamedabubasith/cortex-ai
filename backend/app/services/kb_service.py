@@ -19,7 +19,6 @@ class KBService:
         file_path: str,
         file_type: str,
         file_size: int,
-        file_size: int,
         chunk_size: int = 1000,
         chunk_overlap: int = 200,
         embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
