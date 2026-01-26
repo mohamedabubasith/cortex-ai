@@ -154,34 +154,58 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     </div>
 
                     <div className={`p-4 border-t ${isDark ? "border-white/10" : "border-gray-200"}`}>
-                        <button
-                            onClick={toggleTheme}
-                            title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
-                            className={`flex items-center justify-center w-full ${isCollapsed ? "p-3" : "px-4 py-2.5"} text-sm font-medium rounded-xl transition-colors mb-2 ${isDark ? "text-gray-400 hover:bg-white/5 hover:text-white" : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"}`}
-                        >
-                            {isDark ? (
-                                <>
-                                    <Sun className={`w-5 h-5 ${isCollapsed ? "" : "mr-3"}`} />
-                                    {!isCollapsed && "Light Mode"}
-                                </>
-                            ) : (
-                                <>
-                                    <Moon className={`w-5 h-5 ${isCollapsed ? "" : "mr-3"}`} />
-                                    {!isCollapsed && "Dark Mode"}
-                                </>
-                            )}
-                        </button>
-                        <button
-                            onClick={() => {
-                                localStorage.removeItem("token");
-                                window.location.href = "/";
-                            }}
-                            title="Sign Out"
-                            className={`flex items-center justify-center w-full ${isCollapsed ? "p-3" : "px-4 py-2.5"} text-sm font-medium rounded-xl transition-colors ${isDark ? "text-gray-400 hover:bg-red-900/20 hover:text-red-400" : "text-gray-600 hover:bg-red-50 hover:text-red-600"}`}
-                        >
-                            <LogOut className={`w-5 h-5 ${isCollapsed ? "" : "mr-3"}`} />
-                            {!isCollapsed && "Sign Out"}
-                        </button>
+                        {/* Desktop: Full buttons */}
+                        <div className="hidden md:block">
+                            <button
+                                onClick={toggleTheme}
+                                title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                                className={`flex items-center justify-center w-full ${isCollapsed ? "p-3" : "px-4 py-2.5"} text-sm font-medium rounded-xl transition-colors mb-2 ${isDark ? "text-gray-400 hover:bg-white/5 hover:text-white" : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"}`}
+                            >
+                                {isDark ? (
+                                    <>
+                                        <Sun className={`w-5 h-5 ${isCollapsed ? "" : "mr-3"}`} />
+                                        {!isCollapsed && "Light Mode"}
+                                    </>
+                                ) : (
+                                    <>
+                                        <Moon className={`w-5 h-5 ${isCollapsed ? "" : "mr-3"}`} />
+                                        {!isCollapsed && "Dark Mode"}
+                                    </>
+                                )}
+                            </button>
+                            <button
+                                onClick={() => {
+                                    localStorage.removeItem("token");
+                                    window.location.href = "/";
+                                }}
+                                title="Sign Out"
+                                className={`flex items-center justify-center w-full ${isCollapsed ? "p-3" : "px-4 py-2.5"} text-sm font-medium rounded-xl transition-colors ${isDark ? "text-gray-400 hover:bg-red-900/20 hover:text-red-400" : "text-gray-600 hover:bg-red-50 hover:text-red-600"}`}
+                            >
+                                <LogOut className={`w-5 h-5 ${isCollapsed ? "" : "mr-3"}`} />
+                                {!isCollapsed && "Sign Out"}
+                            </button>
+                        </div>
+
+                        {/* Mobile: Compact icon buttons */}
+                        <div className="md:hidden flex items-center justify-center gap-2">
+                            <button
+                                onClick={toggleTheme}
+                                title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                                className={`p-2.5 rounded-lg transition-colors ${isDark ? "text-gray-400 hover:bg-white/10 hover:text-white" : "text-gray-600 hover:bg-gray-200 hover:text-gray-900"}`}
+                            >
+                                {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                            </button>
+                            <button
+                                onClick={() => {
+                                    localStorage.removeItem("token");
+                                    window.location.href = "/";
+                                }}
+                                title="Sign Out"
+                                className={`p-2.5 rounded-lg transition-colors ${isDark ? "text-gray-400 hover:bg-red-900/20 hover:text-red-400" : "text-gray-600 hover:bg-red-50 hover:text-red-600"}`}
+                            >
+                                <LogOut className="w-5 h-5" />
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
