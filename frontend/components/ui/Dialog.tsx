@@ -116,7 +116,7 @@ export default function Dialog({
                             {/* Footer / Buttons */}
                             {(buttons.length > 0) && (
                                 <div className={cn(
-                                    "px-8 py-5 flex justify-end space-x-3 shrink-0",
+                                    "px-4 sm:px-8 py-4 sm:py-5 flex flex-col sm:flex-row justify-end gap-3 shrink-0",
                                     theme === 'dark' ? "bg-white/5 border-t border-white/5" : "bg-gray-50 border-t border-gray-100"
                                 )}>
                                     {buttons.map((btn, idx) => (
@@ -130,7 +130,7 @@ export default function Dialog({
                                             }}
                                             disabled={btn.isLoading}
                                             className={cn(
-                                                "px-5 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 flex items-center shadow-sm",
+                                                "px-5 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 flex items-center justify-center shadow-sm w-full sm:w-auto",
                                                 btn.variant === 'primary' && "bg-nvidia-green text-black hover:bg-[#8CD600] ring-1 ring-[#6aa600]/50 hover:shadow-[0_0_15px_rgba(118,185,0,0.3)]",
                                                 btn.variant === 'secondary' && (theme === 'dark' ? "bg-white text-black hover:bg-gray-200" : "bg-black text-white hover:bg-gray-800"),
                                                 btn.variant === 'danger' && "bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20",
