@@ -151,7 +151,7 @@ export default function KnowledgeBasePage() {
         poll();
 
         return () => clearTimeout(timeoutId);
-    }, [kbFiles.length]); // Only reset polling when file count changes (e.g. new upload)
+    }, [kbFiles]); // Re-run when kbFiles array changes (new uploads or status updates)
 
 
 
@@ -439,10 +439,10 @@ export default function KnowledgeBasePage() {
                                     <div className="flex justify-between items-center mt-4">
                                         <span className="text-xs text-gray-400 uppercase">{file.file_type}</span>
                                         <span className={`text-xs font-bold px-2 py-1 rounded uppercase ${file.status === 'indexed' ? 'text-nvidia-green bg-nvidia-green/10' :
-                                                file.status === 'failed' ? 'text-red-500 bg-red-500/10' :
-                                                    file.status === 'processing' ? 'text-blue-500 bg-blue-500/10' :
-                                                        file.status === 'indexing' ? 'text-yellow-500 bg-yellow-500/10' :
-                                                            'text-gray-500 bg-gray-500/10'
+                                            file.status === 'failed' ? 'text-red-500 bg-red-500/10' :
+                                                file.status === 'processing' ? 'text-blue-500 bg-blue-500/10' :
+                                                    file.status === 'indexing' ? 'text-yellow-500 bg-yellow-500/10' :
+                                                        'text-gray-500 bg-gray-500/10'
                                             }`}>
                                             {file.status}
                                         </span>
