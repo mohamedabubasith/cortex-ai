@@ -157,7 +157,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         <button
                             onClick={toggleTheme}
                             title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
-                            className={`flex items-center justify-center w-full ${isCollapsed ? "p-3" : "px-4 py-3"} text-sm font-medium rounded-xl transition-colors mb-2 ${isDark ? "text-gray-400 hover:bg-white/5 hover:text-white" : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"}`}
+                            className={`flex items-center justify-center w-full ${isCollapsed ? "p-3" : "px-4 py-2.5"} text-sm font-medium rounded-xl transition-colors mb-2 ${isDark ? "text-gray-400 hover:bg-white/5 hover:text-white" : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"}`}
                         >
                             {isDark ? (
                                 <>
@@ -177,7 +177,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 window.location.href = "/";
                             }}
                             title="Sign Out"
-                            className={`flex items-center justify-center w-full ${isCollapsed ? "p-3" : "px-4 py-3"} text-sm font-medium rounded-xl transition-colors ${isDark ? "text-gray-400 hover:bg-red-900/20 hover:text-red-400" : "text-gray-600 hover:bg-red-50 hover:text-red-600"}`}
+                            className={`flex items-center justify-center w-full ${isCollapsed ? "p-3" : "px-4 py-2.5"} text-sm font-medium rounded-xl transition-colors ${isDark ? "text-gray-400 hover:bg-red-900/20 hover:text-red-400" : "text-gray-600 hover:bg-red-50 hover:text-red-600"}`}
                         >
                             <LogOut className={`w-5 h-5 ${isCollapsed ? "" : "mr-3"}`} />
                             {!isCollapsed && "Sign Out"}
