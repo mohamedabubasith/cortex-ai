@@ -241,22 +241,22 @@ export default function UsersPage() {
                     <button
                         onClick={() => setIsModalOpen(true)}
                         className={cn(
-                            "flex items-center justify-center px-5 py-2.5 rounded-xl font-bold transition-all duration-300 shadow-lg hover:shadow-nvidia-green/20 group",
+                            "flex items-center justify-center px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl font-bold transition-all duration-300 shadow-lg hover:shadow-nvidia-green/20 group",
                             "bg-gradient-to-r from-nvidia-green to-[#8CD600] text-black hover:scale-[1.02]"
                         )}
                     >
-                        <Plus className="w-5 h-5 mr-2 group-hover:rotate-90 transition-transform duration-300" />
+                        <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-2 group-hover:rotate-90 transition-transform duration-300" />
                         Add User
                     </button>
                 ) : (
                     <button
                         onClick={() => setIsGroupModalOpen(true)}
                         className={cn(
-                            "flex items-center justify-center px-5 py-2.5 rounded-xl font-bold transition-all duration-300 shadow-lg hover:shadow-nvidia-green/20 group",
+                            "flex items-center justify-center px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl font-bold transition-all duration-300 shadow-lg hover:shadow-nvidia-green/20 group",
                             "bg-gradient-to-r from-nvidia-green to-[#8CD600] text-black hover:scale-[1.02]"
                         )}
                     >
-                        <Plus className="w-5 h-5 mr-2 duration-300" />
+                        <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-2 duration-300" />
                         Create Group
                     </button>
                 )}
@@ -267,7 +267,7 @@ export default function UsersPage() {
                 <button
                     onClick={() => setActiveTab("users")}
                     className={cn(
-                        "px-4 py-2 rounded-lg text-sm font-bold transition-all",
+                        "px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-sm font-bold transition-all",
                         activeTab === "users"
                             ? (isDark ? "bg-nvidia-green text-black" : "bg-white text-black shadow-sm")
                             : (isDark ? "text-gray-400 hover:text-white" : "text-gray-500 hover:text-black")
@@ -278,7 +278,7 @@ export default function UsersPage() {
                 <button
                     onClick={() => setActiveTab("groups")}
                     className={cn(
-                        "px-4 py-2 rounded-lg text-sm font-bold transition-all",
+                        "px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-sm font-bold transition-all",
                         activeTab === "groups"
                             ? (isDark ? "bg-nvidia-green text-black" : "bg-white text-black shadow-sm")
                             : (isDark ? "text-gray-400 hover:text-white" : "text-gray-500 hover:text-black")
