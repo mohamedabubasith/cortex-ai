@@ -73,9 +73,9 @@ export default function AgentsPage() {
                 </div>
                 <Link
                     href="/agent/new"
-                    className="flex items-center justify-center w-full md:w-auto px-6 py-3 bg-nvidia-green text-black font-bold rounded-lg hover:bg-[#8CD600] transition-all transform hover:scale-105 shadow-[0_0_20px_rgba(118,185,0,0.3)]"
+                    className="flex items-center justify-center w-full md:w-auto px-4 sm:px-6 py-2 sm:py-3 bg-nvidia-green text-black font-bold rounded-lg hover:bg-[#8CD600] transition-all transform hover:scale-105 shadow-[0_0_20px_rgba(118,185,0,0.3)]"
                 >
-                    <Plus className="w-5 h-5 mr-2" />
+                    <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                     New Agent
                 </Link>
             </div>
@@ -131,9 +131,9 @@ export default function AgentsPage() {
                             <p className={isDark ? "text-gray-400 mb-6" : "text-gray-600 mb-6"}>Get started by creating your first AI agent.</p>
                             <Link
                                 href="/agent/new"
-                                className="flex items-center px-6 py-3 bg-white/10 text-white font-bold rounded-lg hover:bg-white/20 transition-all"
+                                className="flex items-center px-4 sm:px-6 py-2 sm:py-3 bg-white/10 text-white font-bold rounded-lg hover:bg-white/20 transition-all"
                             >
-                                <Plus className="w-5 h-5 mr-2" />
+                                <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                                 Create Agent
                             </Link>
                         </div>

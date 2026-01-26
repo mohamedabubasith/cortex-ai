@@ -167,9 +167,9 @@ export default function ProvidersPage() {
                             resetLlmForm();
                             setIsLlmModalOpen(true);
                         }}
-                        className="flex items-center justify-center w-full md:w-auto px-6 py-3 bg-nvidia-green text-black font-bold rounded-lg hover:bg-[#8CD600] transition-all transform hover:scale-105 shadow-[0_0_20px_rgba(118,185,0,0.3)]"
+                        className="flex items-center justify-center w-full md:w-auto px-4 sm:px-6 py-2 sm:py-3 bg-nvidia-green text-black font-bold rounded-lg hover:bg-[#8CD600] transition-all transform hover:scale-105 shadow-[0_0_20px_rgba(118,185,0,0.3)]"
                     >
-                        <Plus className="w-5 h-5 mr-2" />
+                        <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                         Add Model
                     </button>
                 </Can>
