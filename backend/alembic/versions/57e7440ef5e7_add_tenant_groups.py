@@ -39,10 +39,10 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('group_id', 'user_id')
     )
-    op.drop_index(op.f('ix_resource_access_resource_id'), table_name='resource_access')
-    op.drop_index(op.f('ix_resource_access_resource_type'), table_name='resource_access')
-    op.drop_table('resource_access')
-    op.drop_table('organization_roles')
+    op.drop_index(op.f('ix_resource_access_resource_id'), table_name='resource_access', if_exists=True)
+    op.drop_index(op.f('ix_resource_access_resource_type'), table_name='resource_access', if_exists=True)
+    op.drop_table('resource_access', if_exists=True)
+    op.drop_table('organization_roles', if_exists=True)
     # ### end Alembic commands ###
 
 
