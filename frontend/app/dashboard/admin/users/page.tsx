@@ -290,9 +290,12 @@ export default function UsersPage() {
 
             {activeTab === "users" ? (
                 /* Users Table */
-                <div className={cn("rounded-2xl border overflow-hidden shadow-sm transition-all duration-300",
-                    isDark ? "bg-[#0f0f0f]/60 backdrop-blur-md border-white/5 hover:border-white/10" : "bg-white border-gray-200 shadow-md")}>
-                    <div className="overflow-x-auto">
+                <div className={
+                    cn("rounded-2xl border overflow-hidden shadow-sm transition-all duration-300",
+                        isDark ? "bg-[#0f0f0f]/60 backdrop-blur-md border-white/5 hover:border-white/10" : "bg-white border-gray-200 shadow-md")}>
+
+                    {/* Desktop Table */}
+                    <div className="hidden md:block overflow-x-auto">
                         <table className="w-full text-left">
                             <thead>
                                 <tr className={isDark ? "bg-white/5 border-b border-white/5" : "bg-gray-50/50 border-b border-gray-200"}>
@@ -335,7 +338,7 @@ export default function UsersPage() {
                                                     </span>
                                                 ) : (
                                                     <select
-                                                        value={member.role_id || ""} // Prefer ID, fallback to finding ID by legacy name if needed? Or just empty if mismatch
+                                                        value={member.role_id || ""}
                                                         onChange={(e) => handleRoleUpdate(member.user_id, e.target.value)}
                                                         className={cn("appearance-none pl-3 pr-8 py-1.5 text-xs font-bold uppercase rounded-lg border bg-transparent outline-none focus:ring-2 focus:ring-nvidia-green/50 transition-all cursor-pointer",
                                                             member.role === 'owner' ? "text-purple-400 border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20" :
@@ -345,7 +348,6 @@ export default function UsersPage() {
                                                     >
                                                         {availableRoles
                                                             .filter(r => {
-                                                                // Only Owner can see/assign Owner role
                                                                 if (r.name.toLowerCase() === 'owner') {
                                                                     return currentActiveRole?.name.toLowerCase() === 'owner';
                                                                 }
@@ -378,12 +380,70 @@ export default function UsersPage() {
                             </tbody>
                         </table>
                     </div>
+
+                    {/* Mobile Card List */}
+                    <div className="md:hidden divide-y divide-white/5">
+                        {users.map((member) => (
+                            <div key={member.user_id} className="p-4 space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center">
+                                        <div className={cn("w-10 h-10 rounded-full flex items-center justify-center mr-3 font-bold text-sm",
+                                            isDark ? "bg-nvidia-green/20 text-nvidia-green" : "bg-green-100 text-green-700")}>
+                                            {member.user?.full_name?.[0] || "U"}
+                                        </div>
+                                        <div>
+                                            <div className={cn("font-bold text-sm", isDark ? "text-white" : "text-gray-900")}>
+                                                {member.user?.full_name || "Unknown"}
+                                            </div>
+                                            <div className="text-[10px] text-gray-500">{member.user?.email}</div>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => handleRemove(member.user_id)}
+                                        disabled={member.role === 'owner'}
+                                        className="p-2 text-gray-500 hover:text-red-400"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <div className="relative">
+                                        {currentUser?.role !== 'owner' && (member.role === 'owner' || (currentUser && member.user_id === currentUser.id)) ? (
+                                            <span className={cn("px-2 py-1 rounded-lg text-[10px] font-bold uppercase border",
+                                                member.role === 'owner' ? "text-purple-400 border-purple-500/20 bg-purple-500/10" : "text-gray-400 border-gray-700"
+                                            )}>
+                                                {member.tenant_role?.name || member.role}
+                                            </span>
+                                        ) : (
+                                            <select
+                                                value={member.role_id || ""}
+                                                onChange={(e) => handleRoleUpdate(member.user_id, e.target.value)}
+                                                className={cn("appearance-none pl-3 pr-8 py-1.5 text-[10px] font-bold uppercase rounded-lg border bg-transparent outline-none",
+                                                    member.role === 'owner' ? "text-purple-400 border-purple-500/20 bg-purple-500/10" :
+                                                        member.role === 'admin' ? "text-nvidia-green border-nvidia-green/20 bg-nvidia-green/10" :
+                                                            "text-gray-400 border-gray-700"
+                                                )}
+                                            >
+                                                {availableRoles.filter(r => r.name.toLowerCase() === 'owner' ? currentActiveRole?.name.toLowerCase() === 'owner' : true).map(r => (
+                                                    <option key={r.id} value={r.id} className="bg-gray-900">{r.name}</option>
+                                                ))}
+                                            </select>
+                                        )}
+                                    </div>
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-500">
+                                        Active
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             ) : (
                 /* Groups Table */
                 <div className={cn("rounded-2xl border overflow-hidden shadow-sm transition-all duration-300",
                     isDark ? "bg-[#0f0f0f]/60 backdrop-blur-md border-white/5 hover:border-white/10" : "bg-white border-gray-200 shadow-md")}>
-                    <div className="overflow-x-auto">
+                    {/* Desktop Table */}
+                    <div className="hidden md:block overflow-x-auto">
                         <table className="w-full text-left">
                             <thead>
                                 <tr className={isDark ? "bg-white/5 border-b border-white/5" : "bg-gray-50/50 border-b border-gray-200"}>
@@ -441,8 +501,53 @@ export default function UsersPage() {
                             </tbody>
                         </table>
                     </div>
+
+                    {/* Mobile Card List */}
+                    <div className="md:hidden divide-y divide-white/5">
+                        {groups.length === 0 && (
+                            <div className="p-8 text-center text-sm text-gray-500">
+                                No groups created yet.
+                            </div>
+                        )}
+                        {groups.map((group) => (
+                            <div key={group.id} className="p-4 space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center">
+                                        <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center mr-3",
+                                            isDark ? "bg-blue-500/10 text-blue-400" : "bg-blue-50 text-blue-600")}>
+                                            <Users className="w-5 h-5" />
+                                        </div>
+                                        <span className={cn("font-bold text-sm", isDark ? "text-white" : "text-gray-900")}>
+                                            {group.name}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center space-x-1">
+                                        <button
+                                            onClick={() => fetchGroupDetails(group.id)}
+                                            className="p-2 text-gray-500 hover:text-blue-500"
+                                        >
+                                            <Edit className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                            onClick={() => handleDeleteGroup(group.id)}
+                                            className="p-2 text-gray-500 hover:text-red-400"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="flex items-center justify-between text-[10px]">
+                                    <span className="text-gray-500 truncate max-w-[150px]">{group.description || "No description"}</span>
+                                    <span className={cn("px-2 py-0.5 rounded-full font-bold", isDark ? "bg-white/10 text-white" : "bg-gray-100 text-gray-700")}>
+                                        {group.member_count || 0} Members
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
-            )}
+            )
+            }
 
             {/* Invite Modal */}
             <Dialog
@@ -632,6 +737,6 @@ export default function UsersPage() {
                     </div>
                 </div>
             </Dialog>
-        </div>
+        </div >
     );
 }

@@ -10,7 +10,9 @@ import TubesBackground from "@/components/TubesBackground";
 import Logo from "@/components/Logo";
 import { isValidEmail } from "@/lib/validation";
 
-export default function LoginPage() {
+import { Suspense } from "react";
+
+function LoginForm() {
     // Login page always uses dark theme
     const isDark = true;
     const [email, setEmail] = useState("");
@@ -23,7 +25,7 @@ export default function LoginPage() {
     const redirectUrl = searchParams.get("redirect");
 
     useEffect(() => {
-        const token = localStorage.getItem("token");
+        const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
         if (token) {
             router.push("/dashboard");
         } else {
@@ -216,6 +218,14 @@ export default function LoginPage() {
                 </div>
             </motion.div>
         </div>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-black" />}>
+            <LoginForm />
+        </Suspense>
     );
 }
 

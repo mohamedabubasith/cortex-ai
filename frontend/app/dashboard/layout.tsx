@@ -39,6 +39,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     return (
         <div className={`h-[100dvh] flex overflow-hidden ${isDark ? "bg-black" : "bg-gray-50"}`}>
+            {/* Mobile Backdrop */}
+            {isMobileMenuOpen && (
+                <div
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                />
+            )}
+
             {/* Sidebar */}
             <div className={`fixed inset-y-0 left-0 z-50 transform transition-all duration-300 ease-in-out ${isMobileMenuOpen ? "translate-x-0 w-64" : "-translate-x-full"} md:translate-x-0 md:static md:inset-0 ${isCollapsed ? "md:w-20" : "md:w-64"} ${isDark ? "bg-nvidia-dark border-r border-white/10" : "bg-white border-r border-gray-200"}`}>
                 <div className="flex flex-col h-full transition-all duration-300">
