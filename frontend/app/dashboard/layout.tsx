@@ -154,36 +154,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                     {/* Footer Actions */}
                     <div className={`border-t ${isDark ? "border-white/10" : "border-gray-200"}`}>
-                        {/* Desktop: Full buttons */}
-                        <div className="hidden md:block p-4 space-y-2">
-                            <button
-                                onClick={toggleTheme}
-                                title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
-                                className={`flex items-center justify-center w-full ${isCollapsed ? "p-3" : "px-4 py-2.5"} text-sm font-medium rounded-xl transition-colors ${isDark ? "text-gray-400 hover:bg-white/5 hover:text-white" : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"}`}
-                            >
-                                {isDark ? (
-                                    <>
-                                        <Sun className={`w-5 h-5 ${isCollapsed ? "" : "mr-3"}`} />
-                                        {!isCollapsed && "Light Mode"}
-                                    </>
-                                ) : (
-                                    <>
-                                        <Moon className={`w-5 h-5 ${isCollapsed ? "" : "mr-3"}`} />
-                                        {!isCollapsed && "Dark Mode"}
-                                    </>
-                                )}
-                            </button>
-                            <button
-                                onClick={() => {
-                                    localStorage.removeItem("token");
-                                    window.location.href = "/";
-                                }}
-                                title="Sign Out"
-                                className={`flex items-center justify-center w-full ${isCollapsed ? "p-3" : "px-4 py-2.5"} text-sm font-medium rounded-xl transition-colors ${isDark ? "text-gray-400 hover:bg-red-900/20 hover:text-red-400" : "text-gray-600 hover:bg-red-50 hover:text-red-600"}`}
-                            >
-                                <LogOut className={`w-5 h-5 ${isCollapsed ? "" : "mr-3"}`} />
-                                {!isCollapsed && "Sign Out"}
-                            </button>
+                        {/* Desktop: Unified button group */}
+                        <div className={`hidden md:block ${isCollapsed ? "p-2" : "p-3"}`}>
+                            <div className={`${isCollapsed ? "space-y-1" : "flex items-center gap-2 p-1 rounded-xl"} ${!isCollapsed && (isDark ? "bg-white/5" : "bg-gray-100")}`}>
+                                <button
+                                    onClick={toggleTheme}
+                                    title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                                    className={`${isCollapsed ? "w-full p-2.5" : "flex-1 px-3 py-2"} flex items-center justify-center text-sm font-medium rounded-lg transition-colors ${isDark ? "text-gray-400 hover:bg-white/10 hover:text-white" : "text-gray-600 hover:bg-white hover:text-gray-900"}`}
+                                >
+                                    {isDark ? <Sun className={`w-5 h-5 ${isCollapsed ? "" : "mr-2"}`} /> : <Moon className={`w-5 h-5 ${isCollapsed ? "" : "mr-2"}`} />}
+                                    {!isCollapsed && <span className="whitespace-nowrap">{isDark ? "Light" : "Dark"}</span>}
+                                </button>
+                                {!isCollapsed && <div className={`w-px h-6 ${isDark ? "bg-white/10" : "bg-gray-300"}`} />}
+                                <button
+                                    onClick={() => {
+                                        localStorage.removeItem("token");
+                                        window.location.href = "/";
+                                    }}
+                                    title="Sign Out"
+                                    className={`${isCollapsed ? "w-full p-2.5" : "flex-1 px-3 py-2"} flex items-center justify-center text-sm font-medium rounded-lg transition-colors ${isDark ? "text-gray-400 hover:bg-red-900/20 hover:text-red-400" : "text-gray-600 hover:bg-red-50 hover:text-red-600"}`}
+                                >
+                                    <LogOut className={`w-5 h-5 ${isCollapsed ? "" : "mr-2"}`} />
+                                    {!isCollapsed && <span className="whitespace-nowrap">Sign Out</span>}
+                                </button>
+                            </div>
                         </div>
 
                         {/* Mobile: Compact horizontal layout with divider */}
