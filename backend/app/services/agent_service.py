@@ -18,9 +18,10 @@ class AgentService:
         # self.repo = ProjectRepository(models.Agent, db) # Assuming repo is generic or we use db directly
         self.db = db
 
-    async def create_agent(self, agent_in: schemas.AgentCreate, owner_id: str) -> models.Agent:
+    async def create_agent(self, agent_in: schemas.AgentCreate, owner_id: str, tenant_id: str) -> models.Agent:
         agent_data = agent_in.dict(exclude={"kb_ids", "db_connection_ids", "mcp_connection_ids"})
         agent_data["owner_id"] = owner_id
+        agent_data["tenant_id"] = tenant_id
         
         agent = models.Agent(**agent_data)
         self.db.add(agent)
@@ -68,9 +69,9 @@ class AgentService:
         agent.mcp_connections = mcps
         await self.db.commit()
 
-    async def get_agents(self, owner_id: str, skip: int = 0, limit: int = 100) -> List[models.Agent]:
+    async def get_agents(self, tenant_id: str, skip: int = 0, limit: int = 100) -> List[models.Agent]:
         # Need to eager load relationships
-        stmt = select(models.Agent).where(models.Agent.owner_id == owner_id).offset(skip).limit(limit).options(
+        stmt = select(models.Agent).where(models.Agent.tenant_id == tenant_id).offset(skip).limit(limit).options(
             selectinload(models.Agent.knowledge_bases),
             selectinload(models.Agent.database_connections),
             selectinload(models.Agent.mcp_connections),
@@ -79,8 +80,8 @@ class AgentService:
         result = await self.db.execute(stmt)
         return result.scalars().all()
 
-    async def get_agent(self, agent_id: str, owner_id: str) -> models.Agent:
-        stmt = select(models.Agent).where(models.Agent.id == agent_id, models.Agent.owner_id == owner_id).options(
+    async def get_agent(self, agent_id: str, tenant_id: str) -> models.Agent:
+        stmt = select(models.Agent).where(models.Agent.id == agent_id, models.Agent.tenant_id == tenant_id).options(
             selectinload(models.Agent.knowledge_bases),
             selectinload(models.Agent.database_connections),
             selectinload(models.Agent.mcp_connections),
@@ -92,8 +93,8 @@ class AgentService:
             raise HTTPException(status_code=404, detail="Agent not found")
         return agent
 
-    async def update_agent(self, agent_id: str, agent_update: schemas.AgentUpdate, owner_id: str) -> models.Agent:
-        agent = await self.get_agent(agent_id, owner_id)
+    async def update_agent(self, agent_id: str, agent_update: schemas.AgentUpdate, tenant_id: str) -> models.Agent:
+        agent = await self.get_agent(agent_id, tenant_id)
         
         update_data = agent_update.dict(exclude_unset=True, exclude={"kb_ids", "db_connection_ids", "mcp_connection_ids"})
         for key, value in update_data.items():
@@ -112,21 +113,21 @@ class AgentService:
         await self.db.refresh(agent)
         return agent
 
-    async def delete_agent(self, agent_id: str, owner_id: str):
-        agent = await self.get_agent(agent_id, owner_id)
+    async def delete_agent(self, agent_id: str, tenant_id: str):
+        agent = await self.get_agent(agent_id, tenant_id)
         await self.db.delete(agent)
         await self.db.commit()
         return {"status": "success", "message": "Agent deleted"}
 
-    async def regenerate_share_url(self, agent_id: str, owner_id: str) -> models.Agent:
-        agent = await self.get_agent(agent_id, owner_id)
+    async def regenerate_share_url(self, agent_id: str, tenant_id: str) -> models.Agent:
+        agent = await self.get_agent(agent_id, tenant_id)
         agent.share_token = str(uuid.uuid4())
         await self.db.commit()
         await self.db.refresh(agent)
         return agent
 
-    async def update_mcp_config(self, agent_id: str, config: schemas.MCPConfig, owner_id: str):
-        agent = await self.get_agent(agent_id, owner_id)
+    async def update_mcp_config(self, agent_id: str, config: schemas.MCPConfig, tenant_id: str):
+        agent = await self.get_agent(agent_id, tenant_id)
         agent.mcp_config = config.dict()
         await self.db.commit()
         

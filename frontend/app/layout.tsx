@@ -20,6 +20,8 @@ export const viewport: Viewport = {
 import { ToastProvider } from "@/components/ui/Toast";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 
+import { AuthProvider } from "@/contexts/AuthContext";
+
 export default function RootLayout({
     children,
 }: Readonly<{
@@ -29,11 +31,13 @@ export default function RootLayout({
         <html lang="en">
             <body className={inter.className} suppressHydrationWarning>
                 <ThemeProvider>
-                    <ErrorBoundary>
-                        <ToastProvider>
-                            {children}
-                        </ToastProvider>
-                    </ErrorBoundary>
+                    <AuthProvider>
+                        <ErrorBoundary>
+                            <ToastProvider>
+                                {children}
+                            </ToastProvider>
+                        </ErrorBoundary>
+                    </AuthProvider>
                 </ThemeProvider>
             </body>
         </html>

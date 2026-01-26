@@ -4,11 +4,13 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState } from "react";
-import { Database, FileText, Trash2, Loader2, Plus, Upload, Search, X, Edit, Check, AlertTriangle, Server, RefreshCw, Link } from "lucide-react";
+import { Database, FileText, Trash2, Loader2, Plus, Upload, Search, X, Edit, Check, AlertTriangle, Server, RefreshCw, Link, Share, Users } from "lucide-react";
 import api from "@/lib/api";
+import { Can } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/Toast";
 import Dialog from "@/components/ui/Dialog";
 import SidePanel from "@/components/ui/SidePanel";
+import ShareDialog from "@/components/ShareDialog";
 import { useTheme } from "@/contexts/ThemeContext";
 import { cn } from "@/lib/utils";
 import CustomDropdown from "@/components/ui/CustomDropdown";
@@ -85,7 +87,14 @@ export default function KnowledgeBasePage() {
     const [queryText, setQueryText] = useState("");
     const [queryResults, setQueryResults] = useState<any[] | null>(null);
     const [querying, setQuerying] = useState(false);
+    // Sharing State
+    const [isShareOpen, setIsShareOpen] = useState(false);
+    const [shareResource, setShareResource] = useState<{ id: string, type: 'kb' | 'db_connection' | 'agent', name: string } | null>(null);
 
+    const openShareDialog = (id: string, type: 'kb' | 'db_connection' | 'agent', name: string) => {
+        setShareResource({ id, type, name });
+        setIsShareOpen(true);
+    };
 
 
     useEffect(() => {
@@ -97,7 +106,7 @@ export default function KnowledgeBasePage() {
     // Polling for status updates with exponential backoff
     useEffect(() => {
         const filesToPoll = kbFiles.filter(f =>
-            ['pending', 'processing', 'initiated', 'unknown'].includes(f.status || '') || !f.status
+            ['pending', 'processing', 'indexing', 'initiated', 'unknown'].includes(f.status || '') || !f.status
         );
 
         if (filesToPoll.length === 0) return;
@@ -131,7 +140,7 @@ export default function KnowledgeBasePage() {
 
             // Continue polling only if there are still processing files
             const stillProcessing = newFiles.some(f =>
-                ['pending', 'processing', 'initiated', 'unknown'].includes(f.status || '') || !f.status
+                ['pending', 'processing', 'indexing', 'initiated', 'unknown'].includes(f.status || '') || !f.status
             );
 
             if (stillProcessing) {
@@ -344,20 +353,25 @@ export default function KnowledgeBasePage() {
                     <p className={isDark ? "text-gray-400" : "text-gray-600"}>Manage documents and database connections.</p>
                 </div>
                 <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3 w-full md:w-auto">
-                    <button
-                        onClick={() => setIsUploadOpen(true)}
-                        className="flex items-center justify-center px-4 py-2 bg-nvidia-green text-black font-bold rounded-lg hover:bg-[#8CD600] transition-all"
-                    >
-                        <Upload className="w-5 h-5 mr-2" />
-                        Upload Document
-                    </button>
-                    <button
-                        onClick={() => setIsDbOpen(true)}
-                        className={cn("flex items-center justify-center px-4 py-2 font-bold rounded-lg transition-all", isDark ? "bg-white/10 text-white hover:bg-white/20" : "bg-gray-200 text-gray-900 hover:bg-gray-300")}
-                    >
-                        <Database className="w-5 h-5 mr-2" />
-                        Add Database
-                    </button>
+                    <Can permission="kb.create">
+                        <button
+                            onClick={() => setIsUploadOpen(true)}
+                            className="flex items-center justify-center px-4 py-2 bg-nvidia-green text-black font-bold rounded-lg hover:bg-[#8CD600] transition-all"
+                        >
+                            <Upload className="w-5 h-5 mr-2" />
+                            Upload Document
+                        </button>
+                    </Can>
+
+                    <Can permission="kb.create">
+                        <button
+                            onClick={() => setIsDbOpen(true)}
+                            className={cn("flex items-center justify-center px-4 py-2 font-bold rounded-lg transition-all", isDark ? "bg-white/10 text-white hover:bg-white/20" : "bg-gray-200 text-gray-900 hover:bg-gray-300")}
+                        >
+                            <Database className="w-5 h-5 mr-2" />
+                            Add Database
+                        </button>
+                    </Can>
                 </div>
             </div>
 
@@ -406,6 +420,13 @@ export default function KnowledgeBasePage() {
                                                 <Search className="w-4 h-4" />
                                             </button>
                                             <button
+                                                onClick={() => openShareDialog(file.id, 'kb', file.name)}
+                                                className="text-gray-500 hover:text-white transition-colors p-1 rounded-md hover:bg-white/10"
+                                                title="Share Access"
+                                            >
+                                                <Share className="w-4 h-4" />
+                                            </button>
+                                            <button
                                                 onClick={() => confirmDelete(file.id, 'kb')}
                                                 className="text-gray-500 hover:text-red-500 transition-colors p-1 rounded-md hover:bg-red-500/10"
                                                 title="Delete"
@@ -418,8 +439,10 @@ export default function KnowledgeBasePage() {
                                     <div className="flex justify-between items-center mt-4">
                                         <span className="text-xs text-gray-400 uppercase">{file.file_type}</span>
                                         <span className={`text-xs font-bold px-2 py-1 rounded uppercase ${file.status === 'indexed' ? 'text-nvidia-green bg-nvidia-green/10' :
-                                            file.status === 'failed' ? 'text-red-500 bg-red-500/10' :
-                                                'text-yellow-500 bg-yellow-500/10'
+                                                file.status === 'failed' ? 'text-red-500 bg-red-500/10' :
+                                                    file.status === 'processing' ? 'text-blue-500 bg-blue-500/10' :
+                                                        file.status === 'indexing' ? 'text-yellow-500 bg-yellow-500/10' :
+                                                            'text-gray-500 bg-gray-500/10'
                                             }`}>
                                             {file.status}
                                         </span>
@@ -449,6 +472,16 @@ export default function KnowledgeBasePage() {
                                         <div className={cn("p-3 rounded-lg transition-colors", isDark ? "bg-white/5 group-hover:bg-nvidia-green/10" : "bg-gray-100 group-hover:bg-nvidia-green/10")}>
                                             <Database className={cn("w-6 h-6 transition-colors", isDark ? "text-gray-400 group-hover:text-nvidia-green" : "text-gray-600 group-hover:text-nvidia-green")} />
                                         </div>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                openShareDialog(db.id, 'db_connection', db.name);
+                                            }}
+                                            className="text-gray-500 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-lg z-10 mr-1"
+                                            title="Share Access"
+                                        >
+                                            <Share className="w-5 h-5" />
+                                        </button>
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
@@ -495,11 +528,11 @@ export default function KnowledgeBasePage() {
 
 
 
-            {/* Upload Dialog */}
             <Dialog
                 isOpen={isUploadOpen}
                 onClose={() => setIsUploadOpen(false)}
                 title="Upload Document"
+                maxWidth="max-w-2xl"
                 buttons={[
                     { label: "Cancel", onClick: () => setIsUploadOpen(false), variant: "outline" },
                     { label: uploading ? "Uploading..." : "Upload", onClick: () => document.getElementById('upload-form')?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true })), variant: "primary", isLoading: uploading }
@@ -512,14 +545,21 @@ export default function KnowledgeBasePage() {
                             type="file"
                             id="file-upload"
                             className="hidden"
-                            accept=".pdf,application/pdf"
+                            accept=".pdf,.docx,.pptx,.ppt,.xlsx,.xls,.html,.htm,.md,.csv,.txt,.doc,.json,.png,.jpg,.jpeg,.tiff,.bmp,.webp"
                             onChange={(e) => {
                                 const file = e.target.files?.[0] || null;
-                                if (file && file.type !== 'application/pdf') {
-                                    toast("Only PDF files are allowed", "error");
-                                    e.target.value = ''; // Reset input
-                                    setSelectedFile(null);
-                                    return;
+                                if (file) {
+                                    const allowedExtensions = [
+                                        'pdf', 'docx', 'pptx', 'ppt', 'xlsx', 'xls', 'html', 'htm', 'md',
+                                        'csv', 'txt', 'doc', 'json', 'png', 'jpg', 'jpeg', 'tiff', 'bmp', 'webp'
+                                    ];
+                                    const fileExt = file.name.split('.').pop()?.toLowerCase();
+                                    if (!fileExt || !allowedExtensions.includes(fileExt)) {
+                                        toast("Unsupported file format", "error");
+                                        e.target.value = ''; // Reset input
+                                        setSelectedFile(null);
+                                        return;
+                                    }
                                 }
                                 setSelectedFile(file);
                             }}
@@ -529,7 +569,7 @@ export default function KnowledgeBasePage() {
                             <span className="text-white font-bold mb-1">
                                 {selectedFile ? selectedFile.name : "Click to select file"}
                             </span>
-                            <span className="text-gray-500 text-sm">PDF supported (Max 100MB)</span>
+                            <span className="text-gray-500 text-sm">PDF, Office, Images, HTML supported (Max 100MB)</span>
                         </label>
                     </div>
                 </form>
@@ -540,6 +580,7 @@ export default function KnowledgeBasePage() {
                 isOpen={isDbOpen}
                 onClose={() => setIsDbOpen(false)}
                 title={currentDb.id ? "Edit Database Connection" : "Add Database Connection"}
+                maxWidth="max-w-3xl"
                 buttons={[
                     { label: "Cancel", onClick: () => setIsDbOpen(false), variant: "outline" },
                     { label: connecting ? "Saving..." : (currentDb.id ? "Save Changes" : "Connect"), onClick: handleSaveDb, variant: "primary", isLoading: connecting }
@@ -786,6 +827,16 @@ export default function KnowledgeBasePage() {
                     )}
                 </div>
             </SidePanel>
+            {/* Share Dialog */}
+            {shareResource && (
+                <ShareDialog
+                    isOpen={isShareOpen}
+                    onClose={() => setIsShareOpen(false)}
+                    resourceId={shareResource.id}
+                    resourceType={shareResource.type}
+                    resourceName={shareResource.name}
+                />
+            )}
         </div>
     );
 }

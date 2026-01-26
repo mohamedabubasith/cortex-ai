@@ -8,7 +8,8 @@ from app.models import models
 from app.schemas import schemas
 from app.repositories.llm_repository import LLMRepository
 from app.services.llm_config_service import LLMConfigService
-from app.services.auth_service import get_current_active_user
+from app.services.llm_config_service import LLMConfigService
+from app.services.auth_service import get_current_active_user, get_current_tenant
 
 from app.services.llm_provider_service import LLMProviderService
 
@@ -26,11 +27,13 @@ def get_llm_provider_service() -> LLMProviderService:
 async def create_llm_config(
     config: schemas.LLMConfigurationCreate,
     current_user: models.User = Depends(get_current_active_user),
+    current_tenant: models.Tenant = Depends(get_current_tenant),
     llm_service: LLMConfigService = Depends(get_llm_service)
 ):
     """Create LLM configuration"""
     return await llm_service.create_config(
         user_id=current_user.id,
+        tenant_id=current_tenant.id,
         name=config.name,
         provider=config.provider,
         api_key=config.api_key,
@@ -41,19 +44,21 @@ async def create_llm_config(
 @router.get("", response_model=List[schemas.LLMConfiguration])
 async def get_llm_configs(
     current_user: models.User = Depends(get_current_active_user),
+    current_tenant: models.Tenant = Depends(get_current_tenant),
     llm_service: LLMConfigService = Depends(get_llm_service)
 ):
     """Get all LLM configurations"""
-    return await llm_service.get_all_configs(current_user.id)
+    return await llm_service.get_all_configs(current_tenant.id)
 
 @router.get("/{llm_id}", response_model=schemas.LLMConfiguration)
 async def get_llm_config(
     llm_id: str,
     current_user: models.User = Depends(get_current_active_user),
+    current_tenant: models.Tenant = Depends(get_current_tenant),
     llm_service: LLMConfigService = Depends(get_llm_service)
 ):
     """Get LLM configuration by ID"""
-    config = await llm_service.get_config(llm_id, current_user.id)
+    config = await llm_service.get_config(llm_id, current_tenant.id)
     
     if not config:
         raise HTTPException(status_code=404, detail="LLM configuration not found")
@@ -65,12 +70,13 @@ async def update_llm_config(
     llm_id: str,
     config: schemas.LLMConfigurationUpdate,
     current_user: models.User = Depends(get_current_active_user),
+    current_tenant: models.Tenant = Depends(get_current_tenant),
     llm_service: LLMConfigService = Depends(get_llm_service)
 ):
     """Update LLM configuration"""
     updated = await llm_service.update_config(
         llm_id=llm_id,
-        user_id=current_user.id,
+        tenant_id=current_tenant.id,
         name=config.name,
         provider=config.provider,
         api_key=config.api_key,
@@ -87,10 +93,11 @@ async def update_llm_config(
 async def delete_llm_config(
     llm_id: str,
     current_user: models.User = Depends(get_current_active_user),
+    current_tenant: models.Tenant = Depends(get_current_tenant),
     llm_service: LLMConfigService = Depends(get_llm_service)
 ):
     """Delete LLM configuration"""
-    result = await llm_service.delete_config(llm_id, current_user.id)
+    result = await llm_service.delete_config(llm_id, current_tenant.id)
     
     if not result["success"]:
         raise HTTPException(status_code=404, detail=result["message"])

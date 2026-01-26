@@ -14,8 +14,11 @@ class Tenant(TenantBase):
     class Config:
         from_attributes = True
 
+from app.schemas.roles import TenantRole
+
 class TenantMemberBase(BaseModel):
-    role: str
+    role: Optional[str] = "member" # Legacy
+    role_id: Optional[str] = None
 
 class TenantMember(TenantMemberBase):
     tenant_id: str
@@ -23,18 +26,21 @@ class TenantMember(TenantMemberBase):
     created_at: datetime
     tenant: Tenant
     user: Optional["UserSimple"] = None
+    tenant_role: Optional[TenantRole] = None
     
     class Config:
         from_attributes = True
 
 class TenantUserInvite(BaseModel):
     email: EmailStr
-    role: str = "member"
+    role: Optional[str] = "member"
+    role_id: Optional[str] = None # Preferred
     password: Optional[str] = None
     full_name: Optional[str] = None
 
 class TenantUserUpdate(BaseModel):
-    role: str
+    role: Optional[str] = None
+    role_id: Optional[str] = None
 
 # User Schemas
 class UserBase(BaseModel):
@@ -110,6 +116,10 @@ class KBQueryRequest(BaseModel):
     query: str
     llm_config_id: Optional[str] = None
     dataset_names: Optional[List[str]] = []
+
+class KBShareRequest(BaseModel):
+    email: EmailStr
+    role: str = "viewer"
 
 # Database Schemas
 class DatabaseConnectionBase(BaseModel):

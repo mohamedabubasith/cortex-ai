@@ -15,6 +15,7 @@ class AuditLogRepository:
         action: str,
         resource_type: str,
         user_id: Optional[str] = None,
+        tenant_id: Optional[str] = None,
         resource_id: Optional[str] = None,
         details: dict = None,
         ip_address: Optional[str] = None,
@@ -24,6 +25,7 @@ class AuditLogRepository:
         log = models.AuditLog(
             id=str(uuid.uuid4()),
             user_id=user_id,
+            tenant_id=tenant_id,
             action=action,
             resource_type=resource_type,
             resource_id=resource_id,
@@ -39,6 +41,7 @@ class AuditLogRepository:
     async def get_logs(
         self,
         user_id: Optional[str] = None,
+        tenant_id: Optional[str] = None,
         resource_type: Optional[str] = None,
         action: Optional[str] = None,
         limit: int = 100
@@ -48,6 +51,8 @@ class AuditLogRepository:
         
         if user_id:
             query = query.where(models.AuditLog.user_id == user_id)
+        if tenant_id:
+            query = query.where(models.AuditLog.tenant_id == tenant_id)
         if resource_type:
             query = query.where(models.AuditLog.resource_type == resource_type)
         if action:
@@ -58,7 +63,7 @@ class AuditLogRepository:
         result = await self.db.execute(query)
         return result.scalars().all()
     
-    async def get_recent_logs(self, hours: int = 24, limit: int = 100) -> List[models.AuditLog]:
+    async def get_recent_logs(self, tenant_id: Optional[str] = None, hours: int = 24, limit: int = 100) -> List[models.AuditLog]:
         """Get recent logs"""
         since = datetime.utcnow() - timedelta(hours=hours)
         

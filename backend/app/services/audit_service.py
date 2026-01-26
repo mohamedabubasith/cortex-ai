@@ -11,6 +11,7 @@ class AuditService:
         action: str,
         resource_type: str,
         user_id: Optional[str] = None,
+        tenant_id: Optional[str] = None,
         resource_id: Optional[str] = None,
         details: dict = None,
         ip_address: Optional[str] = None,
@@ -21,6 +22,7 @@ class AuditService:
             action=action,
             resource_type=resource_type,
             user_id=user_id,
+            tenant_id=tenant_id,
             resource_id=resource_id,
             details=details,
             ip_address=ip_address,
@@ -30,6 +32,7 @@ class AuditService:
     async def get_logs(
         self,
         user_id: Optional[str] = None,
+        tenant_id: Optional[str] = None,
         resource_type: Optional[str] = None,
         action: Optional[str] = None,
         limit: int = 100
@@ -37,11 +40,12 @@ class AuditService:
         """Get audit logs"""
         return await self.audit_repo.get_logs(
             user_id=user_id,
+            tenant_id=tenant_id,
             resource_type=resource_type,
             action=action,
             limit=limit
         )
     
-    async def get_recent_logs(self, hours: int = 24, limit: int = 100):
+    async def get_recent_logs(self, tenant_id: Optional[str] = None, hours: int = 24, limit: int = 100):
         """Get recent logs"""
-        return await self.audit_repo.get_recent_logs(hours=hours, limit=limit)
+        return await self.audit_repo.get_recent_logs(tenant_id=tenant_id, hours=hours, limit=limit)

@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import ChatInterface, { ChatSession } from "@/components/ChatInterface";
 import config from "@/lib/config";
+import { useAuth } from "@/contexts/AuthContext";
+import api from "@/lib/api";
 
 interface Message {
     role: "user" | "assistant";
@@ -26,6 +28,8 @@ interface BackendSession {
 
 export default function PublicChatPage() {
     const params = useParams<{ shareId: string }>();
+    const router = useRouter();
+    const { user, isLoading: authLoading } = useAuth();
     const [messages, setMessages] = useState<Message[]>([]);
     const [isStreaming, setIsStreaming] = useState(false);
     const [sessionId, setSessionId] = useState<string | null>(null);
@@ -43,8 +47,15 @@ export default function PublicChatPage() {
     const [isDBEnabled, setIsDBEnabled] = useState(true);
 
     useEffect(() => {
+        if (!authLoading && !user) {
+            console.log("[PublicChatPage] Auth check failed, redirecting to login");
+            const currentPath = window.location.pathname;
+            router.push(`/?redirect=${encodeURIComponent(currentPath)}`);
+            return;
+        }
+
         const initChat = async () => {
-            if (params.shareId) {
+            if (params.shareId && user) {
                 const searchParams = new URLSearchParams(window.location.search);
                 const isNew = searchParams.get("new") === "true";
 
@@ -60,12 +71,19 @@ export default function PublicChatPage() {
             }
         };
 
-        initChat();
-    }, [params.shareId]);
+        if (user) {
+            initChat();
+        }
+    }, [params.shareId, user, authLoading, router]);
 
     const fetchAgentInfo = async () => {
         try {
-            const response = await fetch(`${config.apiV1Url}/chat/public/${params.shareId}`);
+            const token = localStorage.getItem("token");
+            const response = await fetch(`${config.apiV1Url}/chat/public/${params.shareId}`, {
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
+            });
             if (response.ok) {
                 const data = await response.json();
                 setAgentName(data.name);
@@ -93,8 +111,13 @@ export default function PublicChatPage() {
             const firstMessage = firstMsgFromFetch || agentFirstMessage;
 
             setLoading(true);
+            const token = localStorage.getItem("token");
             const url = `${config.apiV1Url}/chat/public/${params.shareId}/sessions`;
-            const response = await fetch(url);
+            const response = await fetch(url, {
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
+            });
 
             if (response.ok) {
                 const backendSessions: BackendSession[] = await response.json();
@@ -169,7 +192,12 @@ export default function PublicChatPage() {
     const loadSessionMessages = async (sessionIdToLoad: string, firstMsgFromFetch?: string): Promise<boolean> => {
         try {
             const firstMessage = firstMsgFromFetch || agentFirstMessage;
-            const response = await fetch(`${config.apiV1Url}/chat/public/${params.shareId}/sessions/${sessionIdToLoad}/messages`);
+            const token = localStorage.getItem("token");
+            const response = await fetch(`${config.apiV1Url}/chat/public/${params.shareId}/sessions/${sessionIdToLoad}/messages`, {
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
+            });
 
             if (response.ok) {
                 const backendMessages = await response.json();
@@ -212,12 +240,9 @@ export default function PublicChatPage() {
 
     const handleDeleteSession = async (sessionIdToDelete: string) => {
         try {
-            const response = await fetch(
-                `${config.apiV1Url}/chat/public/${params.shareId}/sessions/${sessionIdToDelete}`,
-                { method: 'DELETE' }
-            );
+            const response = await api.delete(`/chat/public/${params.shareId}/sessions/${sessionIdToDelete}`);
 
-            if (response.ok) {
+            if (response.status === 200) {
                 if (sessionIdToDelete === currentSessionId) {
                     await loadSessions();
                 } else {
@@ -239,9 +264,13 @@ export default function PublicChatPage() {
         const timeoutId = setTimeout(() => controller.abort(), 180000);
 
         try {
+            const token = localStorage.getItem("token");
             const response = await fetch(`${config.apiV1Url}/chat/public/${params.shareId}/chat`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
                 body: JSON.stringify({
                     message,
                     session_id: sessionId,
@@ -430,7 +459,7 @@ export default function PublicChatPage() {
         }
     };
 
-    if (loading) {
+    if (authLoading || loading) {
         return (
             <div className="flex h-screen items-center justify-center bg-black">
                 <div className="text-[#76B900] text-lg">Loading...</div>

@@ -54,6 +54,7 @@ class AgentAuditLogRepository:
     async def get_logs(
         self,
         user_id: Optional[str] = None,
+        tenant_id: Optional[str] = None,
         agent_id: Optional[str] = None,
         session_id: Optional[str] = None,
         limit: int = 100,
@@ -62,6 +63,9 @@ class AgentAuditLogRepository:
         """Get agent audit logs"""
         query = select(models.AgentAuditLog)
         
+        if tenant_id:
+            query = query.join(models.Agent).where(models.Agent.tenant_id == tenant_id)
+            
         if user_id:
             query = query.where(models.AgentAuditLog.user_id == user_id)
         if agent_id:
@@ -74,9 +78,24 @@ class AgentAuditLogRepository:
         result = await self.db.execute(query)
         return result.scalars().all()
     
-    async def delete_logs(self, user_id: Optional[str] = None):
+    async def delete_logs(self, user_id: Optional[str] = None, tenant_id: Optional[str] = None):
         """Delete agent audit logs"""
-        if user_id:
+        if user_id and tenant_id:
+            # Delete user logs in tenant
+             stmt = sql_delete(models.AgentAuditLog).where(
+                 models.AgentAuditLog.user_id == user_id,
+                 models.AgentAuditLog.agent_id.in_(
+                     select(models.Agent.id).where(models.Agent.tenant_id == tenant_id)
+                 )
+             )
+        elif tenant_id:
+            # Delete all logs in tenant
+            stmt = sql_delete(models.AgentAuditLog).where(
+                 models.AgentAuditLog.agent_id.in_(
+                     select(models.Agent.id).where(models.Agent.tenant_id == tenant_id)
+                 )
+             )
+        elif user_id:
             stmt = sql_delete(models.AgentAuditLog).where(models.AgentAuditLog.user_id == user_id)
         else:
             stmt = sql_delete(models.AgentAuditLog)

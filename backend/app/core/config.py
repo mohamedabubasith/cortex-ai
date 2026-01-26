@@ -85,6 +85,7 @@ class Settings(BaseSettings):
     # Vector DB
     VECTOR_DB_PROVIDER: str = "pgvector"
     VECTOR_DB_URL: Optional[str] = None
+    CHROMA_PERSIST_DIRECTORY: str = "data/chroma_db"
 
     @property
     def constructed_database_url(self) -> str:

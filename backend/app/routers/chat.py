@@ -6,7 +6,7 @@ from typing import List
 from app.core.database import get_db
 from app.models import models
 from app.schemas import schemas
-from app.services.auth_service import get_current_active_user
+from app.services.auth_service import get_current_active_user, get_current_tenant
 from app.services.chat_service import ChatService
 
 router = APIRouter()
@@ -18,7 +18,8 @@ def get_chat_service(db: AsyncSession = Depends(get_db)) -> ChatService:
 @router.get("/public/{share_token}")
 async def get_public_agent_info(
     share_token: str,
-    service: ChatService = Depends(get_chat_service)
+    service: ChatService = Depends(get_chat_service),
+    current_user: models.User = Depends(get_current_active_user)
 ):
     agent = await service.get_public_agent(share_token)
     if not agent:
@@ -37,7 +38,9 @@ async def get_public_agent_info(
 async def public_chat(
     share_token: str,
     request: schemas.ChatRequest,
-    service: ChatService = Depends(get_chat_service)
+    service: ChatService = Depends(get_chat_service),
+    current_user: models.User = Depends(get_current_active_user),
+    tenant: models.Tenant = Depends(get_current_tenant)
 ):
     agent = await service.get_public_agent(share_token)
     if not agent:
@@ -46,14 +49,14 @@ async def public_chat(
     # Handle session creation/retrieval
     session_id = request.session_id
     if session_id:
-        # Verify session exists
+        # Verify session exists AND belongs to user
         session = await service.get_session(session_id)
-        if not session:
-            # Session ID provided but not found - create new
-            session_id = await service.create_new_session(agent.id)
+        if not session or session.user_id != (current_user.id if current_user else None):
+            # Session ID provided but not found or doesn't belong to user - create new
+            session_id = await service.create_new_session(agent.id, user_id=current_user.id, tenant_id=tenant.id if tenant else None)
     else:
         # No session ID provided - create new
-        session_id = await service.create_new_session(agent.id)
+        session_id = await service.create_new_session(agent.id, user_id=current_user.id, tenant_id=tenant.id if tenant else None)
         
     return StreamingResponse(
         service.process_chat(
@@ -72,13 +75,14 @@ async def public_chat(
 @router.get("/public/{share_token}/sessions", response_model=List[schemas.ChatSession])
 async def get_public_agent_sessions(
     share_token: str,
-    service: ChatService = Depends(get_chat_service)
+    service: ChatService = Depends(get_chat_service),
+    current_user: models.User = Depends(get_current_active_user)
 ):
     agent = await service.get_public_agent(share_token)
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found or invalid token")
     
-    sessions = await service.get_agent_sessions(agent.id)
+    sessions = await service.get_agent_sessions(agent.id, user_id=current_user.id)
     return sessions
 
 # Get messages for a specific session
@@ -86,12 +90,18 @@ async def get_public_agent_sessions(
 async def get_session_messages(
     share_token: str,
     session_id: str,
-    service: ChatService = Depends(get_chat_service)
+    service: ChatService = Depends(get_chat_service),
+    current_user: models.User = Depends(get_current_active_user)
 ):
     agent = await service.get_public_agent(share_token)
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found or invalid token")
     
+    # Verify session ownership
+    session = await service.get_session(session_id)
+    if not session or session.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to access this session")
+
     messages = await service.get_session_messages(session_id)
     return messages
 
@@ -100,11 +110,17 @@ async def get_session_messages(
 async def delete_session(
     share_token: str,
     session_id: str,
-    service: ChatService = Depends(get_chat_service)
+    service: ChatService = Depends(get_chat_service),
+    current_user: models.User = Depends(get_current_active_user)
 ):
     agent = await service.get_public_agent(share_token)
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found or invalid token")
+    
+    # Verify session ownership
+    session = await service.get_session(session_id)
+    if not session or session.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this session")
     
     deleted = await service.delete_session(session_id)
     if deleted:

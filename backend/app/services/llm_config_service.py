@@ -9,6 +9,7 @@ class LLMConfigService:
     async def create_config(
         self,
         user_id: str,
+        tenant_id: str,
         name: str,
         provider: str,
         api_key: str,
@@ -18,6 +19,7 @@ class LLMConfigService:
         """Create LLM configuration"""
         return await self.llm_repo.create(
             user_id=user_id,
+            tenant_id=tenant_id,
             name=name,
             provider=provider,
             api_key=api_key,
@@ -25,18 +27,18 @@ class LLMConfigService:
             base_url=base_url
         )
     
-    async def get_config(self, llm_id: str, user_id: str):
+    async def get_config(self, llm_id: str, tenant_id: str):
         """Get LLM config by ID"""
-        return await self.llm_repo.get_by_id(llm_id, user_id)
+        return await self.llm_repo.get_by_id(llm_id, tenant_id)
     
-    async def get_all_configs(self, user_id: str):
-        """Get all LLM configs for user"""
-        return await self.llm_repo.get_all(user_id)
+    async def get_all_configs(self, tenant_id: str):
+        """Get all LLM configs for tenant"""
+        return await self.llm_repo.get_all(tenant_id)
     
     async def update_config(
         self,
         llm_id: str,
-        user_id: str,
+        tenant_id: str,
         name: str = None,
         provider: str = None,
         api_key: str = None,
@@ -46,17 +48,16 @@ class LLMConfigService:
         """Update LLM configuration"""
         return await self.llm_repo.update(
             llm_id=llm_id,
-            user_id=user_id,
+            tenant_id=tenant_id,
             name=name,
-            provider=provider,
             api_key=api_key,
             model=model,
             base_url=base_url
         )
     
-    async def delete_config(self, llm_id: str, user_id: str) -> Dict[str, Any]:
+    async def delete_config(self, llm_id: str, tenant_id: str) -> Dict[str, Any]:
         """Delete LLM configuration"""
-        deleted = await self.llm_repo.delete(llm_id, user_id)
+        deleted = await self.llm_repo.delete(llm_id, tenant_id)
         
         if deleted:
             return {"success": True, "message": "LLM configuration deleted"}

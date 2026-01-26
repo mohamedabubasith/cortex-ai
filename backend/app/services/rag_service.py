@@ -1,8 +1,9 @@
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Callable
 import os
 import shutil
 import logging
 from datetime import datetime
+import asyncio
 
 # LangChain Imports
 from langchain_community.document_loaders import PyPDFLoader, Docx2txtLoader, TextLoader, UnstructuredFileLoader
@@ -11,6 +12,7 @@ from langchain_chroma import Chroma
 from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
 from langchain_openai import OpenAIEmbeddings
 from langchain_core.documents import Document
+from docling.document_converter import DocumentConverter
 
 from app.core.config import settings
 
@@ -18,9 +20,10 @@ logger = logging.getLogger(__name__)
 
 class RAGService:
     def __init__(self):
-        # Use absolute path for ChromaDB persistence (Docker-friendly)
-        self.persist_directory = "/app/data/chroma_db"
+        # Use configurable path for ChromaDB persistence
+        self.persist_directory = settings.CHROMA_PERSIST_DIRECTORY
         os.makedirs(self.persist_directory, exist_ok=True)
+        self.docling_converter = DocumentConverter()
         
     def _get_embeddings(self, llm_config, embedding_model_name: Optional[str] = None):
         """Factory for embedding model with dynamic model selection"""
@@ -69,7 +72,8 @@ class RAGService:
         chunk_size: int, 
         chunk_overlap: int, 
         llm_config,
-        embedding_model: Optional[str] = None
+        embedding_model: Optional[str] = None,
+        on_progress: Optional[Callable] = None
     ):
         """
         Load, split, and index a document.
@@ -79,20 +83,56 @@ class RAGService:
             
             # 1. Load Document
             ext = os.path.splitext(file_path)[1].lower()
-            if ext == ".pdf":
-                loader = PyPDFLoader(file_path)
-            elif ext == ".docx":
-                loader = Docx2txtLoader(file_path)
-            elif ext in [".txt", ".md"]:
-                loader = TextLoader(file_path)
-            else:
-                # Fallback
-                loader = UnstructuredFileLoader(file_path)
+            
+            # Docling supported extensions
+            docling_extensions = [
+                ".pdf", ".docx", ".pptx", ".ppt", ".xlsx", ".xls", 
+                ".html", ".htm", ".md", ".csv", ".png", ".jpg", ".jpeg", 
+                ".tiff", ".bmp", ".webp"
+            ]
+            
+            docs = []
+            if ext in docling_extensions:
+                try:
+                    logger.info(f"Attempting Docling parse for {file_path}")
+                    # Run Docling conversion in a separate thread to avoid blocking the event loop
+                    result = await asyncio.to_thread(self.docling_converter.convert, file_path)
+                    
+                    # Export to markdown as it preserves structure well for RAG
+                    md_content = result.document.export_to_markdown()
+                    
+                    if md_content.strip():
+                        # Create a single LangChain Document from the parsed content
+                        docs = [Document(page_content=md_content, metadata={"source": os.path.basename(file_path)})]
+                        logger.info(f"Docling successfully parsed {file_path}")
+                    else:
+                        logger.warning(f"Docling returned empty content for {file_path}")
+                except Exception as docling_error:
+                    logger.warning(f"Docling parsing failed for {file_path}: {docling_error}. Falling back to standard loaders.")
+                    docs = []
+
+            # Fallback to standard LangChain loaders if Docling failed or doesn't support the type
+            if not docs:
+                logger.info(f"Using fallback loader for {file_path} (ext: {ext})")
+                if ext == ".pdf":
+                    loader = PyPDFLoader(file_path)
+                elif ext == ".docx":
+                    loader = Docx2txtLoader(file_path)
+                elif ext in [".txt", ".md", ".json", ".doc"]:
+                    loader = TextLoader(file_path)
+                else:
+                    # Generic fallback
+                    loader = UnstructuredFileLoader(file_path)
                 
-            docs = loader.load()
+                try:
+                    docs = await asyncio.to_thread(loader.load)
+                    logger.info(f"Fallback loader successfully loaded {len(docs)} documents")
+                except Exception as loader_error:
+                    logger.error(f"Fallback loader failed for {file_path}: {loader_error}")
+                    raise loader_error
             
             if not docs:
-                raise ValueError("No content extracted from document")
+                raise ValueError(f"No content extracted from document {file_path}")
 
             # 2. Add Global Metadata
             for doc in docs:
@@ -114,6 +154,10 @@ class RAGService:
             )
             splits = text_splitter.split_documents(docs)
             logger.info(f"Created {len(splits)} chunks")
+
+            # Update status to indexing before embedding starts
+            if on_progress:
+                await on_progress("indexing")
 
             # 4. Index
             embeddings = self._get_embeddings(llm_config, embedding_model)

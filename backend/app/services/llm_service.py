@@ -69,6 +69,7 @@ class LLMService:
             
             # Loop for handling tool calls (max depth 10 to allow complex chains)
             MAX_LOOPS = 10
+            tool_call_history = set() # Track unique tool calls in this session
             for loop_index in range(MAX_LOOPS):
                 logger.info(f"Sending request to {agent.llm_config.model} (Loop {loop_index})")
                 
@@ -156,6 +157,19 @@ class LLMService:
                     func_name = tc["function"]["name"]
                     func_args = tc["function"]["arguments"]
                     
+                    # Prevent redundant calls if previous call yielded no results
+                    call_id = f"{func_name}:{func_args}"
+                    if call_id in tool_call_history:
+                        logger.warning(f"Preventing redundant tool call: {func_name}")
+                        tool_result = json.dumps({"error": f"You already called {func_name} with these arguments and got no results. Please try a different query or inform the user you couldn't find the information."})
+                        full_messages.append({
+                            "tool_call_id": tc["id"],
+                            "role": "tool",
+                            "name": func_name,
+                            "content": tool_result
+                        })
+                        continue
+
                     logger.info(f"Executing tool: {func_name} with args: {func_args}")
                     
                     # Execute tool (No visible output to user)
@@ -179,19 +193,23 @@ class LLMService:
                             # Extract query if possible from arguments
                             try:
                                 args = json.loads(func_args)
-                                yield f"<SEARCHING>{args.get('query', 'web')}...</SEARCHING>"
+                                yield f"<SEARCHING>{args.get('query', 'web')}...</SEARCHING>\n"
                             except:
-                                yield "<SEARCHING>web...</SEARCHING>"
+                                yield "<SEARCHING>web...</SEARCHING>\n"
                         elif func_name == "website_reader":
                             try:
                                 args = json.loads(func_args)
-                                yield f"<READING>{args.get('url', 'page')}...</READING>"
+                                yield f"<READING>{args.get('url', 'page')}...</READING>\n"
                             except:
-                                yield "<READING>page...</READING>"
+                                yield "<READING>page...</READING>\n"
 
                         # Add timeout to prevent hanging
                         tool_result = await asyncio.wait_for(tools_service.execute_tool(func_name, func_args), timeout=30.0)
                         logger.info(f"Tool {func_name} execution completed. Result length: {len(tool_result)}")
+
+                        # Mark as called if it returned an empty or "no results" message
+                        if "No search results found" in tool_result or '"results": []' in tool_result or '"news_results": []' in tool_result:
+                            tool_call_history.add(call_id)
                     except asyncio.TimeoutError:
                         logger.error(f"Tool {func_name} timed out")
                         tool_result = json.dumps({"error": "Tool execution timed out (30s limit)."})

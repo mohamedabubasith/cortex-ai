@@ -394,8 +394,8 @@ async def sync_mcp_connection(
         raise HTTPException(status_code=400, detail=f"Failed to fetch tools: {str(e)}")
 
     # Summarize Tools
-    # Get user's first LLM config for summarization
-    llm_result = await db.execute(select(models.LLMConfiguration).where(models.LLMConfiguration.user_id == current_user.id))
+    # Get any available LLM config in tenant for summarization
+    llm_result = await db.execute(select(models.LLMConfiguration).where(models.LLMConfiguration.tenant_id == current_tenant.id))
     llm_config = llm_result.scalars().first()
     
     if llm_config:

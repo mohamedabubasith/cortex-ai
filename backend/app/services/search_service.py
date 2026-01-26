@@ -25,42 +25,37 @@ class SearchService:
             loop = asyncio.get_event_loop()
             
             def _do_search():
+                # Add headers to the session if possible via DDGS
                 with DDGS() as ddgs:
-                    # Remove 'backend' as it can cause 202 Ratelimit issues in some environments
+                    # DDGS internally handles headers, but we can try to be more specific with query
                     return list(ddgs.text(query, max_results=max_results, timelimit=timelimit))
             
+            # Execute in a thread pool as DDGS is synchronous
             raw_results = await loop.run_in_executor(None, _do_search)
             
-            # If no results and it might be a rate limit, try one more time after a tiny delay
+            # If no results and it might be a rate limit, try news fallback immediately
             if not raw_results:
-                await asyncio.sleep(0.5)
-                raw_results = await loop.run_in_executor(None, _do_search)
+                logger.info(f"Regular search empty for '{query}', trying news fallback...")
+                return await self.news_search(query, max_results=max_results, timelimit=timelimit)
 
-            logger.info(f"DuckDuckGo raw results count: {len(raw_results) if raw_results else 0}")
+            logger.info(f"DuckDuckGo search results count: {len(raw_results)}")
             
             results = []
-            if raw_results:
-                for r in raw_results:
-                    results.append({
-                        "title": r.get("title"),
-                        "url": r.get("href"),
-                        "content": r.get("body")
-                    })
+            for r in raw_results:
+                results.append({
+                    "title": r.get("title"),
+                    "url": r.get("href"),
+                    "content": r.get("body")
+                })
             
-            # Fallback to News if regular search is empty (news is sometimes less restricted)
-            if not results:
-                logger.info(f"Regular search empty for '{query}', falling back to news...")
-                news_fallback = await self.news_search(query, max_results=max_results)
-                if news_fallback:
-                    results = news_fallback
-
             return results
         except Exception as e:
             logger.error(f"DuckDuckGo search failed: {e}")
-            if "Ratelimit" in str(e):
-                # Try news search as a last resort
-                return await self.news_search(query, max_results=max_results)
-            return []
+            # Try news search as a last resort
+            try:
+                return await self.news_search(query, max_results=max_results, timelimit=timelimit)
+            except:
+                return []
 
     async def news_search(self, query: str, max_results: int = 5, timelimit: Optional[str] = None) -> List[Dict[str, Any]]:
         """
@@ -71,20 +66,21 @@ class SearchService:
             
             def _do_news():
                 with DDGS() as ddgs:
-                    return ddgs.news(query, max_results=max_results, timelimit=timelimit)
+                    return list(ddgs.news(query, max_results=max_results, timelimit=timelimit))
             
             raw_results = await loop.run_in_executor(None, _do_news)
-            logger.info(f"DuckDuckGo News raw results count: {len(raw_results) if raw_results else 0}")
+            logger.info(f"DuckDuckGo News results count: {len(raw_results) if raw_results else 0}")
             
             results = []
-            for r in raw_results:
-                results.append({
-                    "title": r.get("title"),
-                    "url": r.get("url"), # News uses 'url' NOT 'href'
-                    "content": r.get("body"), # News uses 'body'
-                    "date": r.get("date"),
-                    "source": r.get("source")
-                })
+            if raw_results:
+                for r in raw_results:
+                    results.append({
+                        "title": r.get("title"),
+                        "url": r.get("url"), 
+                        "content": r.get("body"),
+                        "date": r.get("date"),
+                        "source": r.get("source")
+                    })
             return results
         except Exception as e:
             logger.error(f"DuckDuckGo news search failed: {e}")

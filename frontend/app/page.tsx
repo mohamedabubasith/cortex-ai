@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Mail, Lock, ArrowRight, Loader2, AlertCircle } from "lucide-react";
@@ -19,6 +19,8 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
     const [initialCheckDone, setInitialCheckDone] = useState(false);
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const redirectUrl = searchParams.get("redirect");
 
     useEffect(() => {
         const token = localStorage.getItem("token");
@@ -68,7 +70,8 @@ export default function LoginPage() {
             });
 
             localStorage.setItem("token", response.data.access_token);
-            router.push("/dashboard");
+            // Force full reload to ensure AuthContext and all states are fresh
+            window.location.href = redirectUrl || "/dashboard";
         } catch (err: any) {
             console.error(err);
             const detail = err.response?.data?.detail;

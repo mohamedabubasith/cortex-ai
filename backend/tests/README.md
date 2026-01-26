@@ -5,20 +5,20 @@
 ### Quick Start
 ```bash
 # Install test dependencies
-pip install pytest pytest-asyncio httpx
+uv sync
 
 # Run all tests
 cd backend
-pytest tests/test_kb_automated.py -v
+uv run pytest tests/test_kb_automated.py -v
 
 # Run with coverage
-pytest tests/test_kb_automated.py --cov=app --cov-report=html
+uv run pytest tests/test_kb_automated.py --cov=app --cov-report=html
 
 # Run specific test class
-pytest tests/test_kb_automated.py::TestCogneeService -v
+uv run pytest tests/test_kb_automated.py::TestCogneeService -v
 
 # Run specific test
-pytest tests/test_kb_automated.py::TestCogneeService::test_upload_and_index_success -v
+uv run pytest tests/test_kb_automated.py::TestCogneeService::test_upload_and_index_success -v
 ```
 
 ## 📋 Test Suite Overview
@@ -105,9 +105,8 @@ jobs:
       - uses: actions/setup-python@v2
         with:
           python-version: '3.10'
-      - run: pip install -r requirements.txt
-      - run: pip install pytest pytest-asyncio httpx
-      - run: pytest tests/test_kb_automated.py -v
+      - run: uv sync
+      - run: uv run pytest tests/test_kb_automated.py -v
 ```
 
 ## 🐛 Debugging Failed Tests

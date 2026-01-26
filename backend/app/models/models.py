@@ -46,18 +46,83 @@ class Tenant(Base):
     knowledge_bases = relationship("KnowledgeBase", back_populates="tenant", cascade="all, delete-orphan")
     llm_configs = relationship("LLMConfiguration", back_populates="tenant", cascade="all, delete-orphan")
     database_connections = relationship("DatabaseConnection", back_populates="tenant", cascade="all, delete-orphan")
+    database_connections = relationship("DatabaseConnection", back_populates="tenant", cascade="all, delete-orphan")
     mcp_connections = relationship("MCPConnection", back_populates="tenant", cascade="all, delete-orphan")
+    groups = relationship("TenantGroup", back_populates="tenant", cascade="all, delete-orphan")
+    roles = relationship("TenantRole", back_populates="tenant", cascade="all, delete-orphan")
+
+class Permission(Base):
+    __tablename__ = "permissions"
+    
+    slug = Column(String, primary_key=True) # e.g. "kb.create", "agent.run"
+    description = Column(String)
+    category = Column(String) # "kb", "agent", "iam"
+
+class TenantRole(Base):
+    __tablename__ = "tenant_roles"
+    
+    id = Column(String, primary_key=True, default=generate_uuid)
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String, nullable=False)
+    description = Column(String)
+    is_system_role = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    tenant = relationship("Tenant", back_populates="roles")
+    permissions = relationship("RolePermission", back_populates="role", cascade="all, delete-orphan")
+
+class RolePermission(Base):
+    __tablename__ = "role_permissions"
+    
+    role_id = Column(String, ForeignKey("tenant_roles.id", ondelete="CASCADE"), primary_key=True)
+    permission_slug = Column(String, ForeignKey("permissions.slug", ondelete="CASCADE"), primary_key=True)
+    
+    role = relationship("TenantRole", back_populates="permissions")
+    permission = relationship("Permission")
 
 class TenantMember(Base):
     __tablename__ = "tenant_members"
     
     tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), primary_key=True)
     user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
-    role = Column(String, default="member") # owner, admin, member, viewer
+    
+    # Legacy Role String (to be deprecated/migrated)
+    role = Column(String, default="member") 
+    
+    # New RBAC Role
+    role_id = Column(String, ForeignKey("tenant_roles.id", ondelete="SET NULL"), nullable=True)
+    
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     tenant = relationship("Tenant", back_populates="members")
     user = relationship("User", back_populates="tenant_memberships")
+    tenant_role = relationship("TenantRole")
+
+class TenantGroup(Base):
+    __tablename__ = "tenant_groups"
+    
+    id = Column(String, primary_key=True, default=generate_uuid)
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    role_id = Column(String, ForeignKey("tenant_roles.id", ondelete="SET NULL"), nullable=True)
+    
+    tenant = relationship("Tenant", back_populates="groups")
+    members = relationship("TenantGroupMember", back_populates="group", cascade="all, delete-orphan")
+    default_role = relationship("TenantRole")
+
+class TenantGroupMember(Base):
+    __tablename__ = "tenant_group_members"
+    
+    group_id = Column(String, ForeignKey("tenant_groups.id", ondelete="CASCADE"), primary_key=True)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    group = relationship("TenantGroup", back_populates="members")
+    user = relationship("User")
 
 class User(Base):
     __tablename__ = "users"
@@ -167,6 +232,19 @@ class KnowledgeBase(Base):
     owner = relationship("User", back_populates="knowledge_bases")
     tenant = relationship("Tenant", back_populates="knowledge_bases")
     agents = relationship("Agent", secondary=agent_knowledge_bases, back_populates="knowledge_bases")
+    members = relationship("KnowledgeBaseMember", back_populates="knowledge_base", cascade="all, delete-orphan")
+
+class KnowledgeBaseMember(Base):
+    __tablename__ = "knowledge_base_members"
+    
+    id = Column(String, primary_key=True, default=generate_uuid)
+    kb_id = Column(String, ForeignKey("knowledge_bases.id", ondelete="CASCADE"))
+    user_id = Column(String, ForeignKey("users.id"))
+    role = Column(String, default="viewer") # viewer, editor
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    knowledge_base = relationship("KnowledgeBase", back_populates="members")
+    user = relationship("User")
 
 class DatabaseConnection(Base):
     __tablename__ = "database_connections"
@@ -204,9 +282,13 @@ class ChatSession(Base):
     
     id = Column(String, primary_key=True, default=generate_uuid)
     agent_id = Column(String, ForeignKey("projects.id", ondelete="CASCADE"))
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=True) # Optional for now to avoid breaking existing? Actually should be required for auth.
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     agent = relationship("Agent", back_populates="chat_sessions")
+    user = relationship("User")
+    tenant = relationship("Tenant")
     messages = relationship("Message", back_populates="session", cascade="all, delete-orphan")
 
 class Message(Base):
@@ -284,4 +366,22 @@ class AgentAuditLog(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     user = relationship("User")
+    user = relationship("User")
     agent = relationship("Agent")
+
+class ResourceShare(Base):
+    __tablename__ = "resource_shares"
+    
+    id = Column(String, primary_key=True, default=generate_uuid)
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    resource_id = Column(String, nullable=False)
+    resource_type = Column(String, nullable=False) # agent, kb, db_connection
+    grantee_id = Column(String, nullable=False) # user_id or group_id
+    grantee_type = Column(String, default="user") # user, group
+    permission = Column(String, default="read") # read, write, admin
+    shared_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Optional relationships to help ORM if we want to eager load
+    # grantee_user = relationship("User", foreign_keys=[grantee_id], primaryjoin="remote(User.id) == foreign(ResourceShare.grantee_id)", viewonly=True)
+    # sharer = relationship("User", foreign_keys=[shared_by])

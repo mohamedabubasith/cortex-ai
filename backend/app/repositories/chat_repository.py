@@ -8,8 +8,13 @@ class ChatRepository(BaseRepository[ChatSession]):
     async def get_session(self, session_id: str) -> Optional[ChatSession]:
         return await self.get(session_id)
 
-    async def create_session(self, session_id: str, agent_id: str) -> ChatSession:
-        return await self.create({"id": session_id, "agent_id": agent_id})
+    async def create_session(self, session_id: str, agent_id: str, user_id: Optional[str] = None, tenant_id: Optional[str] = None) -> ChatSession:
+        return await self.create({
+            "id": session_id, 
+            "agent_id": agent_id,
+            "user_id": user_id,
+            "tenant_id": tenant_id
+        })
 
     async def add_message(self, session_id: str, role: str, content: str, thinking: Optional[str] = None) -> Message:
         message = Message(session_id=session_id, role=role, content=content, thinking=thinking)
@@ -25,14 +30,15 @@ class ChatRepository(BaseRepository[ChatSession]):
         )
         return result.scalars().all()
     
-    async def get_sessions_by_agent(self, agent_id: str, limit: int = 50) -> List[ChatSession]:
-        """Get all chat sessions for an agent with messages eagerly loaded"""
+    async def get_sessions_by_agent(self, agent_id: str, user_id: Optional[str] = None, limit: int = 50) -> List[ChatSession]:
+        """Get all chat sessions for an agent (optionally filtered by user) with messages eagerly loaded"""
+        query = select(ChatSession).options(selectinload(ChatSession.messages)).where(ChatSession.agent_id == agent_id)
+        
+        if user_id:
+            query = query.where(ChatSession.user_id == user_id)
+            
         result = await self.db.execute(
-            select(ChatSession)
-            .options(selectinload(ChatSession.messages))
-            .where(ChatSession.agent_id == agent_id)
-            .order_by(ChatSession.created_at.desc())
-            .limit(limit)
+            query.order_by(ChatSession.created_at.desc()).limit(limit)
         )
         return result.scalars().all()
     

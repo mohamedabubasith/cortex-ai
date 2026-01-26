@@ -46,6 +46,7 @@ class AgentAuditService:
     async def get_logs(
         self,
         user_id: Optional[str] = None,
+        tenant_id: Optional[str] = None,
         agent_id: Optional[str] = None,
         session_id: Optional[str] = None,
         limit: int = 100,
@@ -54,12 +55,13 @@ class AgentAuditService:
         """Get agent audit logs"""
         return await self.agent_audit_repo.get_logs(
             user_id=user_id,
+            tenant_id=tenant_id,
             agent_id=agent_id,
             session_id=session_id,
             limit=limit,
             offset=offset
         )
     
-    async def delete_logs(self, user_id: Optional[str] = None):
+    async def delete_logs(self, user_id: Optional[str] = None, tenant_id: Optional[str] = None):
         """Delete agent audit logs"""
-        return await self.agent_audit_repo.delete_logs(user_id=user_id)
+        return await self.agent_audit_repo.delete_logs(user_id=user_id, tenant_id=tenant_id)

@@ -3,23 +3,22 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Cpu, Database, Bot, LogOut, Menu, X, Sun, Moon, Users, FileText, ShoppingBag, Shield } from "lucide-react";
+import { LayoutDashboard, Cpu, Database, Bot, LogOut, Menu, X, Sun, Moon, Users, FileText, ShoppingBag, Shield, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import Logo from "@/components/Logo";
 import { useTheme } from "@/contexts/ThemeContext";
-import api from "@/lib/api";
-import { useEffect } from "react";
+import TenantSwitcher from "@/components/layout/TenantSwitcher";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-    const [user, setUser] = useState<any>(null);
+    const [isCollapsed, setIsCollapsed] = useState(false);
+
+    // Use AuthContext for correct active tenant context
+    const { user, role } = useAuth();
 
     const { theme, toggleTheme } = useTheme();
     const isDark = theme === "dark";
-
-    useEffect(() => {
-        api.get("/auth/me").then(res => setUser(res.data)).catch(console.error);
-    }, []);
 
     const navigation = [
         { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -34,18 +33,39 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         navigation.push({ name: "Visitors", href: "/dashboard/visitors", icon: Users });
     }
 
+    // Check if current active role is Admin or Owner
+    // We match case-insensitive or specific names from backend seeding
+    const isAdmin = role?.name === "Owner" || role?.name === "Admin";
+
     return (
         <div className={`h-[100dvh] flex overflow-hidden ${isDark ? "bg-black" : "bg-gray-50"}`}>
             {/* Sidebar */}
-            <div className={`fixed inset-y-0 left-0 z-50 w-64 border-r transform transition-transform duration-200 ease-in-out ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0 md:static md:inset-0 ${isDark ? "bg-nvidia-dark border-white/10" : "bg-white border-gray-200"}`}>
-                <div className="flex flex-col h-full">
-                    {/* Logo */}
-                    <div className={`flex items-center justify-between px-4 h-20 border-b ${isDark ? "border-white/10" : "border-gray-200"}`}>
-                        <Link href="/dashboard" className="flex items-center space-x-3">
-                            <Logo size="sm" />
-                            <span className={`text-xl font-bold tracking-tight ${isDark ? "text-white" : "text-gray-900"}`}>Cortex AI</span>
-                        </Link>
-                        {/* Close Button (Mobile Only) */}
+            <div className={`fixed inset-y-0 left-0 z-50 transform transition-all duration-300 ease-in-out ${isMobileMenuOpen ? "translate-x-0 w-64" : "-translate-x-full"} md:translate-x-0 md:static md:inset-0 ${isCollapsed ? "md:w-20" : "md:w-64"} ${isDark ? "bg-nvidia-dark border-r border-white/10" : "bg-white border-r border-gray-200"}`}>
+                <div className="flex flex-col h-full transition-all duration-300">
+                    {/* Logo & Toggle */}
+                    <div className={`flex items-center ${isCollapsed ? "flex-col justify-center space-y-2 py-4" : "flex-row justify-between px-4"} h-auto min-h-[5rem] border-b ${isDark ? "border-white/10" : "border-gray-200"}`}>
+                        {!isCollapsed && (
+                            <Link href="/dashboard" className="flex items-center space-x-3 transition-opacity duration-200">
+                                <Logo size="sm" />
+                                <span className={`text-xl font-bold tracking-tight whitespace-nowrap ${isDark ? "text-white" : "text-gray-900"}`}>Cortex AI</span>
+                            </Link>
+                        )}
+                        {isCollapsed && (
+                            <Link href="/dashboard" className="mb-1">
+                                <Logo size="sm" />
+                            </Link>
+                        )}
+
+                        {/* Desktop Toggle Button */}
+                        <button
+                            onClick={() => setIsCollapsed(!isCollapsed)}
+                            className={`hidden md:flex p-1.5 rounded-lg transition-colors ${isDark ? "text-gray-400 hover:text-white hover:bg-white/10" : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"}`}
+                            title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+                        >
+                            {isCollapsed ? <PanelLeftOpen className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
+                        </button>
+
+                        {/* Mobile Close */}
                         <button
                             onClick={() => setIsMobileMenuOpen(false)}
                             className={`md:hidden p-2 ${isDark ? "text-gray-400 hover:text-white" : "text-gray-600 hover:text-gray-900"}`}
@@ -54,77 +74,92 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         </button>
                     </div>
 
-                    {/* Navigation */}
-                    <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-                        {navigation.map((item) => {
-                            const isActive = pathname === item.href;
-                            return (
-                                <Link
-                                    key={item.name}
-                                    href={item.href}
-                                    onClick={() => setIsMobileMenuOpen(false)}
-                                    className={`flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 ${isActive
-                                        ? "bg-nvidia-green text-black shadow-[0_0_15px_rgba(118,185,0,0.3)]"
-                                        : isDark
-                                            ? "text-gray-400 hover:bg-white/5 hover:text-white"
-                                            : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-                                        }`}
-                                >
-                                    <item.icon className={`w-5 h-5 mr-3 ${isActive ? "text-black" : isDark ? "text-gray-400" : "text-gray-600"}`} />
-                                    {item.name}
-                                </Link>
-                            );
-                        })}
-                    </nav>
 
-                    {/* Administration Section */}
-                    {user?.tenant_memberships?.some((m: any) => ["owner", "admin"].includes(m.role)) && (
-                        <div className="px-4 py-2">
-                            <div className={`text-xs font-bold uppercase mb-2 ${isDark ? "text-gray-500" : "text-gray-400"}`}>
-                                Administration
-                            </div>
-                            <div className="space-y-1">
-                                {[
-                                    { name: "Users & Groups", href: "/dashboard/admin/users", icon: Users },
-                                    { name: "Roles & Permissions", href: "/dashboard/admin/roles", icon: Shield }
-                                ].map((item) => {
-                                    const isActive = pathname === item.href;
-                                    return (
-                                        <Link
-                                            key={item.name}
-                                            href={item.href}
-                                            onClick={() => setIsMobileMenuOpen(false)}
-                                            className={`flex items-center px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200 ${isActive
-                                                ? "bg-nvidia-green text-black shadow-[0_0_15px_rgba(118,185,0,0.3)]"
-                                                : isDark
-                                                    ? "text-gray-400 hover:bg-white/5 hover:text-white"
-                                                    : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-                                                }`}
-                                        >
-                                            <item.icon className={`w-4 h-4 mr-3 ${isActive ? "text-black" : isDark ? "text-gray-400" : "text-gray-600"}`} />
-                                            {item.name}
-                                        </Link>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
+                    {/* Scrollable Content (Nav + Admin) */}
+                    <div className="flex-1 overflow-y-auto py-6 space-y-6 custom-scrollbar">
+                        <nav className={`space-y-2 ${isCollapsed ? "px-2" : "px-4"}`}>
+                            {navigation.map((item) => {
+                                const isActive = pathname === item.href;
+                                return (
+                                    <Link
+                                        key={item.name}
+                                        href={item.href}
+                                        onClick={() => setIsMobileMenuOpen(false)}
+                                        title={isCollapsed ? item.name : undefined}
+                                        className={`flex items-center ${isCollapsed ? "justify-center p-3" : "px-4 py-3"} text-sm font-medium rounded-xl transition-all duration-200 ${isActive
+                                            ? "bg-nvidia-green text-black shadow-[0_0_15px_rgba(118,185,0,0.3)]"
+                                            : isDark
+                                                ? "text-gray-400 hover:bg-white/5 hover:text-white"
+                                                : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                                            }`}
+                                    >
+                                        <item.icon className={`w-5 h-5 ${isCollapsed ? "" : "mr-3"} ${isActive ? "text-black" : isDark ? "text-gray-400" : "text-gray-600"}`} />
+                                        {!isCollapsed && <span className="whitespace-nowrap">{item.name}</span>}
+                                    </Link>
+                                );
+                            })}
+                        </nav>
 
-                    <div className="flex-1" />
+                        {/* Administration Section - Scoped to Active Tenant via isAdmin check */}
+                        {isAdmin && (
+                            <div>
+                                {!isCollapsed && (
+                                    <div className={`text-xs font-bold uppercase mb-2 px-4 whitespace-nowrap ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+                                        Administration
+                                    </div>
+                                )}
+                                {isCollapsed && <div className={`h-px mx-4 my-2 ${isDark ? "bg-white/10" : "bg-gray-200"}`} />}
+
+                                <div className={`space-y-1 ${isCollapsed ? "px-2" : ""}`}>
+                                    {[
+                                        { name: "Users & Groups", href: "/dashboard/admin/users", icon: Users },
+                                        { name: "Roles & Permissions", href: "/dashboard/admin/roles", icon: Shield }
+                                    ].map((item) => {
+                                        const isActive = pathname === item.href;
+                                        return (
+                                            <Link
+                                                key={item.name}
+                                                href={item.href}
+                                                onClick={() => setIsMobileMenuOpen(false)}
+                                                title={isCollapsed ? item.name : undefined}
+                                                className={`flex items-center ${isCollapsed ? "justify-center p-2.5" : "px-4 py-2"} text-sm font-medium rounded-xl transition-all duration-200 ${isActive
+                                                    ? "bg-nvidia-green text-black shadow-[0_0_15px_rgba(118,185,0,0.3)]"
+                                                    : isDark
+                                                        ? "text-gray-400 hover:bg-white/5 hover:text-white"
+                                                        : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                                                    }`}
+                                            >
+                                                <item.icon className={`w-4 h-4 ${isCollapsed ? "" : "mr-3"} ${isActive ? "text-black" : isDark ? "text-gray-400" : "text-gray-600"}`} />
+                                                {!isCollapsed && <span className="whitespace-nowrap">{item.name}</span>}
+                                            </Link>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Tenant Switcher - Only show full in expanded, maybe minimal or hidden in collapsed? */}
+                    {/* For now, hide in collapsed or show simplified */}
+                    <div className={isCollapsed ? "hidden" : "block"}>
+                        <TenantSwitcher user={user} />
+                    </div>
+
                     <div className={`p-4 border-t ${isDark ? "border-white/10" : "border-gray-200"}`}>
                         <button
                             onClick={toggleTheme}
-                            className={`flex items-center w-full px-4 py-3 text-sm font-medium rounded-xl transition-colors mb-2 ${isDark ? "text-gray-400 hover:bg-white/5 hover:text-white" : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"}`}
+                            title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                            className={`flex items-center justify-center w-full ${isCollapsed ? "p-3" : "px-4 py-3"} text-sm font-medium rounded-xl transition-colors mb-2 ${isDark ? "text-gray-400 hover:bg-white/5 hover:text-white" : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"}`}
                         >
                             {isDark ? (
                                 <>
-                                    <Sun className="w-5 h-5 mr-3" />
-                                    Light Mode
+                                    <Sun className={`w-5 h-5 ${isCollapsed ? "" : "mr-3"}`} />
+                                    {!isCollapsed && "Light Mode"}
                                 </>
                             ) : (
                                 <>
-                                    <Moon className="w-5 h-5 mr-3" />
-                                    Dark Mode
+                                    <Moon className={`w-5 h-5 ${isCollapsed ? "" : "mr-3"}`} />
+                                    {!isCollapsed && "Dark Mode"}
                                 </>
                             )}
                         </button>
@@ -133,10 +168,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 localStorage.removeItem("token");
                                 window.location.href = "/";
                             }}
-                            className={`flex items-center w-full px-4 py-3 text-sm font-medium rounded-xl transition-colors ${isDark ? "text-gray-400 hover:bg-red-900/20 hover:text-red-400" : "text-gray-600 hover:bg-red-50 hover:text-red-600"}`}
+                            title="Sign Out"
+                            className={`flex items-center justify-center w-full ${isCollapsed ? "p-3" : "px-4 py-3"} text-sm font-medium rounded-xl transition-colors ${isDark ? "text-gray-400 hover:bg-red-900/20 hover:text-red-400" : "text-gray-600 hover:bg-red-50 hover:text-red-600"}`}
                         >
-                            <LogOut className="w-5 h-5 mr-3" />
-                            Sign Out
+                            <LogOut className={`w-5 h-5 ${isCollapsed ? "" : "mr-3"}`} />
+                            {!isCollapsed && "Sign Out"}
                         </button>
                     </div>
                 </div>

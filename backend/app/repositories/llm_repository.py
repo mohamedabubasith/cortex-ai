@@ -12,6 +12,7 @@ class LLMRepository:
     async def create(
         self,
         user_id: str,
+        tenant_id: str,
         name: str,
         provider: str,
         api_key: str,
@@ -22,6 +23,7 @@ class LLMRepository:
         llm = models.LLMConfiguration(
             id=str(uuid.uuid4()),
             user_id=user_id,
+            tenant_id=tenant_id,
             name=name,
             provider=provider,
             api_key=api_key,
@@ -33,21 +35,21 @@ class LLMRepository:
         await self.db.refresh(llm)
         return llm
     
-    async def get_by_id(self, llm_id: str, user_id: str) -> Optional[models.LLMConfiguration]:
+    async def get_by_id(self, llm_id: str, tenant_id: str) -> Optional[models.LLMConfiguration]:
         """Get LLM by ID"""
         result = await self.db.execute(
             select(models.LLMConfiguration).where(
                 models.LLMConfiguration.id == llm_id,
-                models.LLMConfiguration.user_id == user_id
+                models.LLMConfiguration.tenant_id == tenant_id
             )
         )
         return result.scalars().first()
     
-    async def get_all(self, user_id: str) -> List[models.LLMConfiguration]:
-        """Get all LLM configs for user"""
+    async def get_all(self, tenant_id: str) -> List[models.LLMConfiguration]:
+        """Get all LLM configs for tenant"""
         result = await self.db.execute(
             select(models.LLMConfiguration)
-            .where(models.LLMConfiguration.user_id == user_id)
+            .where(models.LLMConfiguration.tenant_id == tenant_id)
             .order_by(models.LLMConfiguration.created_at.desc())
         )
         return result.scalars().all()
@@ -55,7 +57,7 @@ class LLMRepository:
     async def update(
         self,
         llm_id: str,
-        user_id: str,
+        tenant_id: str,
         name: Optional[str] = None,
         api_key: Optional[str] = None,
         model: Optional[str] = None,
@@ -65,7 +67,7 @@ class LLMRepository:
         result = await self.db.execute(
             select(models.LLMConfiguration).where(
                 models.LLMConfiguration.id == llm_id,
-                models.LLMConfiguration.user_id == user_id
+                models.LLMConfiguration.tenant_id == tenant_id
             )
         )
         llm = result.scalars().first()
@@ -85,12 +87,12 @@ class LLMRepository:
         
         return llm
     
-    async def delete(self, llm_id: str, user_id: str) -> bool:
+    async def delete(self, llm_id: str, tenant_id: str) -> bool:
         """Delete LLM config"""
         result = await self.db.execute(
             select(models.LLMConfiguration).where(
                 models.LLMConfiguration.id == llm_id,
-                models.LLMConfiguration.user_id == user_id
+                models.LLMConfiguration.tenant_id == tenant_id
             )
         )
         llm = result.scalars().first()

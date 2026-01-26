@@ -217,7 +217,7 @@ function MessageBubbleBase({ message, isStreaming = false, isQuerying = false, h
                                 {message.content}
                             </p>
                         ) : (
-                            message.content ? (
+                            message.content?.trim() ? (
                                 <div className={cn(
                                     "prose prose-base md:prose-sm max-w-none",
                                     theme === 'dark'

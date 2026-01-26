@@ -1,4 +1,4 @@
-from typing import List, AsyncGenerator
+from typing import List, AsyncGenerator, Optional
 import re
 from sqlalchemy.ext.asyncio import AsyncSession
 import uuid
@@ -41,9 +41,9 @@ class ChatService:
     async def get_agent_for_user(self, agent_id: str, owner_id: str) -> models.Agent:
         return await self.agent_repo.get_by_id_and_owner(agent_id, owner_id)
     
-    async def get_agent_sessions(self, agent_id: str) -> List[models.ChatSession]:
-        """Get all sessions for an agent"""
-        return await self.chat_repo.get_sessions_by_agent(agent_id)
+    async def get_agent_sessions(self, agent_id: str, user_id: Optional[str] = None) -> List[models.ChatSession]:
+        """Get all sessions for an agent (optionally filtered by user)"""
+        return await self.chat_repo.get_sessions_by_agent(agent_id, user_id=user_id)
     
     async def get_session_messages(self, session_id: str) -> List[models.Message]:
         """Get all messages for a session"""
@@ -53,10 +53,10 @@ class ChatService:
         """Delete a chat session"""
         return await self.chat_repo.delete_session(session_id)
 
-    async def create_new_session(self, agent_id: str) -> str:
+    async def create_new_session(self, agent_id: str, user_id: Optional[str] = None, tenant_id: Optional[str] = None) -> str:
         """Create a new chat session and return its ID"""
         session_id = str(uuid.uuid4())
-        await self.chat_repo.create_session(session_id, agent_id)
+        await self.chat_repo.create_session(session_id, agent_id, user_id=user_id, tenant_id=tenant_id)
         return session_id
 
     async def get_session(self, session_id: str) -> models.ChatSession:

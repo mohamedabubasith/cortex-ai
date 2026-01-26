@@ -6,6 +6,7 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useState } from "react";
 import { Cpu, Trash2, Loader2, Plus, Edit2, AlertCircle } from "lucide-react";
 import api from "@/lib/api";
+import { Can } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/Toast";
 import Dialog from "@/components/ui/Dialog";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -160,16 +161,18 @@ export default function ProvidersPage() {
                     <h1 className={cn("text-2xl md:text-3xl font-bold tracking-tight mb-2", isDark ? "text-white" : "text-gray-900")}>Model Providers</h1>
                     <p className={isDark ? "text-gray-400" : "text-gray-600"}>Manage your AI capability providers (LLMs).</p>
                 </div>
-                <button
-                    onClick={() => {
-                        resetLlmForm();
-                        setIsLlmModalOpen(true);
-                    }}
-                    className="flex items-center justify-center w-full md:w-auto px-6 py-3 bg-nvidia-green text-black font-bold rounded-lg hover:bg-[#8CD600] transition-all transform hover:scale-105 shadow-[0_0_20px_rgba(118,185,0,0.3)]"
-                >
-                    <Plus className="w-5 h-5 mr-2" />
-                    Add Model
-                </button>
+                <Can permission="llm.manage">
+                    <button
+                        onClick={() => {
+                            resetLlmForm();
+                            setIsLlmModalOpen(true);
+                        }}
+                        className="flex items-center justify-center w-full md:w-auto px-6 py-3 bg-nvidia-green text-black font-bold rounded-lg hover:bg-[#8CD600] transition-all transform hover:scale-105 shadow-[0_0_20px_rgba(118,185,0,0.3)]"
+                    >
+                        <Plus className="w-5 h-5 mr-2" />
+                        Add Model
+                    </button>
+                </Can>
             </div>
 
             {/* Content */}
@@ -190,20 +193,22 @@ export default function ProvidersPage() {
                                             <Cpu className={cn("w-6 h-6 transition-colors", isDark ? "text-gray-400 group-hover:text-nvidia-green" : "text-gray-600 group-hover:text-nvidia-green")} />
                                         </div>
                                         <div className="flex space-x-2">
-                                            <button
-                                                onClick={() => handleEditLLM(config)}
-                                                className="text-gray-500 hover:text-white transition-colors p-1 rounded-md hover:bg-white/10"
-                                                title="Edit"
-                                            >
-                                                <Edit2 className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                onClick={() => confirmDeleteLLM(config.id)}
-                                                className="text-gray-500 hover:text-red-500 transition-colors p-1 rounded-md hover:bg-red-500/10"
-                                                title="Delete"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
+                                            <Can permission="llm.manage">
+                                                <button
+                                                    onClick={() => handleEditLLM(config)}
+                                                    className="text-gray-500 hover:text-white transition-colors p-1 rounded-md hover:bg-white/10"
+                                                    title="Edit"
+                                                >
+                                                    <Edit2 className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => confirmDeleteLLM(config.id)}
+                                                    className="text-gray-500 hover:text-red-500 transition-colors p-1 rounded-md hover:bg-red-500/10"
+                                                    title="Delete"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </Can>
                                         </div>
                                     </div>
                                     <h3 className={cn("text-base md:text-lg font-bold mb-2", isDark ? "text-white" : "text-gray-900")}>{config.name}</h3>

@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from typing import Optional
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -44,7 +44,7 @@ class AuthService:
         encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
         return encoded_jwt
 
-    async def create_user(self, user_in: schemas.UserCreate) -> models.User:
+    async def create_user(self, user_in: schemas.UserCreate, auto_create_tenant: bool = True) -> models.User:
         user = await self.repo.get_by_email(user_in.email)
         if user:
             raise HTTPException(
@@ -60,7 +60,8 @@ class AuthService:
         
         # Multi-Tenancy: Create default "Personal" Tenant
         try:
-            from sqlalchemy.orm import Session
+            if auto_create_tenant:
+                from sqlalchemy.orm import Session
             
             # 1. Create Tenant
             tenant_name = f"{user.full_name or user.email.split('@')[0]}'s Workspace"
@@ -73,11 +74,50 @@ class AuthService:
             self.db.add(new_tenant)
             await self.db.flush() # Get ID
             
+            # 1.1 Create Default Roles for this Tenant
+            from sqlalchemy import select
+            
+            # Fetch all global permissions to assign to Owner
+            all_perms_result = await self.db.execute(select(models.Permission))
+            all_perms = all_perms_result.scalars().all()
+            
+            # Create Owner Role
+            owner_role = models.TenantRole(
+                tenant_id=new_tenant.id,
+                name="Owner",
+                description="System owner role",
+                is_system_role=True
+            )
+            self.db.add(owner_role)
+            await self.db.flush() # Get ID
+            
+            # Assign ALL permissions to Owner
+            for perm in all_perms:
+                self.db.add(models.RolePermission(role_id=owner_role.id, permission_slug=perm.slug))
+            
+            # Create Member Role
+            member_role = models.TenantRole(
+                tenant_id=new_tenant.id,
+                name="Member",
+                description="System member role",
+                is_system_role=True
+            )
+            self.db.add(member_role)
+            await self.db.flush()
+            
+            # Assign subset to Member (View/Run)
+            member_slugs = ["kb.view", "agent.view", "agent.run"]
+            for slug in member_slugs:
+                # Only add if it exists in system
+                if any(p.slug == slug for p in all_perms):
+                     self.db.add(models.RolePermission(role_id=member_role.id, permission_slug=slug))
+
             # 2. Add User as Tenant Owner
             membership = models.TenantMember(
                 tenant_id=new_tenant.id,
                 user_id=user.id,
-                role="owner"
+                role="owner", # Keep legacy string for safety/fallback
+                role_id=owner_role.id
             )
             self.db.add(membership)
             await self.db.commit()
@@ -235,25 +275,53 @@ async def get_current_active_user(current_user: models.User = Depends(get_curren
     return current_user
 
 async def get_current_tenant(
+    request: Request,
     user: models.User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db) # We need DB to query memberships
 ) -> models.Tenant:
     """
     Returns the user's active tenant.
-    For now, defaults to their first tenant membership.
-    TODO: Support X-Tenant-ID header to switch context.
+    Checks X-Tenant-ID header first, falls back to first membership.
     """
     from sqlalchemy import select
     from sqlalchemy.orm import selectinload
     
-    # Query membership explicitly (relationship might not be loaded)
+    tenant_id = request.headers.get("X-Tenant-ID")
+
+    if tenant_id:
+        # 1. Requested specific tenant
+        stmt = select(models.TenantMember).where(
+            models.TenantMember.user_id == user.id,
+            models.TenantMember.tenant_id == tenant_id
+        ).options(selectinload(models.TenantMember.tenant))
+        result = await db.execute(stmt)
+        membership = result.scalars().first()
+        
+        if membership:
+            # Hydrate Request State for RBAC
+            request.state.tenant = membership.tenant
+            
+            # Load Permissions
+            from app.services.permission_service import PermissionService
+            perm_service = PermissionService(db)
+            request.state.permissions = await perm_service.get_user_effective_permissions(user.id, membership.tenant.id)
+            
+            return membership.tenant
+        
+        raise HTTPException(status_code=403, detail="Not a member of the requested tenant.")
+    
+    # 2. Fallback to first available
     stmt = select(models.TenantMember).where(models.TenantMember.user_id == user.id).options(selectinload(models.TenantMember.tenant))
     result = await db.execute(stmt)
     membership = result.scalars().first()
     
     if not membership:
-        # Fallback: if no tenant (legacy user?), create one now?
-        # Or raise error. Let's create one (self-healing for legacy users)
-        return None # Or handle legacy behavior
-        
+        return None 
+    
+    # Hydrate Fallback
+    request.state.tenant = membership.tenant
+    from app.services.permission_service import PermissionService
+    perm_service = PermissionService(db)
+    request.state.permissions = await perm_service.get_user_effective_permissions(user.id, membership.tenant.id)
+    
     return membership.tenant

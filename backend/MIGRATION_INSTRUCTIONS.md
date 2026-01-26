@@ -8,10 +8,10 @@ When you're ready to deploy, run the following commands:
 cd backend
 
 # Create migration
-.venv/bin/alembic revision --autogenerate -m "Add agent audit logs table"
+uv run alembic revision --autogenerate -m "Add agent audit logs table"
 
 # Apply migration
-.venv/bin/alembic upgrade head
+uv run alembic upgrade head
 ```
 
 ## What the Migration Does

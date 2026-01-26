@@ -18,6 +18,11 @@ api.interceptors.request.use((config) => {
         config.headers.Authorization = `Bearer ${token}`;
     }
 
+    const tenantId = localStorage.getItem("tenant_id");
+    if (tenantId) {
+        config.headers["X-Tenant-ID"] = tenantId;
+    }
+
     // Fix for multipart/form-data: Remove Content-Type to let browser set boundary
     if (config.data instanceof FormData) {
         delete config.headers["Content-Type"];
@@ -35,10 +40,10 @@ api.interceptors.response.use(
             if (error.config?.url?.includes("/auth/token")) {
                 return Promise.reject(error);
             }
-            
+
             // For other requests, it means the token is invalid/expired
             localStorage.removeItem("token");
-            
+
             // Only redirect if not already on the login page (root) to avoid loops
             if (typeof window !== 'undefined' && window.location.pathname !== "/") {
                 window.location.href = "/";

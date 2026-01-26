@@ -79,7 +79,7 @@ async def health_check():
     return {"status": "ok"}
 
 # Import and include routers here later
-from app.routers import auth, agents, chat, resources, knowledgebase, llm, analytics, admin, tenant
+from app.routers import auth, agents, chat, resources, knowledgebase, llm, analytics, admin, tenant, shares
 
 app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["auth"])
 app.include_router(agents.router, prefix=f"{settings.API_V1_STR}/agents", tags=["agents"])
@@ -90,3 +90,9 @@ app.include_router(llm.router, prefix=f"{settings.API_V1_STR}/llm", tags=["llm-c
 app.include_router(analytics.router, prefix=f"{settings.API_V1_STR}/analytics", tags=["analytics"])
 app.include_router(admin.router, prefix=f"{settings.API_V1_STR}/admin", tags=["admin"])
 app.include_router(tenant.router, prefix=f"{settings.API_V1_STR}/tenant", tags=["tenant"])
+# Generic Sharing
+app.include_router(shares.router, prefix=f"{settings.API_V1_STR}/share", tags=["sharing"])
+from app.routers import groups
+app.include_router(groups.router, prefix=f"{settings.API_V1_STR}/tenant/groups", tags=["tenant-groups"])
+from app.routers import roles
+app.include_router(roles.router, prefix=f"{settings.API_V1_STR}/tenant/roles", tags=["tenant-roles"])

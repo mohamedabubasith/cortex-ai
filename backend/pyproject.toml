@@ -40,6 +40,8 @@ dependencies = [
     "duckduckgo-search",
     "tiktoken",
     "instructor",
+    "docling",
+    "cognee",
 ]
 
 [tool.uv]

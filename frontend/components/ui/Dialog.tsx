@@ -21,6 +21,8 @@ interface DialogProps {
     children?: React.ReactNode;
     buttons?: DialogButton[];
     theme?: "dark" | "light";
+    maxWidth?: string;
+    className?: string; // Content container override
 }
 
 export default function Dialog({
@@ -30,7 +32,9 @@ export default function Dialog({
     description,
     children,
     buttons = [],
-    theme: propTheme
+    theme: propTheme,
+    maxWidth = "max-w-lg", // Default
+    className
 }: DialogProps) {
     const { theme: globalTheme } = useTheme();
     const theme = propTheme || globalTheme;
@@ -47,15 +51,15 @@ export default function Dialog({
     return (
         <AnimatePresence>
             {isOpen && (
-                <div className="fixed inset-0 z-50 overflow-y-auto">
-                    <div className="flex min-h-full items-center justify-center p-4 text-center">
-                        {/* Backdrop with "Water Tint" (Blur + Color Overlay) */}
+                <div className="fixed inset-0 z-50 overflow-y-auto block">
+                    <div className="flex min-h-screen items-center justify-center p-4 text-center">
+                        {/* Backdrop with stronger blur for focus */}
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             onClick={onClose}
-                            className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+                            className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-all"
                             aria-hidden="true"
                         />
 
@@ -64,26 +68,39 @@ export default function Dialog({
                             initial={{ opacity: 0, scale: 0.95, y: 20 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                            transition={{ type: "spring", duration: 0.3 }}
+                            transition={{ type: "spring", duration: 0.4, bounce: 0.2 }}
                             className={cn(
-                                "relative z-10 w-full max-w-md rounded-2xl shadow-2xl border flex flex-col mx-4 text-left overflow-visible",
+                                "relative z-10 w-full rounded-2xl shadow-2xl flex flex-col mx-4 text-left overflow-hidden ring-1",
+                                maxWidth, // Apply dynamic max-width
                                 theme === 'dark'
-                                    ? "bg-[#0a0a0a] border-[#76B900]/20 shadow-[#76B900]/5"
-                                    : "bg-white border-gray-200 shadow-xl"
+                                    ? "bg-[#0f0f0f]/90 backdrop-blur-xl ring-white/10 shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)]"
+                                    : "bg-white/90 backdrop-blur-xl ring-black/5 shadow-xl"
                             )}
                         >
+                            {/* Decorative Top Gradient Line */}
+                            <div className={cn("absolute top-0 left-0 w-full h-1 bg-gradient-to-r",
+                                theme === 'dark' ? "from-nvidia-green/40 via-nvidia-green to-nvidia-green/40" : "from-gray-200 via-gray-400 to-gray-200"
+                            )} />
+
                             {/* Header */}
                             <div className={cn(
-                                "px-6 py-4 border-b flex items-center justify-between shrink-0 rounded-t-2xl",
-                                theme === 'dark' ? "border-gray-800 bg-gray-900/30" : "border-gray-100 bg-gray-50"
+                                "px-8 py-6 flex items-start justify-between shrink-0",
+                                theme === 'dark' ? "text-white" : "text-gray-900"
                             )}>
-                                <h3 className={cn("text-lg font-bold", theme === 'dark' ? "text-white" : "text-gray-900")}>
-                                    {title}
-                                </h3>
+                                <div>
+                                    <h3 className="text-xl font-bold tracking-tight">
+                                        {title}
+                                    </h3>
+                                    {description && (
+                                        <p className={cn("mt-2 text-sm leading-relaxed", theme === 'dark' ? "text-gray-400" : "text-gray-500")}>
+                                            {description}
+                                        </p>
+                                    )}
+                                </div>
                                 <button
                                     onClick={onClose}
                                     className={cn(
-                                        "p-1 rounded-lg transition-colors",
+                                        "p-2 rounded-full transition-all duration-200 -mr-2 -mt-2",
                                         theme === 'dark' ? "text-gray-500 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-black hover:bg-black/5"
                                     )}
                                 >
@@ -92,20 +109,15 @@ export default function Dialog({
                             </div>
 
                             {/* Content */}
-                            <div className="px-6 py-6">
-                                {description && (
-                                    <p className={cn("mb-4 text-sm", theme === 'dark' ? "text-gray-400" : "text-gray-600")}>
-                                        {description}
-                                    </p>
-                                )}
+                            <div className="px-8 pb-8 pt-2">
                                 {children}
                             </div>
 
                             {/* Footer / Buttons */}
                             {(buttons.length > 0) && (
                                 <div className={cn(
-                                    "px-6 py-4 flex justify-end space-x-3 shrink-0 rounded-b-2xl",
-                                    theme === 'dark' ? "bg-gray-900/30" : "bg-gray-50"
+                                    "px-8 py-5 flex justify-end space-x-3 shrink-0",
+                                    theme === 'dark' ? "bg-white/5 border-t border-white/5" : "bg-gray-50 border-t border-gray-100"
                                 )}>
                                     {buttons.map((btn, idx) => (
                                         <button
@@ -118,11 +130,11 @@ export default function Dialog({
                                             }}
                                             disabled={btn.isLoading}
                                             className={cn(
-                                                "px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center",
-                                                btn.variant === 'primary' && "bg-[#76B900] text-black hover:bg-[#6aa600]",
+                                                "px-5 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 flex items-center shadow-sm",
+                                                btn.variant === 'primary' && "bg-nvidia-green text-black hover:bg-[#8CD600] ring-1 ring-[#6aa600]/50 hover:shadow-[0_0_15px_rgba(118,185,0,0.3)]",
                                                 btn.variant === 'secondary' && (theme === 'dark' ? "bg-white text-black hover:bg-gray-200" : "bg-black text-white hover:bg-gray-800"),
                                                 btn.variant === 'danger' && "bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20",
-                                                (!btn.variant || btn.variant === 'outline') && (theme === 'dark' ? "border border-gray-700 text-gray-300 hover:bg-gray-800" : "border border-gray-300 text-gray-700 hover:bg-gray-100"),
+                                                (!btn.variant || btn.variant === 'outline') && (theme === 'dark' ? "ring-1 ring-white/10 text-gray-300 hover:bg-white/5 hover:text-white" : "ring-1 ring-gray-200 text-gray-700 hover:bg-gray-50 hover:text-gray-900"),
                                                 btn.isLoading && "opacity-50 cursor-not-allowed"
                                             )}
                                         >

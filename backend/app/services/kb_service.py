@@ -2,6 +2,7 @@
 import logging
 import os
 import asyncio
+import datetime
 from typing import Dict, Any, List
 from app.repositories.kb_repository import KBRepository
 from app.services.rag_service import rag_service
@@ -21,24 +22,21 @@ class KBService:
         file_size: int,
         chunk_size: int = 1000,
         chunk_overlap: int = 200,
-        embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+        embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2",
+        tenant_id: str = None
     ):
         """Create initial KB record"""
-        # Note: We need to ensure repo supports extra fields or we add them manually if not in constructor
-        # Since we modified the model but repo likely uses kwargs or explicit fields?
-        # Let's check repo in next step if needed, but for now assuming direct create is cleaner if updated.
-        # Actually repo.create usually takes fixed args. We might need to update repo too. 
-        # For now, let's assume we can pass them.
         return await self.kb_repo.create(
             user_id=user_id,
             filename=filename,
             file_path=file_path,
             file_type=file_type,
-            file_size=file_size, # Ensure this was added to repo/model
+            file_size=file_size, 
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
             embedding_model=embedding_model,
-            status="pending"
+            status="pending",
+            tenant_id=tenant_id
         )
             
     async def process_kb(self, kb_id: str, file_path: str, user_id: str, tenant_id: str, chunk_size: int, chunk_overlap: int, llm_config, embedding_model: str, user_email: str = None):
@@ -47,10 +45,13 @@ class KBService:
         """
         try:
             print(f"DEBUG: Starting processing for KB {kb_id}")
-            await self.kb_repo.update_status(kb_id, "indexing")
+            await self.kb_repo.update_status(kb_id, "processing")
             
             # Process via LangChain RAG Service
             try:
+                async def update_status_callback(status: str):
+                    await self.kb_repo.update_status(kb_id, status)
+
                 await rag_service.process_document(
                     file_path=file_path,
                     kb_id=kb_id,
@@ -59,7 +60,8 @@ class KBService:
                     chunk_size=chunk_size,
                     chunk_overlap=chunk_overlap,
                     llm_config=llm_config,
-                    embedding_model=embedding_model
+                    embedding_model=embedding_model,
+                    on_progress=update_status_callback
                 )
                 
                 # Success
@@ -67,27 +69,37 @@ class KBService:
                 print(f"DEBUG: Processing complete for KB {kb_id} -> Indexed")
                 
             except Exception as e:
-                logger.error(f"RAG processing failed: {e}")
+                import traceback
+                error_msg = f"RAG processing failed: {e}\n{traceback.format_exc()}"
+                logger.error(error_msg)
                 await self.kb_repo.update_status(kb_id, "failed")
                 
         except Exception as e:
-            logger.error(f"Background task failed: {e}")
+            import traceback
+            error_msg = f"Background task failed: {e}\n{traceback.format_exc()}"
+            logger.error(error_msg)
+            
             await self.kb_repo.update_status(kb_id, "failed")
 
-    async def get_status(self, kb_id: str, user_id: str, user_email: str = None) -> Dict[str, Any]:
+    async def get_status(self, kb_id: str, user_id: str, tenant_id: str, user_email: str = None) -> Dict[str, Any]:
         """Get status directly from DB (no external sync needed)"""
-        kb = await self.kb_repo.get_by_id(kb_id, user_id)
+        # We assume regular user logic here, but status checks should be scoped to tenant too
+        # Passing is_admin=False by default for status checks unless we want admins to see status of others' files?
+        # Let's assume user checking status knows about the file.
+        # Ideally, we should pass is_admin here too, but for now let's use default (Owner/Member)
+        # But we MUST pass tenant_id.
+        kb = await self.kb_repo.get_by_id(kb_id, user_id, tenant_id=tenant_id)
         if not kb:
             return None
         return {"status": kb.status}
     
-    async def get_all(self, user_id: str, user_email: str = None):
+    async def get_all(self, user_id: str, tenant_id: str, user_email: str = None, is_admin: bool = False):
         """Get all KB files"""
-        return await self.kb_repo.get_all(user_id)
+        return await self.kb_repo.get_all(user_id, tenant_id, is_admin=is_admin)
     
-    async def query(self, kb_id: str, user_id: str, query_text: str, llm_config, user_email: str = None):
+    async def query(self, kb_id: str, user_id: str, tenant_id: str, query_text: str, llm_config, user_email: str = None, is_admin: bool = False):
         """Query single KB"""
-        kb = await self.kb_repo.get_by_id(kb_id, user_id)
+        kb = await self.kb_repo.get_by_id(kb_id, user_id, tenant_id, is_admin=is_admin)
         if not kb:
             return {"success": False, "message": "KB not found"}
         
@@ -115,9 +127,10 @@ class KBService:
         
         return {"success": True, "data": results}
 
-    async def delete(self, kb_id: str, user_id: str, user_email: str = None) -> Dict[str, Any]:
+    async def delete(self, kb_id: str, user_id: str, tenant_id: str, user_email: str = None) -> Dict[str, Any]:
         """Delete KB and vectors"""
-        kb = await self.kb_repo.get_by_id(kb_id, user_id)
+        # Delete only possible by Owner (implied by default is_admin=False and user_id check)
+        kb = await self.kb_repo.get_by_id(kb_id, user_id, tenant_id=tenant_id)
         
         if not kb:
             return {"success": False, "message": "Not found"}
@@ -136,3 +149,39 @@ class KBService:
         await self.kb_repo.delete(kb_id, user_id)
         
         return {"success": True, "message": f"Deleted {kb.filename}"}
+
+    async def share_kb(self, kb_id: str, owner_id: str, target_user_id: str, tenant_id: str, role: str = "viewer") -> Dict[str, Any]:
+        """Share KB with another user"""
+        # 1. Verify Ownership
+        # We fetch via repo.get_by_id but we must ensure CURRENT user is OWNER in CURRENT TENANT
+        kb = await self.kb_repo.get_by_id(kb_id, owner_id, tenant_id=tenant_id)
+        if not kb:
+             return {"success": False, "message": "KB not found or access denied"}
+        
+        if kb.user_id != owner_id:
+            return {"success": False, "message": "Only the owner can share the KB"}
+
+        # 2. Add Member
+        try:
+            await self.kb_repo.add_member(kb_id, target_user_id, role)
+            return {"success": True, "message": "KB shared successfully"}
+        except Exception as e:
+            # Likely unique constraint if already exists or logic error
+            return {"success": False, "message": f"Failed to share: {str(e)}"}
+
+    async def unshare_kb(self, kb_id: str, owner_id: str, target_user_id: str, tenant_id: str) -> Dict[str, Any]:
+        """Unshare KB"""
+        # 1. Verify Ownership
+        kb = await self.kb_repo.get_by_id(kb_id, owner_id, tenant_id=tenant_id)
+        if not kb:
+             return {"success": False, "message": "KB not found or access denied"}
+        
+        if kb.user_id != owner_id:
+            return {"success": False, "message": "Only the owner can manage sharing"}
+
+        # 2. Remove Member
+        success = await self.kb_repo.remove_member(kb_id, target_user_id)
+        if success:
+             return {"success": True, "message": "KB unshared successfully"}
+        else:
+             return {"success": False, "message": "User was not a member"}

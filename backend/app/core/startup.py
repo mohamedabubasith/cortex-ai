@@ -10,13 +10,9 @@ from app.schemas.schemas import UserCreate
 from app.core.config import settings
 
 
-async def create_default_admin(db: AsyncSession):
+async def create_default_admin(db: AsyncSession, override_email: str = None, override_password: str = None):
     """
     Create default admin user if no superuser exists.
-    Credentials can be set via environment variables:
-    - DEFAULT_ADMIN_EMAIL (default: admin@cortex.ai)
-    - DEFAULT_ADMIN_PASSWORD (default: admin123)
-    - DEFAULT_ADMIN_NAME (default: System Administrator)
     """
     
     # Check if any superuser exists
@@ -28,8 +24,8 @@ async def create_default_admin(db: AsyncSession):
         return
     
     # Get credentials from environment or use defaults
-    admin_email = settings.admin_email
-    admin_password = settings.admin_password[:72]  # bcrypt max is 72 bytes
+    admin_email = override_email or settings.admin_email
+    admin_password = (override_password or settings.admin_password)[:72]  # bcrypt max is 72 bytes
     admin_name = getattr(settings, 'DEFAULT_ADMIN_NAME', 'System Administrator')
     
     print(f"\n{'='*60}")

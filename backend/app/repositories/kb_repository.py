@@ -19,12 +19,14 @@ class KBRepository:
         chunk_size: int,
         chunk_overlap: int,
         embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2",
-        status: str = "pending"
+        status: str = "pending",
+        tenant_id: str = None
     ) -> models.KnowledgeBase:
         """Create KB record"""
         kb = models.KnowledgeBase(
             id=str(uuid.uuid4()),
             user_id=user_id,
+            tenant_id=tenant_id,
             name=filename,
             filename=filename,
             file_path=file_path,
@@ -40,23 +42,38 @@ class KBRepository:
         await self.db.refresh(kb)
         return kb
     
-    async def get_by_id(self, kb_id: str, user_id: str) -> Optional[models.KnowledgeBase]:
-        """Get KB by ID"""
-        result = await self.db.execute(
-            select(models.KnowledgeBase).where(
+    async def get_by_id(self, kb_id: str, user_id: str, tenant_id: str, is_admin: bool = False) -> Optional[models.KnowledgeBase]:
+        """Get KB by ID (Owner, Member, or Admin) scoped to Tenant"""
+        if is_admin:
+            # Admin can access any KB in the tenant
+            stmt = select(models.KnowledgeBase).where(
                 models.KnowledgeBase.id == kb_id,
-                models.KnowledgeBase.user_id == user_id
+                models.KnowledgeBase.tenant_id == tenant_id
             )
-        )
+        else:
+            # Regular user must be Owner or Member AND belong to tenant
+            stmt = select(models.KnowledgeBase).outerjoin(models.KnowledgeBaseMember).where(
+                models.KnowledgeBase.id == kb_id,
+                models.KnowledgeBase.tenant_id == tenant_id,
+                (models.KnowledgeBase.user_id == user_id) | (models.KnowledgeBaseMember.user_id == user_id)
+            ).distinct()
+        
+        result = await self.db.execute(stmt)
         return result.scalars().first()
     
-    async def get_all(self, user_id: str) -> List[models.KnowledgeBase]:
-        """Get all KB files for user"""
-        result = await self.db.execute(
-            select(models.KnowledgeBase)
-            .where(models.KnowledgeBase.user_id == user_id)
-            .order_by(models.KnowledgeBase.created_at.desc())
-        )
+    async def get_all(self, user_id: str, tenant_id: str, is_admin: bool = False) -> List[models.KnowledgeBase]:
+        """Get all KB files for user (Owned + Shared) in Tenant or All if Admin"""
+        if is_admin:
+             stmt = select(models.KnowledgeBase).where(
+                 models.KnowledgeBase.tenant_id == tenant_id
+             ).order_by(models.KnowledgeBase.created_at.desc())
+        else:
+            stmt = select(models.KnowledgeBase).outerjoin(models.KnowledgeBaseMember).where(
+                models.KnowledgeBase.tenant_id == tenant_id,
+                (models.KnowledgeBase.user_id == user_id) | (models.KnowledgeBaseMember.user_id == user_id)
+            ).order_by(models.KnowledgeBase.created_at.desc()).distinct()
+        
+        result = await self.db.execute(stmt)
         return result.scalars().all()
     
     async def update_status(self, kb_id: str, status: str):
@@ -72,7 +89,7 @@ class KBRepository:
         return kb
     
     async def delete(self, kb_id: str, user_id: str) -> bool:
-        """Delete KB record"""
+        """Delete KB record (Only Owner can delete)"""
         result = await self.db.execute(
             select(models.KnowledgeBase).where(
                 models.KnowledgeBase.id == kb_id,
@@ -82,6 +99,33 @@ class KBRepository:
         kb = result.scalars().first()
         if kb:
             await self.db.delete(kb)
+            await self.db.commit()
+            return True
+        return False
+
+    async def add_member(self, kb_id: str, user_id: str, role: str = "viewer") -> models.KnowledgeBaseMember:
+        """Add member to KB"""
+        member = models.KnowledgeBaseMember(
+            kb_id=kb_id,
+            user_id=user_id,
+            role=role
+        )
+        self.db.add(member)
+        await self.db.commit()
+        await self.db.refresh(member)
+        return member
+
+    async def remove_member(self, kb_id: str, user_id: str) -> bool:
+        """Remove member from KB"""
+        result = await self.db.execute(
+            select(models.KnowledgeBaseMember).where(
+                models.KnowledgeBaseMember.kb_id == kb_id,
+                models.KnowledgeBaseMember.user_id == user_id
+            )
+        )
+        member = result.scalars().first()
+        if member:
+            await self.db.delete(member)
             await self.db.commit()
             return True
         return False
