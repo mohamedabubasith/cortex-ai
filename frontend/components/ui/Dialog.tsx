@@ -130,7 +130,7 @@ export default function Dialog({
                                             }}
                                             disabled={btn.isLoading}
                                             className={cn(
-                                                "px-5 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 flex items-center justify-center shadow-sm w-full sm:w-auto",
+                                                "px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg text-sm font-bold transition-all duration-200 flex items-center justify-center shadow-sm w-full sm:w-auto",
                                                 btn.variant === 'primary' && "bg-nvidia-green text-black hover:bg-[#8CD600] ring-1 ring-[#6aa600]/50 hover:shadow-[0_0_15px_rgba(118,185,0,0.3)]",
                                                 btn.variant === 'secondary' && (theme === 'dark' ? "bg-white text-black hover:bg-gray-200" : "bg-black text-white hover:bg-gray-800"),
                                                 btn.variant === 'danger' && "bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20",
