@@ -102,7 +102,6 @@ services:
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000
       BACKEND_URL: http://chatbot_backend:8000
-    command: next start -H 0.0.0.0 -p 3000
 
   # Nginx Reverse Proxy
   nginx:
