@@ -199,7 +199,7 @@ export default function ChatWindow({
                             />
                         ))}
                     </AnimatePresence>
-                    <div ref={messagesEndRef} />
+                    <div ref={messagesEndRef} className="h-8 md:h-10" />
                 </div>
             </div>
 
