@@ -64,6 +64,21 @@ class AuditMiddleware(BaseHTTPMiddleware):
 
         response = await call_next(request)
         
+        # Extract user_id and tenant_id from request state (populated by dependencies)
+        # We try to get them from state first (most reliable if auth middleware ran), 
+        # then fall back to token/headers if needed.
+        user_id = getattr(request.state, "user", None)
+        if user_id and hasattr(user_id, "id"):
+            user_id = user_id.id
+            
+        tenant_id = None
+        if hasattr(request.state, "tenant") and request.state.tenant:
+            tenant_id = request.state.tenant.id
+        
+        # Fallback for tenant if not in state but in header
+        if not tenant_id:
+            tenant_id = request.headers.get("X-Tenant-ID")
+
         # Fire and forget logging with extracted data
         asyncio.create_task(self.log_audit(
             path=path,
@@ -73,7 +88,8 @@ class AuditMiddleware(BaseHTTPMiddleware):
             query_params=query_params,
             user_agent=user_agent,
             ip=ip,
-            token=token
+            token=token,
+            tenant_id=tenant_id
         ))
             
         return response
@@ -86,10 +102,11 @@ class AuditMiddleware(BaseHTTPMiddleware):
         query_params: dict = None,
         user_agent: str = None,
         ip: str = None,
-        token: str = None
+        token: str = None,
+        tenant_id: str = None
     ):
         try:
-            # Extract user from token
+            # Extract user from token if not provided (though we try to get from state now)
             user_id = None
             user_email = None
             
@@ -102,9 +119,9 @@ class AuditMiddleware(BaseHTTPMiddleware):
                         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
                         user_email = payload.get("sub")
                     
-                    # Fetch user_id from database
+                    # Fetch user_id from database if we have email
                     if user_email:
-                        async with AsyncSessionLocal() as session:
+                         async with AsyncSessionLocal() as session:
                             from app.models import models
                             from sqlalchemy import select
                             result = await session.execute(
@@ -148,6 +165,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
                         action=action,
                         resource_type=resource_type,
                         user_id=user_id,
+                        tenant_id=tenant_id,
                         resource_id=resource_id,
                         details={
                             "method": method,

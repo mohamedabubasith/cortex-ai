@@ -182,21 +182,11 @@ export default function ChatWindow({
                 ref={messagesContainerRef}
                 className={cn(
                     "flex-1 overflow-y-auto transition-colors duration-300 overscroll-behavior-y-none",
-                    theme === 'dark' ? "bg-[#05070A]" : "bg-gray-50",
-                    // ChatGPT-style behavior:
-                    // If no user messages yet (just welcome), center the content.
-                    // Once user types, align to top.
-                    !messages.some(m => m.role === 'user')
-                        ? "flex flex-col justify-center items-center"
-                        : "flex flex-col justify-start"
+                    theme === 'dark' ? "bg-[#05070A]" : "bg-gray-50"
                 )}
             >
-                <div className={cn(
-                    "max-w-3xl mx-auto p-2 md:p-4 space-y-6 w-full",
-                    // Ensure full width for centering
-                    !messages.some(m => m.role === 'user') && "flex flex-col items-center justify-center"
-                )}>
-                    <AnimatePresence mode="popLayout">
+                <div className="max-w-3xl mx-auto p-2 md:p-4 space-y-6">
+                    <AnimatePresence>
                         {messages.map((msg, index) => (
                             <MessageBubble
                                 key={index}
