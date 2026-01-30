@@ -46,12 +46,18 @@ class AuditMiddleware(BaseHTTPMiddleware):
         user_agent = request.headers.get("User-Agent")
         
         # Extract IP
-        ip = None
-        forwarded = request.headers.get("X-Forwarded-For")
-        if forwarded:
-            ip = forwarded.split(",")[0].strip()
+        ip = request.headers.get("CF-Connecting-IP")
+        if not ip:
+            ip = request.headers.get("True-Client-IP")
+        
+        if not ip:
+            forwarded = request.headers.get("X-Forwarded-For")
+            if forwarded:
+                ip = forwarded.split(",")[0].strip()
+        
         if not ip:
             ip = request.headers.get("X-Real-IP")
+        
         if not ip:
             ip = request.client.host if request.client else None
 
