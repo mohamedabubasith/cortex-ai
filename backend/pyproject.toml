@@ -42,6 +42,7 @@ dependencies = [
     "instructor",
     "docling",
     "cognee",
+    "neo4j",
 ]
 
 [tool.uv]

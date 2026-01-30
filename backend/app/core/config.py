@@ -97,6 +97,12 @@ class Settings(BaseSettings):
 
     # Logging
     LOG_LEVEL: str = "INFO"
+
+    # Knowledge Graph (Neo4j)
+    ENABLE_GRAPH: bool = False
+    NEO4J_URI: Optional[str] = "bolt://neo4j:7687"
+    NEO4J_USER: Optional[str] = "neo4j"
+    NEO4J_PASSWORD: Optional[str] = "password"
     
     class Config:
         env_file = ".env"

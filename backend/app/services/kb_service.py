@@ -6,6 +6,8 @@ import datetime
 from typing import Dict, Any, List
 from app.repositories.kb_repository import KBRepository
 from app.services.rag_service import rag_service
+from app.services.neo4j_service import neo4j_service
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -23,9 +25,12 @@ class KBService:
         chunk_size: int = 1000,
         chunk_overlap: int = 200,
         embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2",
-        tenant_id: str = None
+        tenant_id: str = None,
+        enable_graph: bool = False
     ):
         """Create initial KB record"""
+        # Note: We don't store enable_graph in DB schema yet to avoid migrations, 
+        # but we use it for immediate processing triggering.
         return await self.kb_repo.create(
             user_id=user_id,
             filename=filename,
@@ -39,9 +44,10 @@ class KBService:
             tenant_id=tenant_id
         )
             
-    async def process_kb(self, kb_id: str, file_path: str, user_id: str, tenant_id: str, chunk_size: int, chunk_overlap: int, llm_config, embedding_model: str, user_email: str = None):
+    async def process_kb(self, kb_id: str, file_path: str, user_id: str, tenant_id: str, chunk_size: int, chunk_overlap: int, llm_config, embedding_model: str, user_email: str = None, enable_graph: bool = False):
         """
         Process KB (Load -> Split -> Embed -> Index) via RAGService.
+        If enable_graph is True, also extracts and builds Knowledge Graph in Neo4j.
         """
         try:
             print(f"DEBUG: Starting processing for KB {kb_id}")
@@ -52,6 +58,7 @@ class KBService:
                 async def update_status_callback(status: str):
                     await self.kb_repo.update_status(kb_id, status)
 
+                # 1. Vector Processing
                 await rag_service.process_document(
                     file_path=file_path,
                     kb_id=kb_id,
@@ -64,6 +71,28 @@ class KBService:
                     on_progress=update_status_callback
                 )
                 
+                # 2. Graph Processing (Optional)
+                if enable_graph and settings.ENABLE_GRAPH:
+                    logger.info(f"Graph Integration Enabled for KB {kb_id}")
+                    # We need to re-read/chunk here since rag_service doesn't return them currently
+                    # Using langchain text splitters directly would be best, but manual works for broad chunks.
+                    from langchain.text_splitter import RecursiveCharacterTextSplitter
+                    from langchain_community.document_loaders import TextLoader, UnstructuredFileLoader
+                    
+                    # Quick loading logic (replicating simple part of RAG service for graph)
+                    # For complex files, using the same loader instance would be better refactoring for later.
+                    try:
+                        loader = UnstructuredFileLoader(file_path)
+                        documents = await asyncio.to_thread(loader.load)
+                        text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+                        split_docs = text_splitter.split_documents(documents)
+                        chunks = [doc.page_content for doc in split_docs]
+                        
+                        await neo4j_service.process_graph(kb_id, tenant_id, chunks, llm_config)
+                    except Exception as graph_err:
+                        logger.error(f"Graph processing failed (non-blocking for Vector): {graph_err}")
+                        # We don't fail the whole index if graph fails, but logs will show it.
+
                 # Success
                 await self.kb_repo.update_status(kb_id, "indexed")
                 print(f"DEBUG: Processing complete for KB {kb_id} -> Indexed")
@@ -138,14 +167,18 @@ class KBService:
         # 1. Delete Vectors
         await rag_service.delete_kb(kb_id)
         
-        # 2. Delete file
+        # 2. Delete Graph Data (Neo4j)
+        if settings.ENABLE_GRAPH:
+            await neo4j_service.delete_graph_for_kb(kb_id, tenant_id)
+        
+        # 3. Delete file
         if os.path.exists(kb.file_path):
             try:
                 os.remove(kb.file_path)
             except:
                 pass
         
-        # 3. Delete from DB
+        # 4. Delete from DB
         await self.kb_repo.delete(kb_id, user_id)
         
         return {"success": True, "message": f"Deleted {kb.filename}"}
@@ -185,3 +218,4 @@ class KBService:
              return {"success": True, "message": "KB unshared successfully"}
         else:
              return {"success": False, "message": "User was not a member"}
+

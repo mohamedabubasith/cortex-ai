@@ -102,6 +102,31 @@ services:
     environment:
       NEXT_PUBLIC_API_URL: https://chat.basivo.in
       BACKEND_URL: http://chatbot_backend:8000
+      NEXT_PUBLIC_ENABLE_GRAPH: "false"
+
+  # Neo4j Graph Database
+  # Only used if ENABLE_GRAPH=true in backend
+  # neo4j:
+  #   image: neo4j:5.16.0
+  #   container_name: chatbot_neo4j
+  #   restart: always
+  #   environment:
+  #     NEO4J_AUTH: neo4j/password
+  #     # Enable APOC if needed
+  #     NEO4J_PLUGINS: '["apoc"]'
+  #     NEO4J_apoc_export_file_enabled: "true"
+  #     NEO4J_apoc_import_file_enabled: "true"
+  #     NEO4J_dbms_security_procedures_unrestricted: "apoc.*"
+  #   ports:
+  #     - "7474:7474"
+  #     - "7687:7687"
+  #   volumes:
+  #     - neo4j_data:/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider localhost:7474 || exit 1"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
 
   # Nginx Reverse Proxy
   nginx:
@@ -121,3 +146,4 @@ services:
 
 volumes:
   postgres_data:
+  neo4j_data:

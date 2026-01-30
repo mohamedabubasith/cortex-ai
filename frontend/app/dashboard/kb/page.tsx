@@ -54,12 +54,14 @@ export default function KnowledgeBasePage() {
     const [activeTab, setActiveTab] = useState<'documents' | 'databases'>('documents');
     const [kbFiles, setKbFiles] = useState<KnowledgeBase[]>([]);
     const [dbConnections, setDbConnections] = useState<DatabaseConnection[]>([]);
+    const [llmConfigs, setLlmConfigs] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     // Upload State
     const [isUploadOpen, setIsUploadOpen] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [enableGraph, setEnableGraph] = useState(false);
 
     // DB Connection State
     const [isDbOpen, setIsDbOpen] = useState(false);
@@ -101,17 +103,16 @@ export default function KnowledgeBasePage() {
         fetchResources();
     }, []);
 
-    const [processingFiles, setProcessingFiles] = useState<Set<string>>(new Set());
+    // Helper to check if file is processing
+    const isProcessing = (status?: string) => {
+        return !['indexed', 'failed'].includes(status || 'pending'); // Treat undefined/null as pending
+    };
 
-    // Polling for status updates with exponential backoff
+    // Polling for status updates
     useEffect(() => {
-        const filesToPoll = kbFiles.filter(f =>
-            ['pending', 'processing', 'indexing', 'initiated', 'unknown'].includes(f.status || '') || !f.status
-        );
+        const filesToPoll = kbFiles.filter(f => isProcessing(f.status));
 
         if (filesToPoll.length === 0) return;
-
-        let timeoutId: NodeJS.Timeout;
 
         const poll = async () => {
             let updated = false;
@@ -137,33 +138,24 @@ export default function KnowledgeBasePage() {
             if (updated) {
                 setKbFiles(newFiles);
             }
-
-            // Continue polling only if there are still processing files
-            const stillProcessing = newFiles.some(f =>
-                ['pending', 'processing', 'indexing', 'initiated', 'unknown'].includes(f.status || '') || !f.status
-            );
-
-            if (stillProcessing) {
-                timeoutId = setTimeout(poll, 3000); // Poll every 3 seconds
-            }
         };
 
-        poll();
+        const intervalId = setInterval(poll, 3000); // Poll every 3 seconds
 
-        return () => clearTimeout(timeoutId);
-    }, [kbFiles]); // Re-run when kbFiles array changes (new uploads or status updates)
-
-
+        return () => clearInterval(intervalId);
+    }, [kbFiles]); // Re-run when kbFiles changes
 
     const fetchResources = async () => {
         setLoading(true);
         try {
-            const [kbRes, dbRes] = await Promise.all([
+            const [kbRes, dbRes, llmRes] = await Promise.all([
                 api.get("/kb"),
-                api.get("/resources/databases")
+                api.get("/resources/databases"),
+                api.get("/llm")
             ]);
             setKbFiles(kbRes.data);
             setDbConnections(dbRes.data);
+            setLlmConfigs(llmRes.data);
         } catch (error) {
             console.error("Failed to fetch resources", error);
             toast("Failed to fetch resources", "error");
@@ -179,15 +171,14 @@ export default function KnowledgeBasePage() {
         setUploading(true);
         const formData = new FormData();
         formData.append("file", selectedFile);
-
-        // We no longer attach llm_config_id here, backend handles defaults or specific embedding selection
-
+        formData.append("enable_graph", enableGraph.toString());
 
         try {
             await api.post("/kb/upload", formData);
             toast("File uploaded successfully. Processing started.", "success");
             setIsUploadOpen(false);
             setSelectedFile(null);
+            setEnableGraph(false);
             fetchResources(); // This triggers the polling effect
         } catch (error: any) {
             console.error("Upload failed", error);
@@ -414,8 +405,14 @@ export default function KnowledgeBasePage() {
                                         <div className="flex space-x-2">
                                             <button
                                                 onClick={() => openQueryDialog(file.id)}
-                                                className="text-gray-500 hover:text-white transition-colors p-1 rounded-md hover:bg-white/10"
-                                                title="Query Document"
+                                                disabled={isProcessing(file.status)}
+                                                className={cn(
+                                                    "transition-colors p-1 rounded-md",
+                                                    isProcessing(file.status)
+                                                        ? "text-gray-600 cursor-not-allowed opacity-50"
+                                                        : "text-gray-500 hover:text-white hover:bg-white/10"
+                                                )}
+                                                title={isProcessing(file.status) ? "Indexing in progress..." : "Query Document"}
                                             >
                                                 <Search className="w-4 h-4" />
                                             </button>
@@ -572,6 +569,32 @@ export default function KnowledgeBasePage() {
                             <span className="text-gray-500 text-sm">PDF, Office, Images, HTML supported (Max 100MB)</span>
                         </label>
                     </div>
+
+                    {process.env.NEXT_PUBLIC_ENABLE_GRAPH === 'true' && (
+                        <div className={cn("p-4 rounded-lg border flex items-start space-x-3 transition-colors", isDark ? "bg-white/5 border-white/10" : "bg-gray-50 border-gray-200")}>
+                            <div className="flex items-center h-5">
+                                <input
+                                    id="enable_graph"
+                                    type="checkbox"
+                                    checked={enableGraph}
+                                    disabled={llmConfigs.length === 0}
+                                    onChange={(e) => setEnableGraph(e.target.checked)}
+                                    className="w-4 h-4 text-nvidia-green border-gray-300 rounded focus:ring-nvidia-green disabled:opacity-50 disabled:cursor-not-allowed"
+                                />
+                            </div>
+                            <div className="flex-1">
+                                <label htmlFor="enable_graph" className={cn("font-medium block", isDark ? "text-white" : "text-gray-900", llmConfigs.length === 0 && "opacity-50")}>
+                                    Enable Knowledge Graph
+                                </label>
+                                <p className={cn("text-xs mt-1", isDark ? "text-gray-400" : "text-gray-500")}>
+                                    {llmConfigs.length > 0
+                                        ? "Extracts entities and relationships using your default LLM. Best for structured understanding."
+                                        : <span className="text-yellow-500">Please add an LLM configuration to enable Knowledge Graph extraction.</span>
+                                    }
+                                </p>
+                            </div>
+                        </div>
+                    )}
                 </form>
             </Dialog>
 

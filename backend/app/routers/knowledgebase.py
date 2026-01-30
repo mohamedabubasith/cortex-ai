@@ -26,6 +26,7 @@ async def upload_kb_file(
     chunk_size: int = Form(1000),
     chunk_overlap: int = Form(200),
     embedding_model: str = Form("sentence-transformers/all-MiniLM-L6-v2"),
+    enable_graph: bool = Form(False),
     db: AsyncSession = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user),
     current_tenant: models.Tenant = Depends(get_current_tenant),
@@ -81,6 +82,13 @@ async def upload_kb_file(
             )
             llm_config = result.scalars().first()
         
+        if not llm_config and enable_graph:
+            # If graph is requested but no LLM, we should technically warn, 
+            # but since frontend handles the disable logic, we just proceed (graph will fail/skip in service).
+            # Actually, let's auto-disable graph if no LLM to avoid errors.
+            enable_graph = False
+            print("INFO: Graph enabled but no LLM config found. Disabling graph integration.")
+            
         if not llm_config:
             # We allow upload and proceed with local embeddings
             print("INFO: No LLM Config found. Using default/local embeddings for indexing.")
@@ -95,7 +103,8 @@ async def upload_kb_file(
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
             embedding_model=embedding_model,
-            tenant_id=current_tenant.id # Pass Tenant ID
+            tenant_id=current_tenant.id, # Pass Tenant ID
+            enable_graph=enable_graph
         )
         
         # Process in background (always)
@@ -109,7 +118,8 @@ async def upload_kb_file(
             chunk_overlap,
             llm_config,
             embedding_model,
-            current_user.email
+            current_user.email,
+            enable_graph
         )
         
         return kb

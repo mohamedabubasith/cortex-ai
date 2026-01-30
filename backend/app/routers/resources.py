@@ -50,33 +50,6 @@ MCP_HUB_REGISTRY = [
         "env_vars": [
              {"name": "BRAVE_API_KEY", "label": "Brave API Key", "type": "password", "required": True}
         ]
-    },
-    {
-        "id": "gmail",
-        "name": "Gmail",
-        "description": "Read and manage emails, drafts, and attachments.",
-        "icon": "Mail",
-        "server_url": "",
-        "protocol": "sse",
-        "documentation": "Custom Python server required.",
-        "env_vars": [
-             {"name": "GMAIL_CLIENT_ID", "label": "Client ID", "type": "password", "required": True},
-             {"name": "GMAIL_CLIENT_SECRET", "label": "Client Secret", "type": "password", "required": True},
-             {"name": "GMAIL_REFRESH_TOKEN", "label": "Refresh Token", "type": "password", "required": True}
-        ]
-    },
-    {
-        "id": "slack",
-        "name": "Slack",
-        "description": "Send messages, read channels, and manage workspace.",
-        "icon": "MessageSquare",
-        "server_url": "",
-        "protocol": "sse",
-        "documentation": "Custom Python server required.",
-        "env_vars": [
-             {"name": "SLACK_BOT_TOKEN", "label": "Bot Token", "type": "password", "required": True},
-             {"name": "SLACK_TEAM_ID", "label": "Team ID", "type": "text", "required": True}
-        ]
     }
 ]
 
