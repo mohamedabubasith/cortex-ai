@@ -221,14 +221,6 @@ export default function ChatWindow({
                     >
                         <motion.div
                             className="absolute inset-0 bg-gradient-to-r from-[#76B900]/20 to-[#76B900]/10 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                            animate={{
-                                scale: [1, 1.02, 1],
-                            }}
-                            transition={{
-                                duration: 3,
-                                repeat: Infinity,
-                                repeatType: "reverse"
-                            }}
                         />
                         <motion.div
                             className={cn(
@@ -345,7 +337,7 @@ export default function ChatWindow({
                                             "p-1.5 rounded-full transition-all duration-200 shrink-0",
                                             input.trim()
                                                 ? "bg-[#76B900] text-black hover:bg-[#8CD600]"
-                                                : "bg-[#2A2D30] text-gray-500 cursor-not-allowed"
+                                                : theme === 'dark' ? "bg-[#2A2D30] text-gray-500 cursor-not-allowed" : "bg-gray-200 text-gray-400 cursor-not-allowed"
                                         )}
                                         whileHover={!isStreaming && input.trim() ? { scale: 1.05 } : {}}
                                         whileTap={!isStreaming && input.trim() ? { scale: 0.95 } : {}}
@@ -521,7 +513,7 @@ export default function ChatWindow({
                                             "p-1.5 rounded-full transition-all duration-200",
                                             input.trim()
                                                 ? "bg-[#76B900] text-black hover:bg-[#8CD600]"
-                                                : "bg-[#2A2D30] text-gray-500 cursor-not-allowed"
+                                                : theme === 'dark' ? "bg-[#2A2D30] text-gray-500 cursor-not-allowed" : "bg-gray-200 text-gray-400 cursor-not-allowed"
                                         )}
                                         whileHover={!isStreaming && input.trim() ? { scale: 1.05 } : {}}
                                         whileTap={!isStreaming && input.trim() ? { scale: 0.95 } : {}}
@@ -538,7 +530,7 @@ export default function ChatWindow({
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.5 }}
                     >
-                        Powered by <span className="text-[#76B900]">Cortex AI</span>
+                        Powered by <span className="text-[#76B900]">Basivo</span>
                     </motion.p>
                 </div>
             </div>
