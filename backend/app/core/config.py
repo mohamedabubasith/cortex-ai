@@ -55,11 +55,6 @@ class Settings(BaseSettings):
     def admin_password(self) -> str:
         import os
         return os.getenv("ADMIN_PASSWORD", self.DEFAULT_ADMIN_PASSWORD)
-    # Keycloak (Example config)
-    KEYCLOAK_URL: Optional[str] = None # Set to enable SSO
-    KEYCLOAK_REALM: str = "master"
-    KEYCLOAK_CLIENT_ID: str = "chatbot-app"
-    KEYCLOAK_PEM_PUBLIC_KEY: Optional[str] = None # For offline token validation
     
     # Auth Provider
     # "local" = standard username/password
@@ -69,18 +64,17 @@ class Settings(BaseSettings):
     # Email
     EMAIL_PROVIDER: str = "console" # smtp, console, none
     SMTP_TLS: bool = True
-    SMTP_PORT: Optional[int] = 587
+    SMTP_PORT: Optional[int] = None
     SMTP_HOST: Optional[str] = None
     SMTP_USER: Optional[str] = None
     SMTP_PASSWORD: Optional[str] = None
-    EMAILS_FROM_EMAIL: Optional[str] = "info@example.com"
-    EMAILS_FROM_NAME: Optional[str] = "Cortex AI"
+    EMAILS_FROM_EMAIL: Optional[str] = None
+    EMAILS_FROM_NAME: Optional[str] = "Basivo"
     RESET_PASSWORD_TOKEN_EXPIRE_MINUTES: int = 15
 
     # Embeddings
     EMBEDDING_PROVIDER: str = "fastembed"
     EMBEDDING_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"
-    EMBEDDING_DIMENSIONS: int = 384
 
     # Vector DB
     VECTOR_DB_PROVIDER: str = "pgvector"

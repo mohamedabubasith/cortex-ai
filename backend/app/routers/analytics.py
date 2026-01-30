@@ -70,9 +70,11 @@ async def get_audit_logs(
     # Check Role
     is_tenant_admin = False
     for member in current_user.tenant_memberships:
-        if member.tenant_id == current_tenant.id and member.role in ["owner", "admin"]:
-            is_tenant_admin = True
-            break
+        if member.tenant_id == current_tenant.id:
+             role_name = member.role.lower() if hasattr(member.role, 'lower') else str(member.role).lower()
+             if role_name in ["owner", "admin"]:
+                is_tenant_admin = True
+                break
             
     if current_user.is_superuser:
         # Global Admin: show all logs (ignoring tenant for now, or maybe global logs)
@@ -118,9 +120,11 @@ async def clear_audit_logs(
     # Check Role
     is_tenant_admin = False
     for member in current_user.tenant_memberships:
-        if member.tenant_id == current_tenant.id and member.role in ["owner", "admin"]:
-            is_tenant_admin = True
-            break
+        if member.tenant_id == current_tenant.id:
+             role_name = member.role.lower() if hasattr(member.role, 'lower') else str(member.role).lower()
+             if role_name in ["owner", "admin"]:
+                is_tenant_admin = True
+                break
             
     if current_user.is_superuser:
         # Admin: clear all logs (Global? Or Tenant?)
@@ -200,9 +204,14 @@ async def get_agent_audit_logs(
     # Check Role
     is_tenant_admin = False
     for member in current_user.tenant_memberships:
-        if member.tenant_id == current_tenant.id and member.role in ["owner", "admin"]:
-            is_tenant_admin = True
-            break
+        if member.tenant_id == current_tenant.id:
+            # Check role (handle both string and possible relationship access if needed, but assuming string based on existing code)
+            # Existing code was: member.role in ["owner", "admin"]
+            # We'll make it case-insensitive
+            role_name = member.role.lower() if hasattr(member.role, 'lower') else str(member.role).lower()
+            if role_name in ["owner", "admin"]:
+                is_tenant_admin = True
+                break
             
     if current_user.is_superuser:
         # Admin: show all logs (Global? Or Tenant Join?)
@@ -246,9 +255,14 @@ async def clear_agent_audit_logs(
     # Check Role
     is_tenant_admin = False
     for member in current_user.tenant_memberships:
-        if member.tenant_id == current_tenant.id and member.role in ["owner", "admin"]:
-            is_tenant_admin = True
-            break
+        if member.tenant_id == current_tenant.id:
+            # Check role (handle both string and possible relationship access if needed, but assuming string based on existing code)
+            # Existing code was: member.role in ["owner", "admin"]
+            # We'll make it case-insensitive
+            role_name = member.role.lower() if hasattr(member.role, 'lower') else str(member.role).lower()
+            if role_name in ["owner", "admin"]:
+                is_tenant_admin = True
+                break
             
     if current_user.is_superuser or is_tenant_admin:
         # Admin: clear all logs in tenant

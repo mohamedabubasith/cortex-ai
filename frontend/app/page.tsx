@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Mail, Lock, ArrowRight, Loader2, AlertCircle } from "lucide-react";
+import { Mail, Lock, ArrowRight, Loader2, AlertCircle, Eye, EyeOff, Check } from "lucide-react";
 import api from "@/lib/api";
 import TubesBackground from "@/components/TubesBackground";
 import Logo from "@/components/Logo";
@@ -12,11 +12,15 @@ import { isValidEmail } from "@/lib/validation";
 
 import { Suspense } from "react";
 
+
+
 function LoginForm() {
     // Login page always uses dark theme
     const isDark = true;
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
+    const [rememberMe, setRememberMe] = useState(false);
     const [formErrors, setFormErrors] = useState({ email: "", password: "", global: "" });
     const [loading, setLoading] = useState(false);
     const [initialCheckDone, setInitialCheckDone] = useState(false);
@@ -53,6 +57,7 @@ function LoginForm() {
         setFormErrors(errors);
         return isValid;
     };
+
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -113,7 +118,7 @@ function LoginForm() {
                             <div className="inline-flex items-center justify-center mb-6">
                                 <Logo size="xl" />
                             </div>
-                            <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight mb-2">Cortex AI</h1>
+                            <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight mb-2">Basivo</h1>
                             <p className="text-gray-400">Sign in to your account</p>
                         </div>
 
@@ -128,18 +133,18 @@ function LoginForm() {
                             </motion.div>
                         )}
 
-                        <form onSubmit={handleLogin} className="space-y-6">
+                        <form onSubmit={handleLogin} className="space-y-5">
                             <div>
                                 <label className="block text-sm font-medium text-gray-300 mb-1">Email Address</label>
-                                <div className="relative">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <Mail className={`h-5 w-5 ${formErrors.email ? "text-red-500" : "text-gray-500"}`} />
+                                <div className="relative group">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none transition-colors group-focus-within:text-nvidia-green">
+                                        <Mail className={`h-5 w-5 ${formErrors.email ? "text-red-500" : "text-gray-500 group-hover:text-gray-400"}`} />
                                     </div>
                                     <input
                                         type="email"
                                         className={`block w-full pl-10 pr-3 py-3 md:py-2.5 bg-black/50 border rounded-lg focus:ring-2 focus:border-transparent text-white placeholder-gray-500 transition-all ${formErrors.email
                                             ? "border-red-500 focus:ring-red-500"
-                                            : "border-gray-700 focus:ring-nvidia-green"
+                                            : "border-gray-700 focus:ring-nvidia-green hover:border-gray-600"
                                             }`}
                                         placeholder="you@example.com"
                                         value={email}
@@ -155,24 +160,16 @@ function LoginForm() {
                             </div>
 
                             <div>
-                                <div className="flex items-center justify-between mb-1">
-                                    <label className="block text-sm font-medium text-gray-300">Password</label>
-                                    <Link
-                                        href="/forgot-password"
-                                        className="text-sm font-medium text-nvidia-green hover:text-green-400 transition-colors"
-                                    >
-                                        Forgot password?
-                                    </Link>
-                                </div>
-                                <div className="relative">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <Lock className={`h-5 w-5 ${formErrors.password ? "text-red-500" : "text-gray-500"}`} />
+                                <label className="block text-sm font-medium text-gray-300 mb-1">Password</label>
+                                <div className="relative group">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none transition-colors group-focus-within:text-nvidia-green">
+                                        <Lock className={`h-5 w-5 ${formErrors.password ? "text-red-500" : "text-gray-500 group-hover:text-gray-400"}`} />
                                     </div>
                                     <input
-                                        type="password"
-                                        className={`block w-full pl-10 pr-3 py-3 md:py-2.5 bg-black/50 border rounded-lg focus:ring-2 focus:border-transparent text-white placeholder-gray-500 transition-all ${formErrors.password
+                                        type={showPassword ? "text" : "password"}
+                                        className={`block w-full pl-10 pr-10 py-3 md:py-2.5 bg-black/50 border rounded-lg focus:ring-2 focus:border-transparent text-white placeholder-gray-500 transition-all ${formErrors.password
                                             ? "border-red-500 focus:ring-red-500"
-                                            : "border-gray-700 focus:ring-nvidia-green"
+                                            : "border-gray-700 focus:ring-nvidia-green hover:border-gray-600"
                                             }`}
                                         placeholder="••••••••"
                                         value={password}
@@ -181,10 +178,39 @@ function LoginForm() {
                                             if (formErrors.password) setFormErrors(prev => ({ ...prev, password: "" }));
                                         }}
                                     />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-300 transition-colors focus:outline-none"
+                                    >
+                                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                    </button>
                                 </div>
                                 {formErrors.password && (
                                     <p className="mt-1 text-xs text-red-500">{formErrors.password}</p>
                                 )}
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                                <label className="flex items-center space-x-2 cursor-pointer group">
+                                    <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${rememberMe ? "bg-nvidia-green border-nvidia-green" : "border-gray-600 bg-transparent group-hover:border-gray-500"}`}>
+                                        {rememberMe && <Check className="w-3 h-3 text-black" strokeWidth={3} />}
+                                    </div>
+                                    <input
+                                        type="checkbox"
+                                        className="hidden"
+                                        checked={rememberMe}
+                                        onChange={(e) => setRememberMe(e.target.checked)}
+                                    />
+                                    <span className="text-sm text-gray-400 group-hover:text-gray-300 transition-colors">Remember me</span>
+                                </label>
+
+                                <Link
+                                    href="/forgot-password"
+                                    className="text-sm font-medium text-nvidia-green hover:text-green-400 transition-colors"
+                                >
+                                    Forgot password?
+                                </Link>
                             </div>
 
                             <button

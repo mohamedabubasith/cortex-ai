@@ -4,16 +4,20 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { User, Mail, Lock, ArrowRight, Loader2, Check, X, AlertCircle } from "lucide-react";
+import { User, Mail, Lock, ArrowRight, Loader2, Check, AlertCircle, Eye, EyeOff } from "lucide-react";
 import api from "@/lib/api";
 import TubesBackground from "@/components/TubesBackground";
 import Logo from "@/components/Logo";
 import { isValidEmail, calculatePasswordStrength, PasswordStrength } from "@/lib/validation";
 
+
+
 export default function RegisterPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [formData, setFormData] = useState({
         full_name: "",
         email: "",
@@ -77,6 +81,7 @@ export default function RegisterPage() {
         setFormErrors(errors);
         return isValid;
     };
+
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -144,7 +149,7 @@ export default function RegisterPage() {
                                 <Logo size="xl" />
                             </div>
                             <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight mb-2">Create Account</h1>
-                            <p className="text-gray-400">Join Cortex AI today</p>
+                            <p className="text-gray-400">Join Basivo today</p>
                         </div>
 
                         {formErrors.global && (
@@ -172,15 +177,15 @@ export default function RegisterPage() {
                         <form onSubmit={handleSubmit} className="space-y-5">
                             <div>
                                 <label className="block text-sm font-medium text-gray-300 mb-1">Full Name</label>
-                                <div className="relative">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <User className={`h-5 w-5 ${formErrors.full_name ? "text-red-500" : "text-gray-500"}`} />
+                                <div className="relative group">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none transition-colors group-focus-within:text-nvidia-green">
+                                        <User className={`h-5 w-5 ${formErrors.full_name ? "text-red-500" : "text-gray-500 group-hover:text-gray-400"}`} />
                                     </div>
                                     <input
                                         type="text"
                                         className={`block w-full pl-10 pr-3 py-3 md:py-2.5 bg-black/50 border rounded-lg focus:ring-2 focus:border-transparent text-white placeholder-gray-500 transition-all ${formErrors.full_name
                                             ? "border-red-500 focus:ring-red-500"
-                                            : "border-gray-700 focus:ring-nvidia-green"
+                                            : "border-gray-700 focus:ring-nvidia-green hover:border-gray-600"
                                             }`}
                                         placeholder="John Doe"
                                         value={formData.full_name}
@@ -192,15 +197,15 @@ export default function RegisterPage() {
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-300 mb-1">Email Address</label>
-                                <div className="relative">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <Mail className={`h-5 w-5 ${formErrors.email ? "text-red-500" : "text-gray-500"}`} />
+                                <div className="relative group">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none transition-colors group-focus-within:text-nvidia-green">
+                                        <Mail className={`h-5 w-5 ${formErrors.email ? "text-red-500" : "text-gray-500 group-hover:text-gray-400"}`} />
                                     </div>
                                     <input
                                         type="email"
                                         className={`block w-full pl-10 pr-3 py-3 md:py-2.5 bg-black/50 border rounded-lg focus:ring-2 focus:border-transparent text-white placeholder-gray-500 transition-all ${formErrors.email
                                             ? "border-red-500 focus:ring-red-500"
-                                            : "border-gray-700 focus:ring-nvidia-green"
+                                            : "border-gray-700 focus:ring-nvidia-green hover:border-gray-600"
                                             }`}
                                         placeholder="you@example.com"
                                         value={formData.email}
@@ -212,20 +217,27 @@ export default function RegisterPage() {
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-300 mb-1">Password</label>
-                                <div className="relative">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <Lock className={`h-5 w-5 ${formErrors.password ? "text-red-500" : "text-gray-500"}`} />
+                                <div className="relative group">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none transition-colors group-focus-within:text-nvidia-green">
+                                        <Lock className={`h-5 w-5 ${formErrors.password ? "text-red-500" : "text-gray-500 group-hover:text-gray-400"}`} />
                                     </div>
                                     <input
-                                        type="password"
-                                        className={`block w-full pl-10 pr-3 py-3 md:py-2.5 bg-black/50 border rounded-lg focus:ring-2 focus:border-transparent text-white placeholder-gray-500 transition-all ${formErrors.password
+                                        type={showPassword ? "text" : "password"}
+                                        className={`block w-full pl-10 pr-10 py-3 md:py-2.5 bg-black/50 border rounded-lg focus:ring-2 focus:border-transparent text-white placeholder-gray-500 transition-all ${formErrors.password
                                             ? "border-red-500 focus:ring-red-500"
-                                            : "border-gray-700 focus:ring-nvidia-green"
+                                            : "border-gray-700 focus:ring-nvidia-green hover:border-gray-600"
                                             }`}
                                         placeholder="••••••••"
                                         value={formData.password}
                                         onChange={(e) => handleChange("password", e.target.value)}
                                     />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-300 transition-colors focus:outline-none"
+                                    >
+                                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                    </button>
                                 </div>
                                 {formData.password && (
                                     <div className="mt-2">
@@ -252,20 +264,27 @@ export default function RegisterPage() {
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-300 mb-1">Confirm Password</label>
-                                <div className="relative">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <Lock className={`h-5 w-5 ${formErrors.confirmPassword ? "text-red-500" : "text-gray-500"}`} />
+                                <div className="relative group">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none transition-colors group-focus-within:text-nvidia-green">
+                                        <Lock className={`h-5 w-5 ${formErrors.confirmPassword ? "text-red-500" : "text-gray-500 group-hover:text-gray-400"}`} />
                                     </div>
                                     <input
-                                        type="password"
-                                        className={`block w-full pl-10 pr-3 py-3 md:py-2.5 bg-black/50 border rounded-lg focus:ring-2 focus:border-transparent text-white placeholder-gray-500 transition-all ${formErrors.confirmPassword
+                                        type={showConfirmPassword ? "text" : "password"}
+                                        className={`block w-full pl-10 pr-10 py-3 md:py-2.5 bg-black/50 border rounded-lg focus:ring-2 focus:border-transparent text-white placeholder-gray-500 transition-all ${formErrors.confirmPassword
                                             ? "border-red-500 focus:ring-red-500"
-                                            : "border-gray-700 focus:ring-nvidia-green"
+                                            : "border-gray-700 focus:ring-nvidia-green hover:border-gray-600"
                                             }`}
                                         placeholder="••••••••"
                                         value={formData.confirmPassword}
                                         onChange={(e) => handleChange("confirmPassword", e.target.value)}
                                     />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-300 transition-colors focus:outline-none"
+                                    >
+                                        {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                    </button>
                                 </div>
                                 {formErrors.confirmPassword && <p className="mt-1 text-xs text-red-500">{formErrors.confirmPassword}</p>}
                             </div>

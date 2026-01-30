@@ -1,7 +1,7 @@
 [project]
 name = "cortex-ai-backend"
 version = "0.1.0"
-description = "FastAPI backend for Cortex AI with LangChain RAG"
+description = "FastAPI backend for Basivo with LangChain RAG"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

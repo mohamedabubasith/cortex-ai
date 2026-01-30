@@ -17,8 +17,8 @@ export default function Logo({ className = "", size = "md" }: LogoProps) {
     return (
         <div className={`relative rounded-lg overflow-hidden ${className}`} style={{ width: sizeMap[size], height: sizeMap[size] }}>
             <Image
-                src="/logo-ca.png"
-                alt="Cortex AI Logo"
+                src="/logo-basivo.png"
+                alt="Basivo Logo"
                 fill
                 className="object-cover"
             />

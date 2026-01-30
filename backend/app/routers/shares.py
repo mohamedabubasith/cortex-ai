@@ -67,7 +67,7 @@ async def verify_resource_ownership(db: AsyncSession, resource_type: str, resour
         
     return False
 
-@router.post("/", response_model=ResourceShareResponse)
+@router.post("", response_model=ResourceShareResponse)
 async def create_share(
     share_data: ResourceShareCreate,
     db: AsyncSession = Depends(get_db),

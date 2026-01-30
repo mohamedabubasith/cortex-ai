@@ -28,7 +28,7 @@ export default function NewAgentPage() {
         setError("");
 
         try {
-            const response = await api.post("/agents/", {
+            const response = await api.post("/agents", {
                 name: formData.name,
                 description: formData.description,
                 is_public: true

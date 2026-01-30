@@ -1,8 +1,8 @@
-# Cortex AI 🧠
+# Basivo 🧠
 
-**Production-ready AI Assistant with Knowledge Base (RAG) & SQL Agent Capabilities**
+An intelligent, agentic chat platform for your data.
 
-Cortex AI is a powerful, open-source AI platform that combines **RAG (Retrieval-Augmented Generation)** with **SQL Agent** capabilities. It allows users to chat with their documents (PDFs, text) AND their live databases (PostgreSQL, MySQL) in a single, unified interface.
+Basivo is a powerful, open-source AI platform that combines **RAG (Retrieval-Augmented Generation)** with **SQL Agent** capabilities. It allows users to chat with their documents (PDFs, text) AND their live databases (PostgreSQL, MySQL) in a single, unified interface.
 
 Built with **FastAPI**, **Next.js**, **Cognee**, and **pgvector**.
 

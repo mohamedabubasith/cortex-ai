@@ -6,8 +6,8 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-    title: "Cortex AI - Intelligent Assistant Platform",
-    description: "Manage your AI chatbots with Cortex AI",
+    title: "Basivo - Intelligent Assistant Platform",
+    description: "Manage your AI chatbots with Basivo",
 };
 
 export const viewport: Viewport = {

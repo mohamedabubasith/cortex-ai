@@ -10,7 +10,7 @@ from app.services.database_service import database_service
 
 router = APIRouter()
 
-@router.post("/", response_model=schemas.DatabaseConnectionResponse)
+@router.post("", response_model=schemas.DatabaseConnectionResponse)
 async def create_connection(
     agent_id: str,
     connection: schemas.DatabaseConnectionCreate,
@@ -44,7 +44,7 @@ async def create_connection(
     await db.refresh(db_connection)
     return db_connection
 
-@router.get("/", response_model=List[schemas.DatabaseConnectionResponse])
+@router.get("", response_model=List[schemas.DatabaseConnectionResponse])
 async def get_connections(
     agent_id: str,
     db: AsyncSession = Depends(get_db),
