@@ -93,14 +93,14 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: http://localhost:8000
+        NEXT_PUBLIC_API_URL: https://chat.basivo.in
         BACKEND_URL: http://chatbot_backend:8000
     container_name: chatbot_frontend
     restart: always
     ports:
       - "3000:3000"
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXT_PUBLIC_API_URL: https://chat.basivo.in
       BACKEND_URL: http://chatbot_backend:8000
 
   # Nginx Reverse Proxy
