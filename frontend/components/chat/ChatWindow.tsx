@@ -181,7 +181,7 @@ export default function ChatWindow({
             <div
                 ref={messagesContainerRef}
                 className={cn(
-                    "flex-1 overflow-y-auto transition-colors duration-300 overscroll-behavior-y-none",
+                    "flex-1 overflow-y-auto transition-colors duration-300 overscroll-behavior-y-none flex flex-col justify-start",
                     theme === 'dark' ? "bg-[#05070A]" : "bg-gray-50"
                 )}
             >
