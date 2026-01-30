@@ -759,68 +759,78 @@ export default function KnowledgeBasePage() {
                     {/* Results */}
                     {queryResults && (
                         <div className="pt-6 border-t border-white/10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                            <h3 className="text-lg font-bold text-white mb-4 flex items-center justify-between">
+                            <h3 className={cn("text-lg font-bold mb-4 flex items-center justify-between", isDark ? "text-white" : "text-gray-900")}>
                                 <div className="flex items-center">
                                     <span className="w-1 h-6 bg-nvidia-green rounded-full mr-3"></span>
                                     Results
                                 </div>
-                                <span className="text-xs font-normal text-gray-500 bg-white/5 px-2 py-1 rounded-full border border-white/5">
+                                <span className={cn("text-xs font-normal px-2 py-1 rounded-full border", isDark ? "text-gray-500 bg-white/5 border-white/5" : "text-gray-600 bg-gray-100 border-gray-200")}>
                                     {queryResults.length} matches found
                                 </span>
                             </h3>
 
                             <div className="space-y-4">
                                 {queryResults.length === 0 ? (
-                                    <div className="text-center py-10 bg-white/5 rounded-xl border border-white/5 border-dashed">
-                                        <div className="bg-white/5 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
+                                    <div className={cn("text-center py-10 rounded-xl border border-dashed", isDark ? "bg-white/5 border-white/5" : "bg-gray-50 border-gray-300")}>
+                                        <div className={cn("w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3", isDark ? "bg-white/5" : "bg-white border border-gray-200")}>
                                             <Search className="w-5 h-5 text-gray-400" />
                                         </div>
-                                        <p className="text-gray-400 font-medium">No relevant results found.</p>
+                                        <p className={isDark ? "text-gray-400 font-medium" : "text-gray-600 font-medium"}>No relevant results found.</p>
                                         <p className="text-xs text-gray-500 mt-1">Try rewording your query.</p>
                                     </div>
                                 ) : (
-                                    queryResults.map((chunk, i) => (
-                                        <div key={i} className="bg-white/5 rounded-xl border border-white/10 overflow-hidden group hover:border-nvidia-green/30 transition-all shadow-sm">
-                                            {/* Header with Score */}
-                                            <div className="bg-white/5 px-4 py-2 flex justify-between items-center border-b border-white/5">
-                                                <span className="text-xs font-bold text-nvidia-green uppercase tracking-wider">
-                                                    Match #{i + 1}
-                                                </span>
-                                                {chunk.score !== undefined && (
-                                                    <div className="flex items-center space-x-1" title="Similarity Score (lower is better for L2 distance, higher for Cosine)">
-                                                        <div className="w-16 h-1.5 bg-gray-700 rounded-full overflow-hidden">
-                                                            <div
-                                                                className="h-full bg-nvidia-green"
-                                                                style={{ width: `${Math.min((chunk.score || 0) * 100, 100)}%` }} // Adjust specific to your score metric if needed
-                                                            />
+                                    queryResults
+                                        // Explicitly sort by score (Assumes Distance metric where lower is better)
+                                        .sort((a, b) => (a.score || 0) - (b.score || 0))
+                                        .map((chunk, i) => (
+                                            <div key={i} className={cn("rounded-xl border overflow-hidden group transition-all shadow-sm", isDark ? "bg-white/5 border-white/10 hover:border-nvidia-green/30" : "bg-white border-gray-200 hover:border-nvidia-green/50 hover:shadow-md")}>
+                                                {/* Header with Score */}
+                                                <div className={cn("px-4 py-2 flex justify-between items-center border-b", isDark ? "bg-white/5 border-white/5" : "bg-gray-50 border-gray-100")}>
+                                                    <span className="text-xs font-bold text-nvidia-green uppercase tracking-wider">
+                                                        Match #{i + 1}
+                                                    </span>
+                                                    {chunk.score !== undefined && (
+                                                        <div className="flex items-center space-x-1" title="Distance Score (Lower is better)">
+                                                            <div className="w-16 h-1.5 bg-gray-700/50 rounded-full overflow-hidden">
+                                                                {/* Visual representation of score. For distance, smaller bar = better? Or inverse?
+                                                                    Let's show "closeness". 0 distance = full bar?
+                                                                    Max distance ~2?
+                                                                    Let's map 0->100%, 2->0% approx for visual.
+                                                                */}
+                                                                <div
+                                                                    className="h-full bg-nvidia-green"
+                                                                    style={{ width: `${Math.max(0, 100 - ((chunk.score || 0) * 50))}%` }} // Rough heuristic for visual bar
+                                                                />
+                                                            </div>
+                                                            <span className={cn("text-xs font-mono", isDark ? "text-gray-400" : "text-gray-500")}>
+                                                                {typeof chunk.score === 'number' ? chunk.score.toFixed(4) : chunk.score} (Dist)
+                                                            </span>
                                                         </div>
-                                                        <span className="text-xs font-mono text-gray-400">{typeof chunk.score === 'number' ? chunk.score.toFixed(4) : chunk.score}</span>
+                                                    )}
+                                                </div>
+
+                                                <div className="p-5">
+                                                    {/* Content */}
+                                                    <p className={cn("text-sm md:text-base leading-relaxed whitespace-pre-wrap font-sans", isDark ? "text-gray-200" : "text-gray-800")}>
+                                                        {chunk.content || chunk.text || "No text content available."}
+                                                    </p>
+                                                </div>
+
+                                                {/* Metadata Footer */}
+                                                {chunk.metadata && Object.keys(chunk.metadata).length > 0 && (
+                                                    <div className={cn("px-4 py-3 border-t", isDark ? "bg-black/20 border-white/5" : "bg-gray-50 border-gray-100")}>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {Object.entries(chunk.metadata).map(([k, v]) => (
+                                                                <div key={k} className={cn("flex items-center text-[10px] md:text-xs px-2 py-1.5 rounded border transition-colors", isDark ? "text-gray-400 bg-white/5 border-white/5 hover:bg-white/10" : "text-gray-600 bg-white border-gray-200 hover:bg-gray-50")}>
+                                                                    <span className={cn("font-semibold uppercase mr-1.5", isDark ? "text-gray-500" : "text-gray-400")}>{k.replace(/_/g, ' ')}:</span>
+                                                                    <span className={cn("truncate max-w-[200px] font-mono", isDark ? "text-gray-300" : "text-gray-900")}>{String(v)}</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
                                                     </div>
                                                 )}
                                             </div>
-
-                                            <div className="p-5">
-                                                {/* Content - Handling both 'content' (new RAG) and 'text' (fallback) */}
-                                                <p className="text-sm md:text-base text-gray-200 leading-relaxed whitespace-pre-wrap font-sans">
-                                                    {chunk.content || chunk.text || "No text content available."}
-                                                </p>
-                                            </div>
-
-                                            {/* Metadata Footer */}
-                                            {chunk.metadata && Object.keys(chunk.metadata).length > 0 && (
-                                                <div className="bg-black/20 px-4 py-3 border-t border-white/5">
-                                                    <div className="flex flex-wrap gap-2">
-                                                        {Object.entries(chunk.metadata).map(([k, v]) => (
-                                                            <div key={k} className="flex items-center text-[10px] md:text-xs text-gray-400 bg-white/5 px-2 py-1.5 rounded border border-white/5 hover:bg-white/10 transition-colors">
-                                                                <span className="font-semibold text-gray-500 uppercase mr-1.5">{k.replace(/_/g, ' ')}:</span>
-                                                                <span className="truncate max-w-[200px] font-mono text-gray-300">{String(v)}</span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))
+                                        ))
                                 )}
                             </div>
                         </div>

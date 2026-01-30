@@ -65,6 +65,8 @@ const parseContent = (content: string) => {
 function MessageBubbleBase({ message, isStreaming = false, isQuerying = false, hasKB = false, isKBEnabled = true, theme = "dark", onRetry }: MessageBubbleProps) {
     const [copied, setCopied] = useState(false);
     const [isThinkingExpanded, setIsThinkingExpanded] = useState(false);
+    const [isReadingsExpanded, setIsReadingsExpanded] = useState(false);
+    const [isSourcesExpanded, setIsSourcesExpanded] = useState(false);
 
     // Don't render empty assistant messages unless streaming (typing indicator)
     if (message.role === "assistant" && !message.content && !message.thinking && !isStreaming) {
@@ -102,7 +104,8 @@ function MessageBubbleBase({ message, isStreaming = false, isQuerying = false, h
     const sources = useMemo(() => !isUser ? extractSources(message.content) : [], [message.content, isUser]);
     const parsedContent = useMemo(() => !isUser ? parseContent(message.content) : [], [message.content, isUser]);
 
-    const [isSourcesExpanded, setIsSourcesExpanded] = useState(false);
+    const readings = useMemo(() => parsedContent.filter(p => p.type === 'reading'), [parsedContent]);
+    const contentParts = useMemo(() => parsedContent.filter(p => p.type !== 'reading'), [parsedContent]);
 
     // Only show retry for actual errors
     const isError = !isUser && (
@@ -214,7 +217,7 @@ function MessageBubbleBase({ message, isStreaming = false, isQuerying = false, h
                                         ? "prose-invert prose-headings:text-gray-100 prose-p:text-gray-200 prose-strong:text-white prose-code:text-[#76B900] prose-pre:bg-gray-800/50"
                                         : "prose-headings:text-gray-900 prose-p:text-gray-800 prose-strong:text-gray-900 prose-code:text-blue-600 prose-pre:bg-gray-50"
                                 )}>
-                                    {parsedContent.map((part, idx) => {
+                                    {contentParts.map((part, idx) => {
                                         if (part.type === 'searching') {
                                             return (
                                                 <div key={idx} className={cn(
@@ -228,19 +231,7 @@ function MessageBubbleBase({ message, isStreaming = false, isQuerying = false, h
                                                 </div>
                                             );
                                         }
-                                        if (part.type === 'reading') {
-                                            return (
-                                                <div key={idx} className={cn(
-                                                    "flex items-center gap-2 py-2 px-3 rounded-lg text-xs font-medium border my-2 not-prose",
-                                                    theme === 'dark'
-                                                        ? "bg-purple-500/10 border-purple-500/20 text-purple-400"
-                                                        : "bg-purple-50 border-purple-100 text-purple-600"
-                                                )}>
-                                                    <BookOpen className="w-3.5 h-3.5" />
-                                                    <span>Reading: {part.content}</span>
-                                                </div>
-                                            );
-                                        }
+                                        // reading logic moved out
                                         return (
                                             <ReactMarkdown
                                                 key={idx}
@@ -340,9 +331,54 @@ function MessageBubbleBase({ message, isStreaming = false, isQuerying = false, h
                         )}
                     </div>
 
+                    {/* Readings Section (Bottom) */}
+                    {!isUser && readings.length > 0 && (
+                        <div className="mt-1 pl-1">
+                            <button
+                                onClick={() => setIsReadingsExpanded(!isReadingsExpanded)}
+                                className={cn(
+                                    "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors mb-2",
+                                    theme === 'dark' ? "hover:bg-white/5 text-gray-400" : "hover:bg-black/5 text-gray-500"
+                                )}
+                            >
+                                {isReadingsExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronDown className="w-3 h-3 -rotate-90" />}
+                                <BookOpen className="w-3.5 h-3.5" />
+                                <span>{readings.length} Processed Readings</span>
+                            </button>
+
+                            <AnimatePresence>
+                                {isReadingsExpanded && (
+                                    <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: "auto", opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="grid grid-cols-1 gap-2 overflow-hidden"
+                                    >
+                                        {readings.map((reading, i) => (
+                                            <div
+                                                key={i}
+                                                className={cn(
+                                                    "flex items-center gap-2 p-2 rounded-lg border text-xs transition-colors",
+                                                    theme === 'dark'
+                                                        ? "bg-purple-500/10 border-purple-500/20 text-purple-400"
+                                                        : "bg-purple-50 border-purple-100 text-purple-600"
+                                                )}
+                                            >
+                                                <BookOpen className="w-3.5 h-3.5 shrink-0" />
+                                                <span className="truncate">{reading.content}</span>
+                                            </div>
+                                        ))}
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    )}
+
+
                     {/* Sources Section at the bottom */}
                     {!isUser && sources.length > 0 && (
-                        <div className="mt-2 pl-1">
+                        <div className="mt-1 pl-1">
                             <button
                                 onClick={() => setIsSourcesExpanded(!isSourcesExpanded)}
                                 className={cn(
