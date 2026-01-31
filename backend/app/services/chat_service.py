@@ -63,7 +63,7 @@ class ChatService:
         """Get a chat session by ID"""
         return await self.chat_repo.get_session(session_id)
 
-    async def process_chat(self, agent: models.Agent, message: str, session_id: str, search_enabled: bool = True, kb_enabled: bool = True, db_enabled: bool = True) -> AsyncGenerator[str, None]:
+    async def process_chat(self, agent: models.Agent, message: str, session_id: str, search_enabled: bool = True, kb_enabled: bool = True, db_enabled: bool = True, request_metadata: dict = None) -> AsyncGenerator[str, None]:
         try:
             # 0. Validate Agent Config
             if not agent.llm_config:
@@ -291,11 +291,13 @@ class ChatService:
                             "message_length": len(message),
                             "response_length": len(full_response),
                             "tokens": token_usage,
+                            "duration_ms": latency_ms,
                             "interrupted": True # Implicitly tracking interrupt via logic flow
                         },
                         meta_data={
                             "model": agent.llm_config.model,
-                            "has_kb": len(agent.knowledge_bases) > 0 if agent.knowledge_bases else False
+                            "has_kb": len(agent.knowledge_bases) > 0 if agent.knowledge_bases else False,
+                            **(request_metadata or {})
                         }
                     )
 

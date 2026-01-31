@@ -6,6 +6,10 @@ import time
 
 class HitTrackingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+        # Exclude chat endpoints to prevent streaming buffering issues
+        if request.url.path.startswith("/api/v1/chat/"):
+            return await call_next(request)
+
         start_time = time.time()
         
         # Process request

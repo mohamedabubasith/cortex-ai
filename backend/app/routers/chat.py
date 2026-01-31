@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
@@ -37,7 +37,8 @@ async def get_public_agent_info(
 @router.post("/public/{share_token}/chat")
 async def public_chat(
     share_token: str,
-    request: schemas.ChatRequest,
+    chat_request: schemas.ChatRequest,
+    request: Request,
     service: ChatService = Depends(get_chat_service),
     current_user: models.User = Depends(get_current_active_user),
     tenant: models.Tenant = Depends(get_current_tenant)
@@ -47,7 +48,7 @@ async def public_chat(
         raise HTTPException(status_code=404, detail="Agent not found or invalid token")
         
     # Handle session creation/retrieval
-    session_id = request.session_id
+    session_id = chat_request.session_id
     if session_id:
         # Verify session exists AND belongs to user
         session = await service.get_session(session_id)
@@ -57,15 +58,23 @@ async def public_chat(
     else:
         # No session ID provided - create new
         session_id = await service.create_new_session(agent.id, user_id=current_user.id, tenant_id=tenant.id if tenant else None)
+    
+    # Extract metadata for analytics
+    request_metadata = {
+        "ip": request.client.host if request.client else None,
+        "user_agent": request.headers.get("user-agent"),
+        "country": "Unknown" 
+    }
         
     return StreamingResponse(
         service.process_chat(
             agent, 
-            request.message, 
+            chat_request.message, 
             session_id, 
-            search_enabled=request.search_enabled,
-            kb_enabled=request.kb_enabled,
-            db_enabled=request.db_enabled
+            search_enabled=chat_request.search_enabled,
+            kb_enabled=chat_request.kb_enabled,
+            db_enabled=chat_request.db_enabled,
+            request_metadata=request_metadata
         ),
         media_type="text/event-stream",
         headers={"x-session-id": session_id}
