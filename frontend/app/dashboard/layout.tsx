@@ -36,7 +36,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     // Check if current active role is Admin or Owner OR if user is a Superuser
     // We match case-insensitive or specific names from backend seeding
-    const isAdmin = user?.is_superuser || role?.name === "Owner" || role?.name === "Admin";
+    const roleName = role?.name?.toLowerCase();
+    const isAdmin = user?.is_superuser || roleName === "owner" || roleName === "admin";
 
     return (
         <AuthGuard>

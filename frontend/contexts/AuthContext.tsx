@@ -55,10 +55,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 }
             }
 
-            if (activeMembership && activeMembership.tenant_role) {
-                setRole(activeMembership.tenant_role);
-                const perms = activeMembership.tenant_role.permissions?.map(p => p.permission_slug) || [];
-                setPermissions(perms);
+            if (activeMembership) {
+                if (activeMembership.tenant_role) {
+                    setRole(activeMembership.tenant_role);
+                    const perms = activeMembership.tenant_role.permissions?.map(p => p.permission_slug) || [];
+                    setPermissions(perms);
+                } else if (activeMembership.role) {
+                    // Fallback: Synthesize role from legacy string if relation is missing
+                    console.warn("Using legacy role fallback", activeMembership.role);
+                    const synthesizedName = activeMembership.role.charAt(0).toUpperCase() + activeMembership.role.slice(1); // owner -> Owner
+                    setRole({
+                        id: "legacy",
+                        tenant_id: activeMembership.tenant_id,
+                        name: synthesizedName,
+                        description: "Legacy Role",
+                        is_system_role: true,
+                        permissions: [],
+                        created_at: new Date().toISOString()
+                    } as TenantRole);
+                    // Legacy Admin/Owner usually implies all permissions or we rely on role name check
+                    setPermissions([]);
+                } else {
+                    setRole(null);
+                    setPermissions([]);
+                }
             } else {
                 setRole(null);
                 setPermissions([]);
