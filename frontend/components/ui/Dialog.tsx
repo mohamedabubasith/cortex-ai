@@ -51,7 +51,7 @@ export default function Dialog({
     return (
         <AnimatePresence>
             {isOpen && (
-                <div className="fixed inset-0 z-50 overflow-y-auto block">
+                <div className="fixed inset-0 z-[100] overflow-y-auto block">
                     <div className="flex min-h-screen items-center justify-center p-4 text-center">
                         {/* Backdrop with stronger blur for focus */}
                         <motion.div
