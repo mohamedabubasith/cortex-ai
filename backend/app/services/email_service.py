@@ -51,15 +51,21 @@ class EmailService:
             logger.info(f"Attempting to send email to {email_to} via {self.smtp_host}:{self.smtp_port}...")
             if self.smtp_port == 465:
                 # Use implicit SSL for port 465
-                with smtplib.SMTP_SSL(self.smtp_host, self.smtp_port) as server:
+                logger.info("   -> Connectivity: Connecting (SSL)...")
+                with smtplib.SMTP_SSL(self.smtp_host, self.smtp_port, timeout=10) as server:
+                    logger.info("   -> Connectivity: Logging in...")
                     server.login(self.smtp_user, self.smtp_password)
+                    logger.info("   -> Connectivity: Sending mail...")
                     server.sendmail(self.from_email, email_to, message.as_string())
             else:
                 # Use STARTTLS for 587 or others
-                with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
+                logger.info("   -> Connectivity: Connecting (TLS)...")
+                with smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=10) as server:
                     if self.smtp_tls:
                         server.starttls()
+                    logger.info("   -> Connectivity: Logging in...")
                     server.login(self.smtp_user, self.smtp_password)
+                    logger.info("   -> Connectivity: Sending mail...")
                     server.sendmail(self.from_email, email_to, message.as_string())
             logger.info(f"✅ EMAIL SENT SUCCESSFULLY to {email_to}")
             print(f"✅ EMAIL SENT SUCCESSFULLY to {email_to}") # Force print for visibility
