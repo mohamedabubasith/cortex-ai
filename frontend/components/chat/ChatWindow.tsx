@@ -79,11 +79,15 @@ export default function ChatWindow({
     // Auto-scroll logic
     useEffect(() => {
         const scrollToBottom = () => {
-            if (messagesEndRef.current) {
-                // Use 'auto' behavior during streaming to prevent smooth-scroll lag/flicker
-                // Use 'smooth' only for new message starts
-                const behavior = isStreaming ? "auto" : "smooth";
-                messagesEndRef.current.scrollIntoView({ behavior, block: "end" });
+            if (isStreaming) {
+                // IMMEDIATE low-level scroll for streaming (smoother than scrollIntoView)
+                // This prevents the "flicker" caused by the browser's smooth-scroll engine recalculating
+                if (messagesContainerRef.current) {
+                    messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+                }
+            } else if (messagesEndRef.current) {
+                // Smooth scroll for new message start / complete
+                messagesEndRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
             }
         };
 
@@ -96,9 +100,6 @@ export default function ChatWindow({
             if (isAutoScrollEnabled.current) return true;
 
             // If a NEW message just arrived (length increased by > 1 relative to last known count of messages)
-            // Ideally we'd compare message IDs, but length proxy works if we assume one message added.
-            // Actually, for streaming, the last message content changes.
-            // If the user sent a message, we always want to snap back.
             const lastMsg = messages[messages.length - 1];
             if (lastMsg.role === 'user') {
                 isAutoScrollEnabled.current = true; // Reset stickiness on user send
@@ -109,7 +110,10 @@ export default function ChatWindow({
         };
 
         if (shouldScroll()) {
-            scrollToBottom();
+            // Use requestAnimationFrame for smoother visual updates during high-freq streaming
+            requestAnimationFrame(() => {
+                scrollToBottom();
+            });
         }
     }, [messages, isStreaming]); // Depend on content updates
 
