@@ -283,6 +283,7 @@ class ChatService:
                     
                     await self.analytics_repo.create_event(
                         event_type="chat",
+                        tenant_id=agent.tenant_id,
                         user_id=agent.owner_id,
                         agent_id=agent.id,
                         event_data={

@@ -27,6 +27,7 @@ class HitTrackingMiddleware(BaseHTTPMiddleware):
             
             await analytics_repo.create_event(
                 event_type="api_hit",
+                tenant_id=request.headers.get("x-tenant-id") or request.headers.get("X-Tenant-ID"),
                 user_id=user_id,
                 event_data={
                     "method": request.method,
