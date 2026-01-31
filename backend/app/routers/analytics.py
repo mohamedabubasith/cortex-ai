@@ -184,7 +184,6 @@ async def get_token_usage_stats(
 @router.get("/stats/overview")
 async def get_stats_overview(
     hours: int = Query(24, le=168),
-    hours: int = Query(24, le=168),
     current_user: models.User = Depends(get_current_active_user),
     current_tenant: models.Tenant = Depends(get_current_tenant),
     analytics_service: AnalyticsService = Depends(get_analytics_service)
