@@ -34,6 +34,7 @@ class AnalyticsRepository:
     
     async def get_events(
         self,
+        tenant_id: Optional[str] = None,
         user_id: Optional[str] = None,
         agent_id: Optional[str] = None,
         event_type: Optional[str] = None,
@@ -42,6 +43,8 @@ class AnalyticsRepository:
         """Get analytics events"""
         query = select(models.Analytics)
         
+        if tenant_id:
+            query = query.where(models.Analytics.tenant_id == tenant_id)
         if user_id:
             query = query.where(models.Analytics.user_id == user_id)
         if agent_id:
@@ -54,19 +57,23 @@ class AnalyticsRepository:
         result = await self.db.execute(query)
         return result.scalars().all()
     
-    async def get_recent_events(self, hours: int = 24, limit: int = 100) -> List[models.Analytics]:
+    async def get_recent_events(self, tenant_id: Optional[str] = None, hours: int = 24, limit: int = 100) -> List[models.Analytics]:
         """Get recent events"""
         since = datetime.utcnow() - timedelta(hours=hours)
         
         result = await self.db.execute(
-            select(models.Analytics)
-            .where(models.Analytics.created_at >= since)
+        query = select(models.Analytics).where(models.Analytics.created_at >= since)
+        if tenant_id:
+            query = query.where(models.Analytics.tenant_id == tenant_id)
+            
+        result = await self.db.execute(
+            query
             .order_by(desc(models.Analytics.created_at))
             .limit(limit)
         )
         return result.scalars().all()
     
-    async def get_api_hit_stats(self, hours: int = 24) -> Dict[str, Any]:
+    async def get_api_hit_stats(self, tenant_id: Optional[str] = None, hours: int = 24) -> Dict[str, Any]:
         """Get API hit statistics"""
         since = datetime.utcnow() - timedelta(hours=hours)
         
@@ -74,11 +81,19 @@ class AnalyticsRepository:
             select(
                 func.count(models.Analytics.id).label('total_hits'),
                 func.count(func.distinct(models.Analytics.user_id)).label('unique_users')
+        filters = [
+            models.Analytics.event_type.in_(['api_hit', 'chat']),
+            models.Analytics.created_at >= since
+        ]
+        if tenant_id:
+            filters.append(models.Analytics.tenant_id == tenant_id)
+
+        result = await self.db.execute(
+            select(
+                func.count(models.Analytics.id).label('total_hits'),
+                func.count(func.distinct(models.Analytics.user_id)).label('unique_users')
             )
-            .where(
-                models.Analytics.event_type.in_(['api_hit', 'chat']),
-                models.Analytics.created_at >= since
-            )
+            .where(*filters)
         )
         row = result.first()
         
@@ -88,7 +103,7 @@ class AnalyticsRepository:
             "period_hours": hours
         }
     
-    async def get_token_usage_stats(self, hours: int = 24, user_id: Optional[str] = None) -> Dict[str, Any]:
+    async def get_token_usage_stats(self, tenant_id: Optional[str] = None, hours: int = 24, user_id: Optional[str] = None) -> Dict[str, Any]:
         """Get LLM token usage statistics"""
         since = datetime.utcnow() - timedelta(hours=hours)
         
@@ -97,6 +112,9 @@ class AnalyticsRepository:
             models.Analytics.event_type == 'chat',
             models.Analytics.created_at >= since
         )
+        
+        if tenant_id:
+            query = query.where(models.Analytics.tenant_id == tenant_id)
         
         if user_id:
             query = query.where(models.Analytics.user_id == user_id)
@@ -133,20 +151,22 @@ class AnalyticsRepository:
             "period_hours": hours
         }
 
-    async def get_usage_histogram(self, hours: int = 24) -> List[Dict[str, Any]]:
+    async def get_usage_histogram(self, tenant_id: Optional[str] = None, hours: int = 24) -> List[Dict[str, Any]]:
         """Get usage histogram grouped by hour (Timestamp-based)"""
         now = datetime.utcnow()
         since = now - timedelta(hours=hours)
         
         # 1. Fetch events
         query = (
-            select(models.Analytics)
-            .where(
-                models.Analytics.created_at >= since,
-                models.Analytics.event_type.in_(['chat', 'api_hit'])
-            )
-            .order_by(models.Analytics.created_at)
+        query = select(models.Analytics).where(
+            models.Analytics.created_at >= since,
+            models.Analytics.event_type.in_(['chat', 'api_hit'])
         )
+        
+        if tenant_id:
+            query = query.where(models.Analytics.tenant_id == tenant_id)
+            
+        query = query.order_by(models.Analytics.created_at)
         
         result = await self.db.execute(query)
         events = result.scalars().all()

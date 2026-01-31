@@ -33,13 +33,15 @@ async def get_analytics_events(
     hours: Optional[int] = Query(24),
     limit: int = Query(100, le=1000),
     current_user: models.User = Depends(get_current_active_user),
+    current_tenant: models.Tenant = Depends(get_current_tenant),
     analytics_service: AnalyticsService = Depends(get_analytics_service)
 ):
     """Get analytics events"""
     if hours:
-        return await analytics_service.get_recent_events(hours=hours, limit=limit)
+        return await analytics_service.get_recent_events(tenant_id=current_tenant.id, hours=hours, limit=limit)
     else:
         return await analytics_service.get_events(
+            tenant_id=current_tenant.id,
             user_id=current_user.id,
             agent_id=agent_id,
             event_type=event_type,
@@ -50,10 +52,11 @@ async def get_analytics_events(
 async def get_live_analytics(
     limit: int = Query(50, le=100),
     current_user: models.User = Depends(get_current_active_user),
+    current_tenant: models.Tenant = Depends(get_current_tenant),
     analytics_service: AnalyticsService = Depends(get_analytics_service)
 ):
     """Get live analytics (last 1 hour)"""
-    return await analytics_service.get_recent_events(hours=1, limit=limit)
+    return await analytics_service.get_recent_events(tenant_id=current_tenant.id, hours=1, limit=limit)
 
 @router.get("/audit/logs")
 async def get_audit_logs(
@@ -158,29 +161,37 @@ async def get_live_audit_logs(
 async def get_api_hit_stats(
     hours: int = Query(24, le=168),
     current_user: models.User = Depends(get_current_active_user),
+    current_tenant: models.Tenant = Depends(get_current_tenant),
     analytics_service: AnalyticsService = Depends(get_analytics_service)
 ):
     """Get API hit statistics"""
-    return await analytics_service.get_api_hit_stats(hours=hours)
+    return await analytics_service.get_api_hit_stats(tenant_id=current_tenant.id, hours=hours)
 
 @router.get("/stats/tokens")
 async def get_token_usage_stats(
     hours: int = Query(24, le=168),
     current_user: models.User = Depends(get_current_active_user),
+    current_tenant: models.Tenant = Depends(get_current_tenant),
     analytics_service: AnalyticsService = Depends(get_analytics_service)
 ):
     """Get LLM token usage statistics"""
-    return await analytics_service.get_token_usage_stats(hours=hours, user_id=current_user.id)
+    # For regular users, we filter by user_id + tenant_id
+    # If admin (owner/admin), maybe show all tenant tokens?
+    # Logic: current_user.id is always passed in original code, implying per-user stats?
+    # The original code passed user_id=current_user.id. Use that to be safe + tenant isolation.
+    return await analytics_service.get_token_usage_stats(tenant_id=current_tenant.id, hours=hours, user_id=current_user.id)
 
 @router.get("/stats/overview")
 async def get_stats_overview(
     hours: int = Query(24, le=168),
+    hours: int = Query(24, le=168),
     current_user: models.User = Depends(get_current_active_user),
+    current_tenant: models.Tenant = Depends(get_current_tenant),
     analytics_service: AnalyticsService = Depends(get_analytics_service)
 ):
     """Get overview statistics"""
-    hits = await analytics_service.get_api_hit_stats(hours=hours)
-    tokens = await analytics_service.get_token_usage_stats(hours=hours, user_id=current_user.id)
+    hits = await analytics_service.get_api_hit_stats(tenant_id=current_tenant.id, hours=hours)
+    tokens = await analytics_service.get_token_usage_stats(tenant_id=current_tenant.id, hours=hours, user_id=current_user.id)
     
     return {
         "api_hits": hits,
@@ -192,10 +203,11 @@ async def get_stats_overview(
 async def get_usage_stats(
     hours: int = Query(24, le=168),
     current_user: models.User = Depends(get_current_active_user),
+    current_tenant: models.Tenant = Depends(get_current_tenant),
     analytics_service: AnalyticsService = Depends(get_analytics_service)
 ):
     """Get usage histogram"""
-    return await analytics_service.get_usage_histogram(hours=hours)
+    return await analytics_service.get_usage_histogram(tenant_id=current_tenant.id, hours=hours)
 
 @router.get("/stats/agents")
 async def get_top_agents_stats(
