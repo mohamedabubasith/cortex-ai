@@ -152,8 +152,8 @@ export default function RolesPage() {
                     { label: submitting ? "Creating..." : "Create Role", onClick: handleCreateRole, variant: "primary", isLoading: submitting }
                 ]}
             >
-                <div className="flex flex-col">
-                    <div className="space-y-4 mb-6">
+                <div className="flex flex-col h-[65vh]">
+                    <div className="space-y-4 shrink-0 mb-4 px-1">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <label className={cn("text-sm font-medium", isDark ? "text-gray-300" : "text-gray-700")}>Role Name</label>
@@ -185,7 +185,7 @@ export default function RolesPage() {
                         </div>
                     </div>
 
-                    <div className="min-h-0">
+                    <div className="flex-1 overflow-y-auto min-h-0 pr-2 pb-2 custom-scrollbar">
                         <RoleMatrix
                             permissions={permissions}
                             selectedSlugs={selectedPerms}
