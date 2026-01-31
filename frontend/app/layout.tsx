@@ -8,6 +8,10 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
     title: "Basivo - Intelligent Assistant Platform",
     description: "Manage your AI chatbots with Basivo",
+    icons: {
+        icon: "/logo-basivo-v3.png",
+        apple: "/logo-basivo-v3.png",
+    },
 };
 
 export const viewport: Viewport = {
