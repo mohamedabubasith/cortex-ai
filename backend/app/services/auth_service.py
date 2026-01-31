@@ -106,7 +106,7 @@ class AuthService:
             await self.db.flush()
             
             # Assign subset to Member (View/Run)
-            member_slugs = ["kb.view", "agent.view", "agent.run"]
+            member_slugs = ["kb.view", "agent.view", "agent.run", "mcp.view"]
             for slug in member_slugs:
                 # Only add if it exists in system
                 if any(p.slug == slug for p in all_perms):

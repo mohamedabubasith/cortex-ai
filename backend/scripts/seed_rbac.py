@@ -29,14 +29,18 @@ SYSTEM_PERMISSIONS = [
     # LLM Providers
     {"slug": "llm.view", "description": "View LLM Configurations", "category": "llm"},
     {"slug": "llm.manage", "description": "Manage LLM Configurations", "category": "llm"},
+
+    # MCP Hub
+    {"slug": "mcp.view", "description": "View MCP Servers", "category": "mcp"},
+    {"slug": "mcp.manage", "description": "Manage MCP Servers (Install/Configure)", "category": "mcp"},
 ]
 
 # 2. Define Standard Roles & their Permissions
 STANDARD_ROLES = {
-    "owner": ["kb.*", "agent.*", "iam.*", "llm.*"], # Wildcard logic implemented in seeding
-    "admin": ["kb.*", "agent.*", "iam.*", "llm.*"], # Admin same as owner for now permissions-wise, but restricted from editing owner
-    "member": ["kb.view", "kb.read_all", "kb.create", "kb.edit", "agent.view", "agent.run", "agent.create", "iam.user.view", "llm.view"],
-    "viewer": ["kb.view", "kb.read_all", "agent.view", "agent.run", "llm.view"]
+    "owner": ["kb.*", "agent.*", "iam.*", "llm.*", "mcp.*"], 
+    "admin": ["kb.*", "agent.*", "iam.*", "llm.*", "mcp.*"],
+    "member": ["kb.view", "kb.read_all", "kb.create", "kb.edit", "agent.view", "agent.run", "agent.create", "iam.user.view", "llm.view", "mcp.view"],
+    "viewer": ["kb.view", "kb.read_all", "agent.view", "agent.run", "llm.view", "mcp.view"]
 }
 
 def expand_permissions(patterns):
