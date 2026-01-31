@@ -298,7 +298,6 @@ function MessageBubbleBase({ message, isStreaming = false, isQuerying = false, h
                                         );
                                     })}
 
-                                    })}
                                 </div>
                             ) : (
                                 <ThinkingIndicator theme={theme} isQuerying={isQuerying} hasKB={hasKB} isKBEnabled={isKBEnabled} status={message.status} />
