@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useAuth } from "@/contexts/AuthContext";
 import { motion } from "framer-motion";
 import { Mail, Lock, ArrowRight, Loader2, AlertCircle, Eye, EyeOff, Check } from "lucide-react";
 import api from "@/lib/api";
@@ -28,14 +29,17 @@ function LoginForm() {
     const searchParams = useSearchParams();
     const redirectUrl = searchParams.get("redirect");
 
+    const { user, isLoading: authLoading } = useAuth();
+
     useEffect(() => {
-        const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-        if (token) {
-            router.push("/dashboard");
-        } else {
-            setInitialCheckDone(true);
+        if (!authLoading) {
+            if (user) {
+                router.push("/dashboard");
+            } else {
+                setInitialCheckDone(true);
+            }
         }
-    }, [router]);
+    }, [user, authLoading, router]);
 
     const validateForm = () => {
         const errors = { email: "", password: "", global: "" };
