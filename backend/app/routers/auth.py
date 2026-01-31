@@ -62,6 +62,7 @@ async def forgot_password(
         token = service.create_password_reset_token(request.email)
         
         # Send Email via Background Task (Fast & Non-blocking)
+        print(f"Queuing background email task for {request.email}...")
         email_service = EmailService()
         background_tasks.add_task(email_service.send_reset_password_email, request.email, token)
         

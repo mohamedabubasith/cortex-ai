@@ -48,6 +48,7 @@ class EmailService:
         message.attach(part)
 
         try:
+            logger.info(f"Attempting to send email to {email_to} via {self.smtp_host}:{self.smtp_port}...")
             if self.smtp_port == 465:
                 # Use implicit SSL for port 465
                 with smtplib.SMTP_SSL(self.smtp_host, self.smtp_port) as server:
@@ -60,9 +61,11 @@ class EmailService:
                         server.starttls()
                     server.login(self.smtp_user, self.smtp_password)
                     server.sendmail(self.from_email, email_to, message.as_string())
-            logger.info(f"Email sent successfully to {email_to}")
+            logger.info(f"✅ EMAIL SENT SUCCESSFULLY to {email_to}")
+            print(f"✅ EMAIL SENT SUCCESSFULLY to {email_to}") # Force print for visibility
         except Exception as e:
-            logger.error(f"Failed to send email to {email_to}: {e}")
+            logger.error(f"❌ FAILED to send email to {email_to}: {e}")
+            print(f"❌ FAILED to send email to {email_to}: {e}") # Force print for visibility
 
     def send_reset_password_email(self, email_to: str, token: str):
         project_name = settings.PROJECT_NAME
