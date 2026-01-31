@@ -244,6 +244,16 @@ export default function DashboardPage() {
                                         tickLine={false}
                                         axisLine={false}
                                         dy={10}
+                                        tickFormatter={(str) => {
+                                            if (!str) return "";
+                                            try {
+                                                if (str.includes(":00") && str.length === 5) return str;
+                                                const date = new Date(str);
+                                                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                            } catch (e) {
+                                                return str;
+                                            }
+                                        }}
                                     />
                                     <YAxis
                                         stroke={isDark ? "#666" : "#9ca3af"}
