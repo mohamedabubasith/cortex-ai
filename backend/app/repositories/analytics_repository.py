@@ -61,7 +61,6 @@ class AnalyticsRepository:
         """Get recent events"""
         since = datetime.utcnow() - timedelta(hours=hours)
         
-        result = await self.db.execute(
         query = select(models.Analytics).where(models.Analytics.created_at >= since)
         if tenant_id:
             query = query.where(models.Analytics.tenant_id == tenant_id)
@@ -77,10 +76,6 @@ class AnalyticsRepository:
         """Get API hit statistics"""
         since = datetime.utcnow() - timedelta(hours=hours)
         
-        result = await self.db.execute(
-            select(
-                func.count(models.Analytics.id).label('total_hits'),
-                func.count(func.distinct(models.Analytics.user_id)).label('unique_users')
         filters = [
             models.Analytics.event_type.in_(['api_hit', 'chat']),
             models.Analytics.created_at >= since
@@ -142,14 +137,7 @@ class AnalyticsRepository:
             "period_hours": hours
         }
 
-        return {
-            "total_requests": total_requests,
-            "total_prompt_tokens": total_prompt_tokens,
-            "total_completion_tokens": total_completion_tokens,
-            "total_tokens": total_prompt_tokens + total_completion_tokens,
-            "avg_tokens_per_request": round((total_prompt_tokens + total_completion_tokens) / total_requests, 2) if total_requests > 0 else 0,
-            "period_hours": hours
-        }
+
 
     async def get_usage_histogram(self, tenant_id: Optional[str] = None, hours: int = 24) -> List[Dict[str, Any]]:
         """Get usage histogram grouped by hour (Timestamp-based)"""
@@ -157,7 +145,6 @@ class AnalyticsRepository:
         since = now - timedelta(hours=hours)
         
         # 1. Fetch events
-        query = (
         query = select(models.Analytics).where(
             models.Analytics.created_at >= since,
             models.Analytics.event_type.in_(['chat', 'api_hit'])
