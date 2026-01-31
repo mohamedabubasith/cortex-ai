@@ -63,7 +63,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
         } catch (error) {
             console.error("Failed to load user", error);
-            // Optionally logout?
+            // If we can't load the user, the token is effectively useless or the network is broken.
+            // We must clear the token to prevent the Login page from auto-redirecting back to Dashboard,
+            // which causes an infinite loop.
+            logout();
         } finally {
             setIsLoading(false);
         }
