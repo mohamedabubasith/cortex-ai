@@ -146,13 +146,14 @@ export default function RolesPage() {
                 onClose={() => setIsCreateOpen(false)}
                 title="Create Custom Role"
                 description="Define a new role and assign specific permissions."
+                maxWidth="max-w-4xl"
                 buttons={[
                     { label: "Cancel", onClick: () => setIsCreateOpen(false), variant: "outline" },
                     { label: submitting ? "Creating..." : "Create Role", onClick: handleCreateRole, variant: "primary", isLoading: submitting }
                 ]}
             >
-                <div className="flex flex-col h-[70vh]">
-                    <div className="space-y-4 shrink-0 mb-4">
+                <div className="flex flex-col">
+                    <div className="space-y-4 mb-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <label className={cn("text-sm font-medium", isDark ? "text-gray-300" : "text-gray-700")}>Role Name</label>
@@ -179,12 +180,12 @@ export default function RolesPage() {
                                 />
                             </div>
                         </div>
-                        <div className={cn("text-xs font-bold uppercase tracking-wider", isDark ? "text-gray-500" : "text-gray-400")}>
+                        <div className={cn("text-xs font-bold uppercase tracking-wider pt-2", isDark ? "text-gray-500" : "text-gray-400")}>
                             Permissions
                         </div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto min-h-0 pr-2 pb-2">
+                    <div className="min-h-0">
                         <RoleMatrix
                             permissions={permissions}
                             selectedSlugs={selectedPerms}
