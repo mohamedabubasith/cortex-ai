@@ -62,9 +62,9 @@ export default function AuthLayout({ children, title, subtitle }: AuthLayoutProp
                     className="w-full max-w-[480px] space-y-8 relative z-10 bg-black/40 backdrop-blur-xl p-8 rounded-2xl border border-white/10 shadow-2xl"
                 >
                     {/* Mobile Header in Form */}
-                    <div className="lg:hidden text-center">
+                    <div className="lg:hidden text-center -mb-6">
                         <div className="inline-flex justify-center">
-                            <Logo size="lg" />
+                            <Logo size="xl" />
                         </div>
                     </div>
 
