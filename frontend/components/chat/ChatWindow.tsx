@@ -38,7 +38,7 @@ export default function ChatWindow({
     messages,
     onSendMessage,
     isStreaming = false,
-    agentName = "Cortex AI",
+    agentName = "Basivo",
     hasKB = false,
     theme = "dark",
     onToggleTheme,
@@ -354,7 +354,7 @@ export default function ChatWindow({
                                         }
                                     }}
                                     onKeyDown={handleKeyDown}
-                                    placeholder={isExpandedMode ? "Type a message..." : "Message Cortex AI..."}
+                                    placeholder={isExpandedMode ? "Type a message..." : "Message Basivo..."}
                                     className={cn(
                                         "w-full py-3 px-4 bg-transparent focus:outline-none focus:ring-0 border-none text-base md:text-sm font-medium resize-none overflow-y-auto min-h-[44px]",
                                         theme === 'dark' ? "text-white placeholder-gray-400" : "text-gray-900 placeholder-gray-500"
