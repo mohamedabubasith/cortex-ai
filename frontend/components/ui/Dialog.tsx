@@ -3,8 +3,9 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useTheme } from "@/contexts/ThemeContext";
+import { createPortal } from "react-dom";
 
 interface DialogButton {
     label: string;
@@ -39,6 +40,13 @@ export default function Dialog({
     const { theme: globalTheme } = useTheme();
     const theme = propTheme || globalTheme;
 
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+        return () => setMounted(false);
+    }, []);
+
     // Close on escape key
     useEffect(() => {
         const handleEscape = (e: KeyboardEvent) => {
@@ -48,7 +56,9 @@ export default function Dialog({
         return () => document.removeEventListener("keydown", handleEscape);
     }, [isOpen, onClose]);
 
-    return (
+    if (!mounted) return null;
+
+    return createPortal(
         <AnimatePresence>
             {isOpen && (
                 <div className="fixed inset-0 z-[100] overflow-y-auto block">
@@ -150,6 +160,7 @@ export default function Dialog({
                     </div>
                 </div>
             )}
-        </AnimatePresence>
+        </AnimatePresence>,
+        document.body
     );
 }
