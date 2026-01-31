@@ -34,9 +34,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         navigation.push({ name: "Visitors", href: "/dashboard/visitors", icon: Users });
     }
 
-    // Check if current active role is Admin or Owner
+    // Check if current active role is Admin or Owner OR if user is a Superuser
     // We match case-insensitive or specific names from backend seeding
-    const isAdmin = role?.name === "Owner" || role?.name === "Admin";
+    const isAdmin = user?.is_superuser || role?.name === "Owner" || role?.name === "Admin";
 
     return (
         <AuthGuard>
