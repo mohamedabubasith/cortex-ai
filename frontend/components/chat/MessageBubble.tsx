@@ -298,20 +298,7 @@ function MessageBubbleBase({ message, isStreaming = false, isQuerying = false, h
                                         );
                                     })}
 
-                                    {/* Streaming cursor */}
-                                    {isStreaming && (
-                                        <motion.span
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            transition={{
-                                                duration: 0.8,
-                                                repeat: Infinity,
-                                                repeatType: "reverse",
-                                                ease: "easeInOut"
-                                            }}
-                                            className="inline-block w-[3px] h-4 ml-1 bg-[#76B900] align-middle rounded-sm shadow-[0_0_8px_rgba(118,185,0,0.5)]"
-                                        />
-                                    )}
+                                    })}
                                 </div>
                             ) : (
                                 <ThinkingIndicator theme={theme} isQuerying={isQuerying} hasKB={hasKB} isKBEnabled={isKBEnabled} status={message.status} />
