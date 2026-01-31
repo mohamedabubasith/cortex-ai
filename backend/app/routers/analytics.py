@@ -188,6 +188,15 @@ async def get_stats_overview(
         "period_hours": hours
     }
 
+@router.get("/stats/usage")
+async def get_usage_stats(
+    hours: int = Query(24, le=168),
+    current_user: models.User = Depends(get_current_active_user),
+    analytics_service: AnalyticsService = Depends(get_analytics_service)
+):
+    """Get usage histogram"""
+    return await analytics_service.get_usage_histogram(hours=hours)
+
 @router.get("/stats/agents")
 async def get_top_agents_stats(
     limit: int = Query(5, le=20),

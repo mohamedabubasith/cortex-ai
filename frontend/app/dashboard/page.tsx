@@ -34,9 +34,9 @@ export default function DashboardPage() {
                     api.get("/agents"),
                     api.get("/llm"),
                     api.get("/analytics/stats/overview?hours=24"),
-                    api.get("/analytics/live?limit=50"),
+                    api.get("/analytics/stats/usage?hours=12"), // Fetch usage history directly
                     api.get("/kb"),
-                    api.get("/analytics/stats/agents?limit=5") // Fetch top agents directly
+                    api.get("/analytics/stats/agents?limit=5")
                 ]);
 
                 // Helper to get data or default
@@ -46,7 +46,7 @@ export default function DashboardPage() {
                 const agentsData = getData(results[0], []);
                 const llmData = getData(results[1], []);
                 const analyticsOverview = getData(results[2], {});
-                const liveEvents = getData(results[3], []);
+                const usageHistory = getData(results[3], []);
                 const kbData = getData(results[4], []);
                 const topAgentsData = getData(results[5], []);
 
@@ -59,31 +59,8 @@ export default function DashboardPage() {
 
                 setAnalyticsData(analyticsOverview);
 
-                // Process events for charts
-                const events = liveEvents || [];
-
-                // Group by hour for usage chart
-                const hourlyData: any = {};
-                // Initialize last 12 hours with 0
-                for (let i = 11; i >= 0; i--) {
-                    const d = new Date();
-                    d.setHours(d.getHours() - i);
-                    const key = `${d.getHours()}:00`;
-                    hourlyData[key] = { time: key, chats: 0, hits: 0 };
-                }
-
-                events.forEach((event: any) => {
-                    if (!event.created_at) return;
-                    const date = new Date(event.created_at);
-                    const key = `${date.getHours()}:00`;
-
-                    if (hourlyData[key]) {
-                        if (event.event_type === 'chat') hourlyData[key].chats++;
-                        if (event.event_type === 'api_hit') hourlyData[key].hits++;
-                    }
-                });
-
-                setUsageData(Object.values(hourlyData));
+                // Set aggregated usage data directly
+                setUsageData(usageHistory);
 
                 // Process Token Data from Backend
                 setTokenData(topAgentsData);

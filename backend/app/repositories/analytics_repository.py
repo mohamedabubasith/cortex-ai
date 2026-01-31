@@ -123,3 +123,123 @@ class AnalyticsRepository:
             "avg_tokens_per_request": round((total_prompt_tokens + total_completion_tokens) / total_requests, 2) if total_requests > 0 else 0,
             "period_hours": hours
         }
+
+        return {
+            "total_requests": total_requests,
+            "total_prompt_tokens": total_prompt_tokens,
+            "total_completion_tokens": total_completion_tokens,
+            "total_tokens": total_prompt_tokens + total_completion_tokens,
+            "avg_tokens_per_request": round((total_prompt_tokens + total_completion_tokens) / total_requests, 2) if total_requests > 0 else 0,
+            "period_hours": hours
+        }
+
+    async def get_usage_histogram(self, hours: int = 24) -> List[Dict[str, Any]]:
+        """Get usage histogram grouped by hour"""
+        since = datetime.utcnow() - timedelta(hours=hours)
+        
+        # Fetch necessary fields only
+        # We need created_at and event_type
+        # To support SQLite (dev) and Postgres (prod) datetime handling, we'll fetch objects and group in Python
+        # ideally we should use date_trunc for performance, but this is safer for now.
+        
+        # Increase limit to accommodate reasonable traffic, or remove limit? 
+        # Removing limit is risky if millions of rows.
+        # But for 'hours=12' it's probably fine.
+        
+        query = (
+            select(models.Analytics)
+            .where(
+                models.Analytics.created_at >= since,
+                models.Analytics.event_type.in_(['chat', 'api_hit'])
+            )
+            .order_by(models.Analytics.created_at)
+        )
+        
+        result = await self.db.execute(query)
+        events = result.scalars().all()
+        
+        # Initialize buckets
+        buckets = {}
+        # Start from 'since' hour
+        start_time = since.replace(minute=0, second=0, microsecond=0)
+        
+        # Create all hour keys up to now
+        for i in range(hours + 1):
+            h = start_time + timedelta(hours=i)
+            key = h.strftime('%H:00')
+            buckets[key] = {'time': key, 'chats': 0, 'hits': 0}
+            
+        # Fill buckets
+        for event in events:
+            if not event.created_at: continue
+            
+            # Simple hour extraction. 
+            # Note: event.created_at should be timezone aware or naive UTC.
+            # Assuming UTC.
+            h_key = event.created_at.strftime('%H:00')
+            
+            if h_key in buckets:
+                if event.event_type == 'chat':
+                    buckets[h_key]['chats'] += 1
+                elif event.event_type == 'api_hit':
+                    buckets[h_key]['hits'] += 1
+                    
+        # Return as list
+        # Sort by actual datetime logic if needed, but dict preservation helps?
+        # Let's ensure order based on the initialization loop
+        sorted_keys = []
+        for i in range(hours + 1):
+            h = start_time + timedelta(hours=i)
+            sorted_keys.append(h.strftime('%H:00'))
+            
+        # We might have duplicates keys if crossing midnight? e.g. 23:00 today and 23:00 yesterday?
+        # Yes! '12:00' is ambiguous if spanning > 24h.
+        # But request is usually 12h or 24h.
+        # If > 24h, the key collision happens.
+        # For this specific chart (12h), strictly speaking we want relative ordering.
+        # For now, let's trust the loop order and use a list of dicts directly.
+        
+        histogram = []
+        
+        # Re-initialize properly with unique slot tracking if needed, but for "12h" view:
+        # Front end typically expects [{time: "10:00", ...}, {time: "11:00", ...}]
+        # If we just return the full list in order, frontend maps it.
+        
+        # Better approach: List of objects in time order
+        
+        time_slots = []
+        current = start_time
+        now = datetime.utcnow()
+        
+        while current <= now + timedelta(hours=1): # buffer
+            time_slots.append(current)
+            current += timedelta(hours=1)
+            
+        # Map slots to data
+        final_data = []
+        for slot in time_slots:
+            slot_key = slot.strftime('%H:00') 
+            # We must be careful about which events belong here.
+            # event.created_at matches slot if created_at.hour == slot.hour AND created_at.day == slot.day
+            
+            chats = 0
+            hits = 0
+            
+            for event in events:
+                # Basic match (ignoring seconds/minutes)
+                if (event.created_at.year == slot.year and 
+                    event.created_at.month == slot.month and 
+                    event.created_at.day == slot.day and 
+                    event.created_at.hour == slot.hour):
+                    
+                    if event.event_type == 'chat': chats += 1
+                    elif event.event_type == 'api_hit': hits += 1
+            
+            final_data.append({
+                "time": slot_key,
+                "chats": chats,
+                "hits": hits,
+                # "iso": slot.isoformat() # Optional debugging
+            })
+            
+        return final_data[-hours:] # Return only requested count
