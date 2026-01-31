@@ -20,7 +20,6 @@ class AuditMiddleware(BaseHTTPMiddleware):
         # We MUST NOT touch the request body or use BaseHTTPMiddleware wrapping for chat
         if (not request.url.path.startswith("/api/v1") or 
             request.url.path.endswith("/health") or
-            request.url.path.startswith("/api/v1/auth/") or
             request.url.path.startswith("/api/v1/chat/")):
             return await call_next(request)
 
@@ -184,6 +183,30 @@ class AuditMiddleware(BaseHTTPMiddleware):
                         ip_address=ip,
                         user_agent=user_agent
                     )
+                    
+                    # Also log to Analytics for Visitor Tracking
+                    try:
+                        from app.models.models import Analytics
+                        analytics_record = Analytics(
+                            user_id=user_id,
+                            tenant_id=tenant_id,
+                            event_type="api_hit",
+                            event_data={
+                                "method": method,
+                                "path": path,
+                                "status_code": status_code
+                            },
+                            meta_data={
+                                "ip": ip,
+                                "user_agent": user_agent,
+                                "city": "Unknown", # Geo-enrichment could be added here or in background
+                                "country": "Unknown"
+                            }
+                        )
+                        session.add(analytics_record)
+                    except Exception as e:
+                        logger.error(f"Failed to log analytics: {e}")
+
                     await session.commit()
                 except Exception as db_exc:
                     logger.error(f"Database error in audit logging: {db_exc}")

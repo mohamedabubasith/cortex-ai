@@ -48,11 +48,18 @@ class EmailService:
         message.attach(part)
 
         try:
-            with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
-                if self.smtp_tls:
-                    server.starttls()
-                server.login(self.smtp_user, self.smtp_password)
-                server.sendmail(self.from_email, email_to, message.as_string())
+            if self.smtp_port == 465:
+                # Use implicit SSL for port 465
+                with smtplib.SMTP_SSL(self.smtp_host, self.smtp_port) as server:
+                    server.login(self.smtp_user, self.smtp_password)
+                    server.sendmail(self.from_email, email_to, message.as_string())
+            else:
+                # Use STARTTLS for 587 or others
+                with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
+                    if self.smtp_tls:
+                        server.starttls()
+                    server.login(self.smtp_user, self.smtp_password)
+                    server.sendmail(self.from_email, email_to, message.as_string())
             logger.info(f"Email sent successfully to {email_to}")
         except Exception as e:
             logger.error(f"Failed to send email to {email_to}: {e}")
@@ -72,7 +79,7 @@ class EmailService:
                 <p>Please click the link below to reset your password:</p>
                 <a href="{reset_link}">Reset Password</a>
                 <p>If you didn't request this, please ignore this email.</p>
-                <p>This link will expire in {settings.RESET_PASSWORD_TOKEN_EXPIRE_HOURS} hours.</p>
+                <p>This link will expire in {settings.RESET_PASSWORD_TOKEN_EXPIRE_MINUTES} minutes.</p>
             </body>
         </html>
         """

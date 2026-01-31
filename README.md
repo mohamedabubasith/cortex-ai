@@ -106,6 +106,34 @@ For deploying to a cloud server (e.g., Google Compute Engine, AWS EC2):
 
 ---
 
+
+## 📧 Email Configuration (SMTP)
+
+To enable "Forgot Password" emails, you need an SMTP provider.
+
+### Recommendations (Free Tier)
+1.  **Gmail (Recommended for NO DOMAIN)**:
+    -   Best if you don't have a custom domain but need to send emails to **anyone**.
+    -   Go to **Google Account** > **Security** > **2-Step Verification**.
+    -   Scroll to bottom > **App passwords**.
+    -   Create one named "Basivo".
+    -   Use `smtp.gmail.com`, `587`, your full email (User), and the 16-char App Password.
+
+2.  **Brevo / Resend**:
+    -   **REQUIRES Verified Domain** (e.g., `your-site.com`) to send to anyone.
+    -   Without a domain, you can only send to your *own* email (Testing mode).
+
+### Update your `.env`
+```ini
+SMTP_HOST=smtp-relay.brevo.com
+SMTP_PORT=587
+SMTP_USER=your_login_email@example.com
+SMTP_PASSWORD=xsmtpsib-...key...
+EMAILS_FROM_EMAIL=no-reply@yourdomain.com
+```
+
+---
+
 ## 🛠️ Self-Hosting & Customization
 
 ### 1. Docker Configuration

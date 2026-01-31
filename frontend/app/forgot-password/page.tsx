@@ -35,12 +35,11 @@ export default function ForgotPasswordPage() {
         try {
             const response = await api.post("/auth/forgot-password", { email });
 
-            // SOFT MODE: If token is returned, navigate directly to reset password page
-            if (response.data.success && response.data.token) {
-                // Navigate to reset password page in same tab
-                router.push(`/reset-password/${response.data.token}`);
+            if (response.data.success) {
+                setSuccessMessage("Password reset instructions sent to your email.");
+                setSubmitted(true);
             } else {
-                // Email doesn't exist - show generic message
+                // Email doesn't exist - show generic message or whatever backend sends (security best practice implies generic)
                 setSuccessMessage(response.data.message || "If this email is registered, you will receive password reset instructions.");
                 setSubmitted(true);
             }

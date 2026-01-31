@@ -61,12 +61,13 @@ async def forgot_password(
         # Generate token
         token = service.create_password_reset_token(request.email)
         
-        # SOFT MODE: Return token directly for immediate navigation
-        # This allows frontend to navigate to /reset-password/<token> immediately
+        # Send Email via Background Task (Fast & Non-blocking)
+        email_service = EmailService()
+        background_tasks.add_task(email_service.send_reset_password_email, request.email, token)
+        
         return {
-            "success": True,
-            "token": token,
-            "message": "Password reset token generated"
+            "success": True, 
+            "message": "Password reset instructions sent to your email."
         }
     
     # If user doesn't exist, return generic response (security best practice)

@@ -20,7 +20,6 @@ function LoginForm() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
-    const [rememberMe, setRememberMe] = useState(false);
     const [formErrors, setFormErrors] = useState({ email: "", password: "", global: "" });
     const [loading, setLoading] = useState(false);
     const [initialCheckDone, setInitialCheckDone] = useState(false);
@@ -118,7 +117,6 @@ function LoginForm() {
                             <div className="inline-flex items-center justify-center mb-6">
                                 <Logo size="xl" />
                             </div>
-                            <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight mb-2">Basivo</h1>
                             <p className="text-gray-400">Sign in to your account</p>
                         </div>
 
@@ -191,20 +189,7 @@ function LoginForm() {
                                 )}
                             </div>
 
-                            <div className="flex items-center justify-between">
-                                <label className="flex items-center space-x-2 cursor-pointer group">
-                                    <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${rememberMe ? "bg-nvidia-green border-nvidia-green" : "border-gray-600 bg-transparent group-hover:border-gray-500"}`}>
-                                        {rememberMe && <Check className="w-3 h-3 text-black" strokeWidth={3} />}
-                                    </div>
-                                    <input
-                                        type="checkbox"
-                                        className="hidden"
-                                        checked={rememberMe}
-                                        onChange={(e) => setRememberMe(e.target.checked)}
-                                    />
-                                    <span className="text-sm text-gray-400 group-hover:text-gray-300 transition-colors">Remember me</span>
-                                </label>
-
+                            <div className="flex justify-end">
                                 <Link
                                     href="/forgot-password"
                                     className="text-sm font-medium text-nvidia-green hover:text-green-400 transition-colors"
