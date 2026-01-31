@@ -45,8 +45,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
             if (tenantId && userData.tenant_memberships) {
                 activeMembership = userData.tenant_memberships.find(m => m.tenant_id === tenantId);
-            } else if (userData.tenant_memberships && userData.tenant_memberships.length > 0) {
-                // Fallback to first
+            }
+
+            // Fallback: If no tenant in LS OR the one in LS wasn't found in memberships
+            if (!activeMembership && userData.tenant_memberships && userData.tenant_memberships.length > 0) {
                 activeMembership = userData.tenant_memberships[0];
                 if (typeof window !== "undefined") {
                     localStorage.setItem("tenant_id", activeMembership.tenant_id);
