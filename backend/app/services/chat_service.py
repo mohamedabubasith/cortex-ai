@@ -245,68 +245,77 @@ class ChatService:
             full_thinking = ""
             is_thinking = False
             start_time = time.time()
-            # Stream from LLM
-            async for chunk in llm_service.stream_chat(
-                agent, 
-                messages, 
-                search_enabled=search_enabled,
-                kb_enabled=kb_enabled,
-                db_enabled=db_enabled
-            ):
-                if chunk == "<THINK>":
-                    is_thinking = True
-                    yield chunk
-                elif chunk == "</THINK>":
-                    is_thinking = False
-                    yield chunk
-                else:
-                    if is_thinking:
-                        full_thinking += chunk
-                    else:
-                        full_response += chunk
-                    yield chunk
-
-            latency_ms = int((time.time() - start_time) * 1000)
-
-            # 6. Save Assistant Message
-            await self.chat_repo.add_message(session_id, "assistant", full_response, thinking=full_thinking if full_thinking else None)
             
-            # 7. Log analytics with token usage
-            token_usage = llm_service.get_last_token_usage()
-            await self.analytics_repo.create_event(
-                event_type="chat",
-                user_id=agent.owner_id,
-                agent_id=agent.id,
-                event_data={
-                    "session_id": session_id,
-                    "message_length": len(message),
-                    "response_length": len(full_response),
-                    "tokens": token_usage
-                },
-                meta_data={
-                    "model": agent.llm_config.model,
-                    "has_kb": len(agent.knowledge_bases) > 0 if agent.knowledge_bases else False
-                }
-            )
-
-            # 8. Log Detailed Agent Audit
             try:
-                await self.audit_service.log_interaction(
-                    user_id=agent.owner_id,
-                    agent_id=agent.id,
-                    session_id=session_id,
-                    model_name=agent.llm_config.model,
-                    prompt_tokens=token_usage.get("prompt_tokens", 0),
-                    completion_tokens=token_usage.get("completion_tokens", 0),
-                    total_tokens=token_usage.get("total_tokens", 0),
-                    latency_ms=latency_ms,
-                    user_message=message,
-                    llm_response=full_response,
-                    rag_context={"context_parts": context_parts} if context_parts else None,
-                    status="success"
-                )
-            except Exception as audit_err:
-                logger.error(f"Failed to log agent audit: {audit_err}")
+                # Stream from LLM
+                async for chunk in llm_service.stream_chat(
+                    agent, 
+                    messages, 
+                    search_enabled=search_enabled,
+                    kb_enabled=kb_enabled,
+                    db_enabled=db_enabled
+                ):
+                    if chunk == "<THINK>":
+                        is_thinking = True
+                        yield chunk
+                    elif chunk == "</THINK>":
+                        is_thinking = False
+                        yield chunk
+                    else:
+                        if is_thinking:
+                            full_thinking += chunk
+                        else:
+                            full_response += chunk
+                        yield chunk
+            finally:
+                # 6. Save Assistant Message (Even if interrupted)
+                if full_response or full_thinking:
+                    # If interrupted, append a marker or just save what we have
+                    # We won't append "Interrupted" text to keep it clean, but we save the state.
+                    
+                    latency_ms = int((time.time() - start_time) * 1000)
+                    
+                    await self.chat_repo.add_message(session_id, "assistant", full_response, thinking=full_thinking if full_thinking else None)
+                    
+                    # 7. Log analytics with token usage (Approximate if interrupted)
+                    # Note: llm_service.get_last_token_usage() might be accurate or partial depending on provider
+                    token_usage = llm_service.get_last_token_usage()
+                    
+                    await self.analytics_repo.create_event(
+                        event_type="chat",
+                        user_id=agent.owner_id,
+                        agent_id=agent.id,
+                        event_data={
+                            "session_id": session_id,
+                            "message_length": len(message),
+                            "response_length": len(full_response),
+                            "tokens": token_usage,
+                            "interrupted": True # Implicitly tracking interrupt via logic flow
+                        },
+                        meta_data={
+                            "model": agent.llm_config.model,
+                            "has_kb": len(agent.knowledge_bases) > 0 if agent.knowledge_bases else False
+                        }
+                    )
+
+                    # 8. Log Detailed Agent Audit
+                    try:
+                        await self.audit_service.log_interaction(
+                            user_id=agent.owner_id,
+                            agent_id=agent.id,
+                            session_id=session_id,
+                            model_name=agent.llm_config.model,
+                            prompt_tokens=token_usage.get("prompt_tokens", 0),
+                            completion_tokens=token_usage.get("completion_tokens", 0),
+                            total_tokens=token_usage.get("total_tokens", 0),
+                            latency_ms=latency_ms,
+                            user_message=message,
+                            llm_response=full_response,
+                            rag_context={"context_parts": context_parts} if context_parts else None,
+                            status="success" if full_response else "interrupted" 
+                        )
+                    except Exception as audit_err:
+                        logger.error(f"Failed to log agent audit: {audit_err}")
             
         except Exception as e:
             logger.error(f"Error in process_chat: {e}")
