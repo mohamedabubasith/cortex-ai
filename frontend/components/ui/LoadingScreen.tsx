@@ -5,7 +5,7 @@ import Logo from "@/components/Logo";
 
 export default function LoadingScreen({ text = "Initializing..." }: { text?: string }) {
     return (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black overflow-hidden">
+        <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black overflow-hidden">
             {/* Background Ambience */}
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-nvidia-green/5 via-black to-black opacity-50" />
             <div className="absolute inset-0 z-0 opacity-20" style={{ backgroundImage: "radial-gradient(circle at 1px 1px, #333 1px, transparent 0)", backgroundSize: "40px 40px" }}></div>
