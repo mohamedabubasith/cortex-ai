@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import Image from "next/image";
 import { Send, Menu, Bot, Loader2, Sun, Moon, Globe, Search, Plus, X, Brain, FlaskConical, ShoppingBag, ImageIcon, GraduationCap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -178,11 +179,16 @@ export default function ChatWindow({
                         transition={{ delay: 0.1, duration: 0.5 }}
                     >
                         <motion.div
-                            className="w-8 h-8 bg-gradient-to-br from-[#76B900] to-[#8CD600] rounded-full flex items-center justify-center shadow-lg shadow-[#76B900]/30"
+                            className="relative w-8 h-8 rounded-full overflow-hidden shadow-lg shadow-[#76B900]/30"
                             whileHover={{ rotate: 360, scale: 1.1 }}
                             transition={{ duration: 0.6 }}
                         >
-                            <Bot className="w-5 h-5 text-black" />
+                            <Image
+                                src="/logo-basivo-v3.png"
+                                alt="Basivo"
+                                fill
+                                className="object-cover"
+                            />
                         </motion.div>
                         <div>
                             <h2 className={cn("text-sm font-semibold", theme === 'dark' ? "text-white" : "text-gray-900")}>
