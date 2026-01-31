@@ -65,3 +65,7 @@ class AgentAuditService:
     async def delete_logs(self, user_id: Optional[str] = None, tenant_id: Optional[str] = None):
         """Delete agent audit logs"""
         return await self.agent_audit_repo.delete_logs(user_id=user_id, tenant_id=tenant_id)
+        
+    async def get_top_agents_by_tokens(self, tenant_id: str, limit: int = 5):
+        """Get top agents by token usage"""
+        return await self.agent_audit_repo.get_top_agents_by_tokens(tenant_id=tenant_id, limit=limit)

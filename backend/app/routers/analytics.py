@@ -188,6 +188,16 @@ async def get_stats_overview(
         "period_hours": hours
     }
 
+@router.get("/stats/agents")
+async def get_top_agents_stats(
+    limit: int = Query(5, le=20),
+    current_user: models.User = Depends(get_current_active_user),
+    current_tenant: models.Tenant = Depends(get_current_tenant),
+    agent_audit_service: AgentAuditService = Depends(get_agent_audit_service)
+):
+    """Get top agents by token usage"""
+    return await agent_audit_service.get_top_agents_by_tokens(tenant_id=current_tenant.id, limit=limit)
+
 # Agent Audit Log Endpoints
 @router.get("/agent-audit/logs")
 async def get_agent_audit_logs(

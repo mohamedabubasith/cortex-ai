@@ -35,7 +35,8 @@ export default function DashboardPage() {
                     api.get("/llm"),
                     api.get("/analytics/stats/overview?hours=24"),
                     api.get("/analytics/live?limit=50"),
-                    api.get("/kb")
+                    api.get("/kb"),
+                    api.get("/analytics/stats/agents?limit=5") // Fetch top agents directly
                 ]);
 
                 // Helper to get data or default
@@ -47,6 +48,7 @@ export default function DashboardPage() {
                 const analyticsOverview = getData(results[2], {});
                 const liveEvents = getData(results[3], []);
                 const kbData = getData(results[4], []);
+                const topAgentsData = getData(results[5], []);
 
                 setStats({
                     agents: agentsData.length,
@@ -83,31 +85,8 @@ export default function DashboardPage() {
 
                 setUsageData(Object.values(hourlyData));
 
-                // Get token usage by agent
-                const agentTokens: any = {};
-                const existingAgentIds = new Set(agentsData.map((a: any) => a.id));
-
-                events.forEach((event: any) => {
-                    if (event.event_type === 'chat' && event.event_data?.tokens) {
-                        const agentId = event.agent_id;
-
-                        // Only include token data for agents that actually exist
-                        if (agentId && existingAgentIds.has(agentId)) {
-                            if (!agentTokens[agentId]) {
-                                // Find the actual agent name
-                                const agent = agentsData.find((a: any) => a.id === agentId);
-                                agentTokens[agentId] = {
-                                    name: agent?.name || `Agent ${agentId.slice(0, 6)}`,
-                                    tokens: 0
-                                };
-                            }
-                            agentTokens[agentId].tokens += event.event_data.tokens.total_tokens || 0;
-                        }
-                    }
-                });
-
-                // Top 5 agents by token usage
-                setTokenData(Object.values(agentTokens).sort((a: any, b: any) => b.tokens - a.tokens).slice(0, 5));
+                // Process Token Data from Backend
+                setTokenData(topAgentsData);
 
             } catch (error) {
                 console.error("Failed to fetch stats", error);

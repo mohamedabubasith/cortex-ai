@@ -102,3 +102,33 @@ class AgentAuditLogRepository:
         
         await self.db.execute(stmt)
         await self.db.commit()
+
+    async def get_top_agents_by_tokens(self, tenant_id: str, limit: int = 5) -> List[dict]:
+        """Get top agents by token usage"""
+        from sqlalchemy import func
+        
+        # Select agent_id, agent_name, sum(tokens)
+        query = (
+            select(
+                models.AgentAuditLog.agent_id,
+                models.Agent.name.label("agent_name"),
+                func.sum(models.AgentAuditLog.total_tokens).label("total_tokens")
+            )
+            .join(models.Agent, models.AgentAuditLog.agent_id == models.Agent.id)
+            .where(models.Agent.tenant_id == tenant_id)
+            .group_by(models.AgentAuditLog.agent_id, models.Agent.name)
+            .order_by(desc("total_tokens"))
+            .limit(limit)
+        )
+        
+        result = await self.db.execute(query)
+        rows = result.all()
+        
+        return [
+            {
+                "agent_id": row.agent_id,
+                "name": row.agent_name,
+                "tokens": row.total_tokens or 0
+            }
+            for row in rows
+        ]
