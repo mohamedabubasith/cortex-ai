@@ -9,6 +9,7 @@ class AnalyticsService:
     async def log_event(
         self,
         event_type: str,
+        tenant_id: Optional[str] = None,
         user_id: Optional[str] = None,
         agent_id: Optional[str] = None,
         event_data: dict = None,
@@ -17,6 +18,7 @@ class AnalyticsService:
         """Log an analytics event"""
         return await self.analytics_repo.create_event(
             event_type=event_type,
+            tenant_id=tenant_id,
             user_id=user_id,
             agent_id=agent_id,
             event_data=event_data,

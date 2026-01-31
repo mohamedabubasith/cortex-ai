@@ -13,6 +13,7 @@ class AnalyticsRepository:
     async def create_event(
         self,
         event_type: str,
+        tenant_id: Optional[str] = None,
         user_id: Optional[str] = None,
         agent_id: Optional[str] = None,
         event_data: dict = None,
@@ -21,6 +22,7 @@ class AnalyticsRepository:
         """Log analytics event"""
         event = models.Analytics(
             id=str(uuid.uuid4()),
+            tenant_id=tenant_id,
             user_id=user_id,
             agent_id=agent_id,
             event_type=event_type,

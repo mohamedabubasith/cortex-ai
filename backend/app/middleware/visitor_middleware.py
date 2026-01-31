@@ -116,6 +116,7 @@ class VisitorMiddleware(BaseHTTPMiddleware):
                     
                     await service.log_event(
                         event_type="api_hit",
+                        tenant_id=headers.get("x-tenant-id") or headers.get("X-Tenant-ID"),
                         event_data={
                             "path": path,
                             "method": method
