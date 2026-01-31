@@ -47,31 +47,46 @@ class EmailService:
         part = MIMEText(html_content, "html")
         message.attach(part)
 
-        try:
-            logger.info(f"Attempting to send email to {email_to} via {self.smtp_host}:{self.smtp_port}...")
-            if self.smtp_port == 465:
-                # Use implicit SSL for port 465
-                logger.info("   -> Connectivity: Connecting (SSL)...")
-                with smtplib.SMTP_SSL(self.smtp_host, self.smtp_port, timeout=10) as server:
-                    logger.info("   -> Connectivity: Logging in...")
-                    server.login(self.smtp_user, self.smtp_password)
-                    logger.info("   -> Connectivity: Sending mail...")
-                    server.sendmail(self.from_email, email_to, message.as_string())
-            else:
-                # Use STARTTLS for 587 or others
-                logger.info("   -> Connectivity: Connecting (TLS)...")
-                with smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=10) as server:
-                    if self.smtp_tls:
-                        server.starttls()
-                    logger.info("   -> Connectivity: Logging in...")
-                    server.login(self.smtp_user, self.smtp_password)
-                    logger.info("   -> Connectivity: Sending mail...")
-                    server.sendmail(self.from_email, email_to, message.as_string())
-            logger.info(f"✅ EMAIL SENT SUCCESSFULLY to {email_to}")
-            print(f"✅ EMAIL SENT SUCCESSFULLY to {email_to}") # Force print for visibility
-        except Exception as e:
-            logger.error(f"❌ FAILED to send email to {email_to}: {e}")
-            print(f"❌ FAILED to send email to {email_to}: {e}") # Force print for visibility
+        # Helper function to attempt sending
+        def attempt_send(port_to_try):
+            try:
+                logger.info(f"Attempting to send email via {self.smtp_host}:{port_to_try}...")
+                print(f"Attempting to send email via {self.smtp_host}:{port_to_try}...")
+                
+                if port_to_try == 465:
+                    with smtplib.SMTP_SSL(self.smtp_host, port_to_try, timeout=15) as server:
+                        server.login(self.smtp_user, self.smtp_password)
+                        server.sendmail(self.from_email, email_to, message.as_string())
+                else:
+                    with smtplib.SMTP(self.smtp_host, port_to_try, timeout=15) as server:
+                        if self.smtp_tls or port_to_try == 587:
+                            server.starttls()
+                        server.login(self.smtp_user, self.smtp_password)
+                        server.sendmail(self.from_email, email_to, message.as_string())
+                return True, None
+            except Exception as e:
+                return False, str(e)
+
+        # 1. Try Configured Port first
+        success, error = attempt_send(self.smtp_port)
+        if success:
+            logger.info(f"✅ EMAIL SENT SUCCESSFULLY to {email_to} on port {self.smtp_port}")
+            print(f"✅ EMAIL SENT SUCCESSFULLY to {email_to} on port {self.smtp_port}")
+            return
+
+        # 2. Setup Fallback Port
+        fallback_port = 587 if self.smtp_port == 465 else 465
+        logger.warning(f"⚠️ Port {self.smtp_port} failed ({error}). Retrying with fallback port {fallback_port}...")
+        print(f"⚠️ Port {self.smtp_port} failed. Retrying with fallback port {fallback_port}...")
+
+        # 3. Try Fallback Port
+        success_fallback, error_fallback = attempt_send(fallback_port)
+        if success_fallback:
+            logger.info(f"✅ EMAIL SENT SUCCESSFULLY to {email_to} on fallback port {fallback_port}")
+            print(f"✅ EMAIL SENT SUCCESSFULLY to {email_to} on fallback port {fallback_port}")
+        else:
+            logger.error(f"❌ FAILED to send email on both ports. Primary: {error}, Fallback: {error_fallback}")
+            print(f"❌ FAILED to send email on both ports. Primary: {error}, Fallback: {error_fallback}")
 
     def send_reset_password_email(self, email_to: str, token: str):
         project_name = settings.PROJECT_NAME
