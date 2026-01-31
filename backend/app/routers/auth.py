@@ -110,31 +110,44 @@ async def google_login():
     """
     Initiates the Google OAuth2 flow by redirecting the user to Google's consent page.
     """
-    if not settings.GOOGLE_CLIENT_ID or not settings.GOOGLE_CLIENT_SECRET:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Google OAuth credentials are not configured on the server."
-        )
-    
-    auth_url = "https://accounts.google.com/o/oauth2/v2/auth"
-    scopes = "openid email profile"
-    
-    # Construct exact callback URL
-    domain = settings.FRONTEND_URL.rstrip("/")
-    redirect_uri = f"{domain}/api/v1/auth/google/callback"
-    
-    params = {
-        "client_id": settings.GOOGLE_CLIENT_ID,
-        "response_type": "code",
-        "redirect_uri": redirect_uri,
-        "scope": scopes,
-        "access_type": "offline",
-        "include_granted_scopes": "true",
-        "prompt": "select_account"
-    }
-    
-    url = f"{auth_url}?{urllib.parse.urlencode(params)}"
-    return RedirectResponse(url)
+    try:
+        if not settings.GOOGLE_CLIENT_ID or not settings.GOOGLE_CLIENT_SECRET:
+            print("CRITICAL: GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET is missing.")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Google OAuth credentials are not configured on the server."
+            )
+        
+        auth_url = "https://accounts.google.com/o/oauth2/v2/auth"
+        scopes = "openid email profile"
+        
+        # Construct exact callback URL
+        domain = settings.FRONTEND_URL.rstrip("/")
+        # Ensure we have a valid domain
+        if not domain:
+             domain = "https://chat.basivo.in"
+             
+        redirect_uri = f"{domain}/api/v1/auth/google/callback"
+        
+        print(f"DEBUG: Generating Google Login URL. Domain: {domain}, Redirect: {redirect_uri}")
+        
+        params = {
+            "client_id": settings.GOOGLE_CLIENT_ID,
+            "response_type": "code",
+            "redirect_uri": redirect_uri,
+            "scope": scopes,
+            "access_type": "offline",
+            "include_granted_scopes": "true",
+            "prompt": "select_account"
+        }
+        
+        url = f"{auth_url}?{urllib.parse.urlencode(params)}"
+        return RedirectResponse(url)
+    except Exception as e:
+        import traceback
+        print(f"CRITICAL ERROR in google_login: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/google/callback")
