@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { X, Plus, MessageSquare, ChevronDown, ChevronRight, Library, Bot, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -96,14 +97,19 @@ export default function Sidebar({
                             theme === 'dark' ? "bg-[#05070A]/80 border-white/5" : "bg-white/90 border-gray-100"
                         )}>
                             <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#76B900] to-[#8CD600] flex items-center justify-center shadow-lg shadow-[#76B900]/20">
-                                    <Bot className="w-5 h-5 text-black" />
+                                <div className="relative w-9 h-9 rounded-xl overflow-hidden shadow-lg shadow-[#76B900]/20">
+                                    <Image
+                                        src="/logo-basivo-v3.png"
+                                        alt="Basivo"
+                                        fill
+                                        className="object-cover"
+                                    />
                                 </div>
                                 <span className={cn(
                                     "font-bold tracking-tight text-lg",
                                     theme === 'dark' ? "text-white" : "text-gray-900"
                                 )}>
-                                    Cortex
+                                    Basivo
                                 </span>
                             </div>
                             <button
