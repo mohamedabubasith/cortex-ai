@@ -43,7 +43,7 @@ export default function AuthLayout({ children, title, subtitle }: AuthLayoutProp
                         transition={{ delay: 0.3 }}
                         className="text-xl text-gray-400 leading-relaxed"
                     >
-                        Orchestrate AI agents, manage knowledge, and build the future of automated workflows with Basivo.
+                        Orchestrate AI agents, manage knowledge, and build the future of intelligent assistance with Basivo.
                     </motion.p>
                 </div>
 
