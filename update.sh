@@ -21,4 +21,8 @@ docker compose -f docker-compose.prod.yml up -d --build
 echo "👤 Ensuring Default Admin User exists..."
 docker exec chatbot_backend python -m app.core.startup
 
+# 5. Seed RBAC Permissions (System Roles & Permissions)
+echo "🛡️  Seeding RBAC Permissions..."
+docker exec chatbot_backend python -m scripts.seed_rbac
+
 echo "✅ Update Complete! Services are running with latest code."
