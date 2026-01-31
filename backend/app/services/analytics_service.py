@@ -25,11 +25,6 @@ class AnalyticsService:
     
     async def get_events(
         self,
-        user_id: Optional[str] = None,
-        agent_id: Optional[str] = None,
-        event_type: Optional[str] = None,
-    async def get_events(
-        self,
         tenant_id: Optional[str] = None,
         user_id: Optional[str] = None,
         agent_id: Optional[str] = None,
@@ -37,10 +32,6 @@ class AnalyticsService:
         limit: int = 100
     ):
         """Get analytics events"""
-        return await self.analytics_repo.get_events(
-            user_id=user_id,
-            agent_id=agent_id,
-            event_type=event_type,
         return await self.analytics_repo.get_events(
             tenant_id=tenant_id,
             user_id=user_id,
