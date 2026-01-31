@@ -119,8 +119,8 @@ async def invite_user(
         existing_membership = result.scalars().first()
         
         if existing_membership:
-            print("DEBUG: User is already a member")
-            raise HTTPException(status_code=400, detail="User is already a member of this tenant.")
+            print(f"DEBUG: User {target_user.email} is already a member")
+            raise HTTPException(status_code=400, detail=f"User '{target_user.email}' is already a member of this tenant.")
             
         # 4. Determine Role ID
         role_id = invite_in.role_id

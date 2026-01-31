@@ -134,14 +134,23 @@ class AuthService:
             # But let's not block user creation for now if it fails, or rollback?
             # ideally rollback, but simple try/except for now.
         
-        # Create user in Cognee as well
+        # Create user in Cognee as well (Background Task)
         try:
             from cognee.api.v1.users.create_user import create_user as create_cognee_user
-            # We use the original password here
-            await create_cognee_user(email=user_in.email, password=user_in.password)
+            
+            # Define wrapper to handle errors in background
+            async def sync_cognee_safe(email, pwd):
+                try:
+                    await create_cognee_user(email=email, password=pwd)
+                except Exception as inner_e:
+                    print(f"Background Cognee Sync Failed: {inner_e}")
+
+            # Fire and forget - don't block response
+            asyncio.create_task(sync_cognee_safe(user_in.email, user_in.password))
+            
         except Exception as e:
             # Log error but allow app registration to succeed
-            print(f"Failed to create Cognee user: {e}")
+            print(f"Failed to initiate Cognee sync: {e}")
             
         return user
 

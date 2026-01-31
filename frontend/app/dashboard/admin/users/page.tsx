@@ -370,7 +370,7 @@ export default function UsersPage() {
                                             <button
                                                 onClick={() => handleRemove(member.user_id)}
                                                 disabled={member.role === 'owner'}
-                                                className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100 disabled:invisible focus:opacity-100"
+                                                className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all disabled:invisible"
                                             >
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
@@ -491,7 +491,7 @@ export default function UsersPage() {
                                             </button>
                                             <button
                                                 onClick={() => handleDeleteGroup(group.id)}
-                                                className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                                className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
                                             >
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
