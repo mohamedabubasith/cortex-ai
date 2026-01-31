@@ -49,3 +49,7 @@ class AnalyticsService:
     async def get_token_usage_stats(self, hours: int = 24, user_id: str = None):
         """Get token usage statistics"""
         return await self.analytics_repo.get_token_usage_stats(hours=hours, user_id=user_id)
+
+    async def get_usage_histogram(self, hours: int = 24):
+        """Get usage histogram"""
+        return await self.analytics_repo.get_usage_histogram(hours=hours)
