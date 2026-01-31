@@ -60,6 +60,8 @@ class Settings(BaseSettings):
     # "local" = standard username/password
     # "keycloak" = SSO via Keycloak
     AUTH_PROVIDER: str = "local"
+    GOOGLE_CLIENT_ID: Optional[str] = None
+    GOOGLE_CLIENT_SECRET: Optional[str] = None
 
     # Email
     EMAIL_PROVIDER: str = "smtp" # smtp, console, none

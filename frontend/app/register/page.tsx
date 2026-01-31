@@ -9,6 +9,7 @@ import api from "@/lib/api";
 import TubesBackground from "@/components/TubesBackground";
 import Logo from "@/components/Logo";
 import { isValidEmail, calculatePasswordStrength, PasswordStrength } from "@/lib/validation";
+import AuthLayout from "@/components/auth/AuthLayout";
 
 
 
@@ -126,202 +127,174 @@ export default function RegisterPage() {
     };
 
     return (
-        <div className="min-h-screen bg-black flex items-center justify-center p-3 sm:p-4 relative overflow-hidden">
-            {/* Background Effects */}
-            <TubesBackground />
-            <div className="absolute inset-0 z-0">
-                <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-[#76B900]/10 rounded-full blur-[120px] animate-pulse" />
-                <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-[#76B900]/5 rounded-full blur-[100px] animate-pulse delay-1000" />
-            </div>
-            {/* Background Pattern */}
-            <div className="absolute inset-0 z-0 opacity-20 pointer-events-none" style={{ backgroundImage: "radial-gradient(circle at 50% 50%, #1a1a1a 1px, transparent 1px)", backgroundSize: "24px 24px" }}></div>
+        <AuthLayout title="Create Account" subtitle="Join Basivo today">
+            {formErrors.global && (
+                <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mb-6 p-4 bg-red-900/20 border border-red-500/50 text-red-200 rounded-lg text-sm flex items-center"
+                >
+                    <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
+                    {formErrors.global}
+                </motion.div>
+            )}
 
-            <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.5 }}
-                className="w-full max-w-[380px] sm:max-w-md relative z-10"
-            >
-                <div className="bg-nvidia-dark/80 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
-                    <div className="p-6 sm:p-8">
-                        <div className="text-center mb-8">
-                            <div className="inline-flex items-center justify-center mb-6">
-                                <Logo size="xl" />
-                            </div>
-                            <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight mb-2">Create Account</h1>
-                            <p className="text-gray-400">Join Basivo today</p>
+            {success && (
+                <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mb-6 p-4 bg-green-900/20 border border-green-500/50 text-green-200 rounded-lg text-sm flex items-center"
+                >
+                    <Check className="w-4 h-4 mr-2 flex-shrink-0" />
+                    Account created! Redirecting to login...
+                </motion.div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-5">
+                <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Full Name</label>
+                    <div className="relative group">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none transition-colors group-focus-within:text-nvidia-green">
+                            <User className={`h-5 w-5 ${formErrors.full_name ? "text-red-500" : "text-gray-500 group-hover:text-gray-400"}`} />
                         </div>
-
-                        {formErrors.global && (
-                            <motion.div
-                                initial={{ opacity: 0, y: -10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="mb-6 p-4 bg-red-900/20 border border-red-500/50 text-red-200 rounded-lg text-sm flex items-center"
-                            >
-                                <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
-                                {formErrors.global}
-                            </motion.div>
-                        )}
-
-                        {success && (
-                            <motion.div
-                                initial={{ opacity: 0, y: -10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="mb-6 p-4 bg-green-900/20 border border-green-500/50 text-green-200 rounded-lg text-sm flex items-center"
-                            >
-                                <Check className="w-4 h-4 mr-2 flex-shrink-0" />
-                                Account created! Redirecting to login...
-                            </motion.div>
-                        )}
-
-                        <form onSubmit={handleSubmit} className="space-y-5">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-1">Full Name</label>
-                                <div className="relative group">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none transition-colors group-focus-within:text-nvidia-green">
-                                        <User className={`h-5 w-5 ${formErrors.full_name ? "text-red-500" : "text-gray-500 group-hover:text-gray-400"}`} />
-                                    </div>
-                                    <input
-                                        type="text"
-                                        className={`block w-full pl-10 pr-3 py-3 md:py-2.5 bg-black/50 border rounded-lg focus:ring-2 focus:border-transparent text-white placeholder-gray-500 transition-all ${formErrors.full_name
-                                            ? "border-red-500 focus:ring-red-500"
-                                            : "border-gray-700 focus:ring-nvidia-green hover:border-gray-600"
-                                            }`}
-                                        placeholder="John Doe"
-                                        value={formData.full_name}
-                                        onChange={(e) => handleChange("full_name", e.target.value)}
-                                    />
-                                </div>
-                                {formErrors.full_name && <p className="mt-1 text-xs text-red-500">{formErrors.full_name}</p>}
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-1">Email Address</label>
-                                <div className="relative group">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none transition-colors group-focus-within:text-nvidia-green">
-                                        <Mail className={`h-5 w-5 ${formErrors.email ? "text-red-500" : "text-gray-500 group-hover:text-gray-400"}`} />
-                                    </div>
-                                    <input
-                                        type="email"
-                                        className={`block w-full pl-10 pr-3 py-3 md:py-2.5 bg-black/50 border rounded-lg focus:ring-2 focus:border-transparent text-white placeholder-gray-500 transition-all ${formErrors.email
-                                            ? "border-red-500 focus:ring-red-500"
-                                            : "border-gray-700 focus:ring-nvidia-green hover:border-gray-600"
-                                            }`}
-                                        placeholder="you@example.com"
-                                        value={formData.email}
-                                        onChange={(e) => handleChange("email", e.target.value)}
-                                    />
-                                </div>
-                                {formErrors.email && <p className="mt-1 text-xs text-red-500">{formErrors.email}</p>}
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-1">Password</label>
-                                <div className="relative group">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none transition-colors group-focus-within:text-nvidia-green">
-                                        <Lock className={`h-5 w-5 ${formErrors.password ? "text-red-500" : "text-gray-500 group-hover:text-gray-400"}`} />
-                                    </div>
-                                    <input
-                                        type={showPassword ? "text" : "password"}
-                                        className={`block w-full pl-10 pr-10 py-3 md:py-2.5 bg-black/50 border rounded-lg focus:ring-2 focus:border-transparent text-white placeholder-gray-500 transition-all ${formErrors.password
-                                            ? "border-red-500 focus:ring-red-500"
-                                            : "border-gray-700 focus:ring-nvidia-green hover:border-gray-600"
-                                            }`}
-                                        placeholder="••••••••"
-                                        value={formData.password}
-                                        onChange={(e) => handleChange("password", e.target.value)}
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-300 transition-colors focus:outline-none"
-                                    >
-                                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                                    </button>
-                                </div>
-                                {formData.password && (
-                                    <div className="mt-2">
-                                        <div className="flex justify-between items-center mb-1">
-                                            <span className="text-xs text-gray-400">Strength</span>
-                                            <span className={`text-xs font-medium ${passwordStrength.score <= 1 ? 'text-red-500' :
-                                                passwordStrength.score === 2 ? 'text-yellow-500' :
-                                                    passwordStrength.score === 3 ? 'text-blue-500' :
-                                                        'text-green-500'
-                                                }`}>
-                                                {passwordStrength.label}
-                                            </span>
-                                        </div>
-                                        <div className="h-1 w-full bg-gray-700 rounded-full overflow-hidden">
-                                            <div
-                                                className={`h-full transition-all duration-300 ${passwordStrength.color}`}
-                                                style={{ width: `${(passwordStrength.score / 4) * 100}%` }}
-                                            />
-                                        </div>
-                                    </div>
-                                )}
-                                {formErrors.password && <p className="mt-1 text-xs text-red-500">{formErrors.password}</p>}
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-1">Confirm Password</label>
-                                <div className="relative group">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none transition-colors group-focus-within:text-nvidia-green">
-                                        <Lock className={`h-5 w-5 ${formErrors.confirmPassword ? "text-red-500" : "text-gray-500 group-hover:text-gray-400"}`} />
-                                    </div>
-                                    <input
-                                        type={showConfirmPassword ? "text" : "password"}
-                                        className={`block w-full pl-10 pr-10 py-3 md:py-2.5 bg-black/50 border rounded-lg focus:ring-2 focus:border-transparent text-white placeholder-gray-500 transition-all ${formErrors.confirmPassword
-                                            ? "border-red-500 focus:ring-red-500"
-                                            : "border-gray-700 focus:ring-nvidia-green hover:border-gray-600"
-                                            }`}
-                                        placeholder="••••••••"
-                                        value={formData.confirmPassword}
-                                        onChange={(e) => handleChange("confirmPassword", e.target.value)}
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-300 transition-colors focus:outline-none"
-                                    >
-                                        {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                                    </button>
-                                </div>
-                                {formErrors.confirmPassword && <p className="mt-1 text-xs text-red-500">{formErrors.confirmPassword}</p>}
-                            </div>
-
-                            {/* Terms of Service Removed */}
-
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="w-full flex items-center justify-center py-3 px-4 border border-transparent rounded-lg shadow-lg text-sm font-bold text-black bg-nvidia-green hover:bg-[#8CD600] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-nvidia-green disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02]"
-                            >
-                                {loading ? (
-                                    <>
-                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                        Creating account...
-                                    </>
-                                ) : (
-                                    <>
-                                        Create Account
-                                        <ArrowRight className="w-4 h-4 ml-2" />
-                                    </>
-                                )}
-                            </button>
-                        </form>
-
-                        <div className="mt-8 text-center">
-                            <p className="text-sm text-gray-400">
-                                Already have an account?{" "}
-                                <Link href="/" className="font-medium text-nvidia-green hover:text-green-400 transition-colors">
-                                    Sign in
-                                </Link>
-                            </p>
-                        </div>
+                        <input
+                            type="text"
+                            className={`block w-full pl-10 pr-3 py-3 md:py-2.5 bg-black/50 border rounded-lg focus:ring-2 focus:border-transparent text-white placeholder-gray-500 transition-all ${formErrors.full_name
+                                ? "border-red-500 focus:ring-red-500"
+                                : "border-gray-700 focus:ring-nvidia-green hover:border-gray-600"
+                                }`}
+                            placeholder="John Doe"
+                            value={formData.full_name}
+                            onChange={(e) => handleChange("full_name", e.target.value)}
+                        />
                     </div>
+                    {formErrors.full_name && <p className="mt-1 text-xs text-red-500">{formErrors.full_name}</p>}
                 </div>
-            </motion.div>
-        </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Email Address</label>
+                    <div className="relative group">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none transition-colors group-focus-within:text-nvidia-green">
+                            <Mail className={`h-5 w-5 ${formErrors.email ? "text-red-500" : "text-gray-500 group-hover:text-gray-400"}`} />
+                        </div>
+                        <input
+                            type="email"
+                            className={`block w-full pl-10 pr-3 py-3 md:py-2.5 bg-black/50 border rounded-lg focus:ring-2 focus:border-transparent text-white placeholder-gray-500 transition-all ${formErrors.email
+                                ? "border-red-500 focus:ring-red-500"
+                                : "border-gray-700 focus:ring-nvidia-green hover:border-gray-600"
+                                }`}
+                            placeholder="you@example.com"
+                            value={formData.email}
+                            onChange={(e) => handleChange("email", e.target.value)}
+                        />
+                    </div>
+                    {formErrors.email && <p className="mt-1 text-xs text-red-500">{formErrors.email}</p>}
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Password</label>
+                    <div className="relative group">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none transition-colors group-focus-within:text-nvidia-green">
+                            <Lock className={`h-5 w-5 ${formErrors.password ? "text-red-500" : "text-gray-500 group-hover:text-gray-400"}`} />
+                        </div>
+                        <input
+                            type={showPassword ? "text" : "password"}
+                            className={`block w-full pl-10 pr-10 py-3 md:py-2.5 bg-black/50 border rounded-lg focus:ring-2 focus:border-transparent text-white placeholder-gray-500 transition-all ${formErrors.password
+                                ? "border-red-500 focus:ring-red-500"
+                                : "border-gray-700 focus:ring-nvidia-green hover:border-gray-600"
+                                }`}
+                            placeholder="••••••••"
+                            value={formData.password}
+                            onChange={(e) => handleChange("password", e.target.value)}
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-300 transition-colors focus:outline-none"
+                        >
+                            {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                        </button>
+                    </div>
+                    {formData.password && (
+                        <div className="mt-2">
+                            <div className="flex justify-between items-center mb-1">
+                                <span className="text-xs text-gray-400">Strength</span>
+                                <span className={`text-xs font-medium ${passwordStrength.score <= 1 ? 'text-red-500' :
+                                    passwordStrength.score === 2 ? 'text-yellow-500' :
+                                        passwordStrength.score === 3 ? 'text-blue-500' :
+                                            'text-green-500'
+                                    }`}>
+                                    {passwordStrength.label}
+                                </span>
+                            </div>
+                            <div className="h-1 w-full bg-gray-700 rounded-full overflow-hidden">
+                                <div
+                                    className={`h-full transition-all duration-300 ${passwordStrength.color}`}
+                                    style={{ width: `${(passwordStrength.score / 4) * 100}%` }}
+                                />
+                            </div>
+                        </div>
+                    )}
+                    {formErrors.password && <p className="mt-1 text-xs text-red-500">{formErrors.password}</p>}
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Confirm Password</label>
+                    <div className="relative group">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none transition-colors group-focus-within:text-nvidia-green">
+                            <Lock className={`h-5 w-5 ${formErrors.confirmPassword ? "text-red-500" : "text-gray-500 group-hover:text-gray-400"}`} />
+                        </div>
+                        <input
+                            type={showConfirmPassword ? "text" : "password"}
+                            className={`block w-full pl-10 pr-10 py-3 md:py-2.5 bg-black/50 border rounded-lg focus:ring-2 focus:border-transparent text-white placeholder-gray-500 transition-all ${formErrors.confirmPassword
+                                ? "border-red-500 focus:ring-red-500"
+                                : "border-gray-700 focus:ring-nvidia-green hover:border-gray-600"
+                                }`}
+                            placeholder="••••••••"
+                            value={formData.confirmPassword}
+                            onChange={(e) => handleChange("confirmPassword", e.target.value)}
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-300 transition-colors focus:outline-none"
+                        >
+                            {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                        </button>
+                    </div>
+                    {formErrors.confirmPassword && <p className="mt-1 text-xs text-red-500">{formErrors.confirmPassword}</p>}
+                </div>
+
+                {/* Terms of Service Removed */}
+
+                <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full flex items-center justify-center py-3 px-4 border border-transparent rounded-lg shadow-lg text-sm font-bold text-black bg-nvidia-green hover:bg-[#8CD600] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-nvidia-green disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02]"
+                >
+                    {loading ? (
+                        <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Creating account...
+                        </>
+                    ) : (
+                        <>
+                            Create Account
+                            <ArrowRight className="w-4 h-4 ml-2" />
+                        </>
+                    )}
+                </button>
+            </form>
+
+            <div className="mt-8 text-center">
+                <p className="text-sm text-gray-400">
+                    Already have an account?{" "}
+                    <Link href="/" className="font-medium text-nvidia-green hover:text-green-400 transition-colors">
+                        Sign in
+                    </Link>
+                </p>
+            </div>
+        </AuthLayout>
     );
 }
 

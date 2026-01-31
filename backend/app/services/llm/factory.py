@@ -2,6 +2,8 @@ from typing import Dict, Type
 from .providers.base import BaseLLMProvider
 from .providers.openai import OpenAIProvider
 from .providers.ollama import OllamaProvider
+from .providers.anthropic import AnthropicProvider
+from .providers.azure import AzureOpenAIProvider
 
 class LLMProviderFactory:
     """Factory for creating LLM providers."""
@@ -9,11 +11,8 @@ class LLMProviderFactory:
     _providers: Dict[str, Type[BaseLLMProvider]] = {
         "openai": OpenAIProvider,
         "ollama": OllamaProvider,
-        # Map "azure" and "anthropic" to OpenAIProvider for now, 
-        # as they often use compatible clients or we haven't implemented specific ones yet.
-        # Ideally, implement specific providers for them.
-        "azure": OpenAIProvider, 
-        "anthropic": OpenAIProvider, # Placeholder, really requires different client usually
+        "azure": AzureOpenAIProvider,
+        "anthropic": AnthropicProvider,
     }
     
     @classmethod

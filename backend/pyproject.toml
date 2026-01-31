@@ -43,6 +43,7 @@ dependencies = [
     "docling",
     "cognee",
     "neo4j",
+    "anthropic",
 ]
 
 [tool.uv]
