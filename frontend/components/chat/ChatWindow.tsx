@@ -63,24 +63,55 @@ export default function ChatWindow({
     const lastMessageLengthRef = useRef(0);
     const isExpandedMode = isSearchEnabled || (isKBEnabled && hasKB) || (isDBEnabled && hasDB) || hasMCP;
 
-    // Auto-scroll to bottom when messages change or during streaming
+    const isAutoScrollEnabled = useRef(true);
+
+    // Handle scroll events to detect if user scrolled up
+    const handleScroll = () => {
+        if (!messagesContainerRef.current) return;
+        const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+
+        // If user is within 50px of the bottom, enable auto-scroll
+        // Otherwise (scrolled up), disable it so they can read history without flickering
+        const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+        isAutoScrollEnabled.current = isNearBottom;
+    };
+
+    // Auto-scroll logic
     useEffect(() => {
-        const scrollToBottom = (instant = false) => {
+        const scrollToBottom = () => {
             if (messagesEndRef.current) {
-                const behavior = instant ? "auto" : "smooth";
+                // Use 'auto' behavior during streaming to prevent smooth-scroll lag/flicker
+                // Use 'smooth' only for new message starts
+                const behavior = isStreaming ? "auto" : "smooth";
                 messagesEndRef.current.scrollIntoView({ behavior, block: "end" });
             }
         };
 
-        // Calculate current message length
-        const currentLength = messages.reduce((sum, msg) => sum + msg.content.length, 0);
+        // Determine if we should scroll
+        const shouldScroll = () => {
+            // Always scroll if it's the very first message or we explicitly want to (e.g. sending)
+            if (messages.length <= 1) return true;
 
-        // Only scroll if content actually changed
-        if (currentLength !== lastMessageLengthRef.current) {
-            lastMessageLengthRef.current = currentLength;
-            scrollToBottom(isStreaming);
+            // If user previously was at bottom, keep them there (stickiness)
+            if (isAutoScrollEnabled.current) return true;
+
+            // If a NEW message just arrived (length increased by > 1 relative to last known count of messages)
+            // Ideally we'd compare message IDs, but length proxy works if we assume one message added.
+            // Actually, for streaming, the last message content changes.
+            // If the user sent a message, we always want to snap back.
+            const lastMsg = messages[messages.length - 1];
+            if (lastMsg.role === 'user') {
+                isAutoScrollEnabled.current = true; // Reset stickiness on user send
+                return true;
+            }
+
+            return false;
+        };
+
+        if (shouldScroll()) {
+            scrollToBottom();
         }
-    }, [messages, isStreaming]);
+    }, [messages, isStreaming]); // Depend on content updates
 
     // Auto-resize textarea
     useEffect(() => {
@@ -180,6 +211,7 @@ export default function ChatWindow({
             {/* Messages Area */}
             <div
                 ref={messagesContainerRef}
+                onScroll={handleScroll}
                 className={cn(
                     "flex-1 overflow-y-auto transition-colors duration-300 overscroll-behavior-y-none",
                     theme === 'dark' ? "bg-[#05070A]" : "bg-gray-50"
