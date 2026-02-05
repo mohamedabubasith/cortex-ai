@@ -153,6 +153,8 @@ services:
       - /etc/letsencrypt/live/chat.basivo.in/privkey.pem:/etc/letsencrypt/live/chat.basivo.in/privkey.pem:ro
       - /etc/letsencrypt/live/n8n.basivo.in/fullchain.pem:/etc/letsencrypt/live/n8n.basivo.in/fullchain.pem:ro
       - /etc/letsencrypt/live/n8n.basivo.in/privkey.pem:/etc/letsencrypt/live/n8n.basivo.in/privkey.pem:ro
+      - /etc/letsencrypt/live/basivo.in/fullchain.pem:/etc/letsencrypt/live/basivo.in/fullchain.pem:ro
+      - /etc/letsencrypt/live/basivo.in/privkey.pem:/etc/letsencrypt/live/basivo.in/privkey.pem:ro
     depends_on:
       - frontend
       - backend
