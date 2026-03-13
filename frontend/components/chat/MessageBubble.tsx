@@ -8,6 +8,7 @@ import {
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark, oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { motion, AnimatePresence } from "framer-motion";
@@ -63,31 +64,47 @@ const faviconUrl = (domain: string) =>
 function extractSources(text: string): Source[] {
     const sources: Source[] = [];
     const seen = new Set<string>();
-    const regex = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g;
-    let match: RegExpExecArray | null;
     let idx = 1;
-    while ((match = regex.exec(text)) !== null) {
-        const url = match[2];
-        if (!seen.has(url)) {
-            try {
-                const domain = new URL(url).hostname.replace("www.", "");
-                sources.push({ title: match[1], url, domain, index: idx++ });
-                seen.add(url);
-            } catch (_) { /* skip invalid URLs */ }
-        }
+
+    const addUrl = (url: string, title: string) => {
+        if (seen.has(url)) return;
+        try {
+            const domain = new URL(url).hostname.replace("www.", "");
+            sources.push({ title, url, domain, index: idx++ });
+            seen.add(url);
+        } catch (_) { /* skip invalid URLs */ }
+    };
+
+    // Standard markdown links: [Title](url)
+    const mdRegex = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g;
+    let match: RegExpExecArray | null;
+    while ((match = mdRegex.exec(text)) !== null) addUrl(match[2], match[1]);
+
+    // GPT/thinking model format: 【url】
+    const bracketRegex = /【(https?:\/\/[^】]+)】/g;
+    while ((match = bracketRegex.exec(text)) !== null) {
+        const url = match[1].trim();
+        try { addUrl(url, new URL(url).hostname.replace("www.", "")); } catch (_) {}
     }
+
     return sources;
 }
 
-// Replace [Title](url) with Title<sup>[n]</sup>
+// Replace citation markers with Title<sup>[n]</sup>
 function injectCitationNumbers(text: string, sources: Source[]): string {
     if (!sources.length) return text;
     let result = text;
     for (const s of sources) {
         const escaped = s.url.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        // Replace [Title](url)
         result = result.replace(
             new RegExp(`\\[([^\\]]+)\\]\\(${escaped}\\)`, "g"),
             `$1<sup>[${s.index}]</sup>`
+        );
+        // Replace 【url】
+        result = result.replace(
+            new RegExp(`【${escaped}】`, "g"),
+            `<sup>[${s.index}]</sup>`
         );
     }
     return result;
@@ -188,10 +205,10 @@ function SourceCard({ source, theme }: { source: Source; theme: "dark" | "light"
             target="_blank"
             rel="noopener noreferrer"
             className={cn(
-                "flex items-start gap-2.5 p-2.5 rounded-xl border text-xs transition-all hover:scale-[1.01] group/card",
+                "flex items-start gap-2 p-2 rounded-lg border text-xs transition-colors group/card",
                 theme === "dark"
                     ? "bg-white/3 border-white/8 hover:border-[#76B900]/40 hover:bg-white/6"
-                    : "bg-white border-gray-200 hover:border-[#76B900]/40 shadow-sm hover:shadow-md"
+                    : "bg-white border-gray-200 hover:border-[#76B900]/40 shadow-sm"
             )}
         >
             <span className="flex-shrink-0 w-5 h-5 rounded-full bg-[#76B900]/15 text-[#76B900] flex items-center justify-center text-[10px] font-bold">
@@ -222,7 +239,7 @@ function MessageBubbleBase({ message, isStreaming = false, isQuerying = false, h
     const [copied, setCopied] = useState(false);
     const [thinkingOpen, setThinkingOpen] = useState(false);
     const [readingsOpen, setReadingsOpen] = useState(false);
-    const [sourcesOpen, setSourcesOpen] = useState(true); // open by default
+    const [sourcesOpen, setSourcesOpen] = useState(false);
 
     const isUser = message.role === "user";
     const handleCopy = (text: string) => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); };
@@ -272,7 +289,7 @@ function MessageBubbleBase({ message, isStreaming = false, isQuerying = false, h
                                 {thinkingOpen && (
                                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
                                         <div className={cn("mt-2 ml-1 pl-3 border-l-2 text-sm italic leading-relaxed", theme === "dark" ? "text-gray-400 border-[#76B900]/30" : "text-gray-600 border-[#76B900]/30")}>
-                                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.thinking}</ReactMarkdown>
+                                            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>{message.thinking}</ReactMarkdown>
                                         </div>
                                     </motion.div>
                                 )}
@@ -311,12 +328,13 @@ function MessageBubbleBase({ message, isStreaming = false, isQuerying = false, h
                             )}>
                                 <ReactMarkdown
                                     remarkPlugins={[remarkGfm]}
+                                    rehypePlugins={[rehypeRaw]}
                                     components={{
                                         sup({ children }) {
-                                            return <sup className="text-[10px] text-[#76B900] font-bold leading-none align-super ml-0.5">{children}</sup>;
+                                            return <sup className="text-[10px] text-[#76B900] font-bold leading-none relative -top-0.5 ml-0.5">{children}</sup>;
                                         },
                                         img({ src, alt }) {
-                                            if (!src) return null;
+                                            if (!src || typeof src !== "string") return null;
                                             return <GeneratedImage src={src} alt={alt ?? "Generated image"} theme={theme} />;
                                         },
                                         code({ node, inline, className, children, ...props }: any) {

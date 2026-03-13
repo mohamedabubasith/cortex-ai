@@ -99,11 +99,11 @@ class LLMService:
                 has_started_thinking = False
                 
                 async for chunk in stream:
-                    # Capture Usage data if available (robust extraction)
+                    # Capture Usage data if available — do NOT skip; some providers
+                    # (e.g. NVIDIA) attach usage to every chunk, including content chunks.
                     usage_data = extract_usage_from_chunk(chunk)
                     if usage_data:
                         self.last_token_usage = usage_data
-                        continue
 
                     if not hasattr(chunk, 'choices') or not chunk.choices:
                         continue

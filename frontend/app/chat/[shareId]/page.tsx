@@ -414,6 +414,11 @@ export default function PublicChatPage() {
                 reader.releaseLock();
             }
 
+            // Fallback: prevent bubble from disappearing if stream returned nothing
+            if (!assistantMessage && !assistantThinking) {
+                assistantMessage = "Sorry, I couldn't generate a response. Please try again.";
+                assistantStatus = "";
+            }
             updateUI();
 
             const newSessionId = response.headers.get('x-session-id');

@@ -82,27 +82,29 @@ export default function ThinkingIndicator({ theme = "dark", isQuerying = false, 
     };
 
     return (
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center gap-3 py-0.5">
+            {/* Icon badge */}
             <div className={cn(
-                "flex items-center justify-center w-8 h-8 rounded-full shadow-sm",
-                theme === 'dark' ? "bg-gray-800 text-[#76B900]" : "bg-gray-100 text-[#76B900]"
+                "flex-shrink-0 flex items-center justify-center w-7 h-7 rounded-lg",
+                theme === "dark" ? "bg-white/6" : "bg-black/5"
             )}>
                 {getIcon()}
             </div>
-            <div className="flex flex-col">
-                <motion.span
-                    key={step}
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -5 }}
-                    className={cn(
-                        "text-sm font-medium animate-pulse",
-                        theme === 'dark' ? "text-gray-200" : "text-gray-800"
-                    )}
-                >
-                    {getText()}
-                </motion.span>
-            </div>
+
+            {/* Text */}
+            <motion.span
+                key={step}
+                initial={{ opacity: 0, x: -6 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 6 }}
+                transition={{ duration: 0.2 }}
+                className={cn(
+                    "text-sm font-medium leading-none",
+                    theme === "dark" ? "text-gray-300" : "text-gray-600"
+                )}
+            >
+                {getText()}
+            </motion.span>
         </div>
     );
 }

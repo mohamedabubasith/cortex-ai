@@ -225,6 +225,14 @@ export default function ChatWindow({
         if (!input.trim() || isStreaming) return;
         const msg = input.trim();
         setInput("");
+        // Force scroll to bottom when user sends — the messages effect won't catch it
+        // because the assistant placeholder is added simultaneously (same batch).
+        isAutoScrollEnabled.current = true;
+        requestAnimationFrame(() => {
+            if (messagesContainerRef.current) {
+                messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+            }
+        });
         await onSendMessage(msg);
     };
 
