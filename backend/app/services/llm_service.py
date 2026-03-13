@@ -18,7 +18,7 @@ class LLMService:
         wait=wait_exponential(multiplier=1, min=2, max=10),
         reraise=True
     )
-    async def stream_chat(self, agent, messages: list, search_enabled: bool = True, kb_enabled: bool = True, db_enabled: bool = True) -> AsyncGenerator[str, None]:
+    async def stream_chat(self, agent, messages: list, search_enabled: bool = True, kb_enabled: bool = True, db_enabled: bool = True, client_ip: str = None, client_timezone: str = None) -> AsyncGenerator[str, None]:
         """Stream chat completion from LLM with token tracking, robust error handling, and tool support"""
         chunk_count = 0
         
@@ -55,17 +55,29 @@ class LLMService:
             
             # Build System Prompt using PromptService
             from app.services.prompt_service import prompt_service
-            system_prompt = prompt_service.build_system_prompt(agent, db_connections, search_enabled=search_enabled, kb_enabled=kb_enabled, db_enabled=db_enabled)
+            image_enabled = provider_type in ("openai", "azure")
+            system_prompt = prompt_service.build_system_prompt(agent, db_connections, search_enabled=search_enabled, kb_enabled=kb_enabled, db_enabled=db_enabled, image_enabled=image_enabled)
             logger.info(f"LLM Service: search_enabled={search_enabled} for agent {agent.id}")
             
             full_messages.append({"role": "system", "content": system_prompt})
             full_messages.extend(messages)
             
-            tools = tools_service.get_agent_specific_tools(db_connections, mcp_connections, search_enabled=search_enabled, db_enabled=db_enabled)
-            
-            # Set agent context for tool execution (database service needs to be passed from chat_service)
             from app.services.database_service import database_service
-            tools_service.set_agent_context(db_connections, mcp_connections, database_service)
+            tools_service.set_agent_context(
+                db_connections,
+                mcp_connections,
+                database_service,
+                llm_config=agent.llm_config,
+                client_ip=client_ip,
+                client_timezone=client_timezone,
+            )
+
+            tools = tools_service.get_agent_specific_tools(
+                db_connections,
+                mcp_connections,
+                search_enabled=search_enabled,
+                db_enabled=db_enabled,
+            )
             
             # Loop for handling tool calls (max depth 10 to allow complex chains)
             MAX_LOOPS = 10
@@ -190,18 +202,23 @@ class LLMService:
                                 continue
 
                         if func_name == "web_search":
-                            # Extract query if possible from arguments
                             try:
                                 args = json.loads(func_args)
                                 yield f"<SEARCHING>{args.get('query', 'web')}...</SEARCHING>\n"
-                            except:
+                            except Exception:
                                 yield "<SEARCHING>web...</SEARCHING>\n"
                         elif func_name == "website_reader":
                             try:
                                 args = json.loads(func_args)
                                 yield f"<READING>{args.get('url', 'page')}...</READING>\n"
-                            except:
+                            except Exception:
                                 yield "<READING>page...</READING>\n"
+                        elif func_name == "generate_image":
+                            try:
+                                args = json.loads(func_args)
+                                yield f"<GENERATING>{args.get('prompt', 'image')[:50]}...</GENERATING>\n"
+                            except Exception:
+                                yield "<GENERATING>image...</GENERATING>\n"
 
                         # Add timeout to prevent hanging
                         tool_result = await asyncio.wait_for(tools_service.execute_tool(func_name, func_args), timeout=30.0)

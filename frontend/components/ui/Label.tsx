@@ -11,8 +11,8 @@ const Label = forwardRef<HTMLLabelElement, LabelHTMLAttributes<HTMLLabelElement>
             <label
                 ref={ref}
                 className={cn(
-                    "block text-sm font-medium mb-1",
-                    isDark ? "text-gray-300" : "text-gray-700",
+                    "block text-xs font-bold uppercase tracking-wider mb-1.5 ml-1",
+                    isDark ? "text-gray-400" : "text-gray-500",
                     className
                 )}
                 {...props}

@@ -6,26 +6,14 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     FRONTEND_URL: str = "https://chat.basivo.in"
     
-    # Database Configuration
-    
-    # 1. Vector/RAG Database (Standard DB_ prefix for ChromaDB metadata)
-    # These are used for the LangChain/ChromaDB vector storage metadata.
-    DB_PROVIDER: str = "postgres"
-    DB_HOST: str = "cognee-postgres"
+    # Database (TimescaleDB / PostgreSQL)
+    DB_HOST: str = "localhost"
     DB_PORT: int = 5432
-    DB_NAME: str = "vector_db"
+    DB_NAME: str = "chat_db"
     DB_USERNAME: str = "admin"
     DB_PASSWORD: str = "admin"
-    
-    # 2. Application Database (APP_ prefix)
-    # These are specific to the Cortex AI application.
-    APP_DB_HOST: str = "cognee-postgres"
-    APP_DB_PORT: int = 5432
-    APP_DB_NAME: str = "chat_db"
-    APP_DB_USERNAME: str = "admin"
-    APP_DB_PASSWORD: str = "admin"
-    
-    # Main App DB URL (can be constructed or overridden)
+
+    # Full connection URL — overrides DB_* vars above if set
     DATABASE_URL: Optional[str] = None
 
     TOKENIZERS_PARALLELISM: bool = True
@@ -85,17 +73,14 @@ class Settings(BaseSettings):
 
     @property
     def constructed_database_url(self) -> str:
-        """Constructs the main application database URL (using APP_ vars)."""
+        """Constructs the application database URL."""
         if self.DATABASE_URL:
             return self.DATABASE_URL
-        return f"postgresql+asyncpg://{self.APP_DB_USERNAME}:{self.APP_DB_PASSWORD}@{self.APP_DB_HOST}:{self.APP_DB_PORT}/{self.APP_DB_NAME}"
-
+        return f"postgresql+asyncpg://{self.DB_USERNAME}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
 
     def validate_providers(self):
-        if self.DB_PROVIDER != "postgres":
-            raise ValueError("DB_PROVIDER must be set to 'postgres'. SQLite is not supported.")
         if self.VECTOR_DB_PROVIDER != "pgvector":
-            raise ValueError("VECTOR_DB_PROVIDER must be set to 'pgvector'. LanceDB/Qdrant are not supported in this configuration.")
+            raise ValueError("VECTOR_DB_PROVIDER must be set to 'pgvector'.")
 
     # Logging
     LOG_LEVEL: str = "INFO"

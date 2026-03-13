@@ -131,3 +131,22 @@ async def test_llm_connection(
         print(f"Unexpected error in test_llm_connection: {e}")
         raise HTTPException(status_code=500, detail=f"Internal server error during connection test: {str(e)}")
 
+
+class LLMModelsRequest(BaseModel):
+    provider: str
+    api_key: str
+    base_url: str = None
+
+@router.post("/models")
+async def list_llm_models(
+    request: LLMModelsRequest,
+    current_user: models.User = Depends(get_current_active_user),
+    provider_service: LLMProviderService = Depends(get_llm_provider_service)
+):
+    """Fetch available models from a provider using the supplied credentials."""
+    models_list = await provider_service.list_models(
+        provider=request.provider,
+        api_key=request.api_key,
+        base_url=request.base_url
+    )
+    return {"models": models_list}

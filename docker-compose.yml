@@ -1,15 +1,10 @@
 version: '3.8'
 
 services:
-  # Database Service
-  # User provided external DB, so we don't need to run one.
-  # db:
-  #   image: pgvector/pgvector:pg16
-  #   ...
-
-  # Backend Service (FastAPI + Cognee)
+  # Backend Service (FastAPI)
+  # Connects to your external TimescaleDB on the host machine.
   backend:
-    build: 
+    build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: chatbot_backend
@@ -17,50 +12,32 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
-      # Cognee Configuration (Standard DB vars)
-      DB_PROVIDER: postgres
-      DB_HOST: cognee-postgres
+      # Application Database (TimescaleDB on host)
+      DB_HOST: host.docker.internal
       DB_PORT: 5432
-      DB_NAME: cognee_db
+      DB_NAME: basiva
       DB_USERNAME: admin
       DB_PASSWORD: admin
-      
-      # App Configuration (APP_ prefix)
-      APP_DB_HOST: cognee-postgres
-      APP_DB_PORT: 5432
-      APP_DB_NAME: chat_db
-      APP_DB_USERNAME: admin
-      APP_DB_PASSWORD: admin
-      
-      # Legacy/Reference
-      COGNEE_DB_NAME: cognee_db
-      COGNEE_DB_USERNAME: admin
-      COGNEE_DB_PASSWORD: admin
-      
-      # Environment
-      ENVIRONMENT: production
-      # Embedding Configuration
+
+      # Security
+      SECRET_KEY: ${SECRET_KEY:-development_secret_key_only_change_me_in_prod}
+      ADMIN_SECRET_KEY: ${ADMIN_SECRET_KEY:-ec49d476-0757-46c5-a4de-9c0b5a87a20a}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@gmail.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Apple@123}
+
+      # Embeddings
       EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-fastembed}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
-      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-384}
-      
-      
-      # Cognee Vector DB (Configured via DB params above)
-      VECTOR_DB_PROVIDER: ${VECTOR_DB_PROVIDER:-pgvector}
-      VECTOR_DB_URL: postgresql+asyncpg://admin:admin@cognee-postgres:5432/cognee_db
-      ENABLE_BACKEND_ACCESS_CONTROL: "true"
-      REQUIRE_AUTHENTICATION: "true"
+
+      # Vector Store
+      VECTOR_DB_PROVIDER: pgvector
+
       LOG_LEVEL: DEBUG
       TOKENIZERS_PARALLELISM: "true"
     ports:
       - "8000:8000"
-    # depends_on:
-    #   db:
-    #     condition: service_healthy
     volumes:
-      # Persist uploads
       - ./backend/uploads:/app/uploads
-      # Persist vector data (LanceDB - deprecated but kept for volume structure)
       - ./backend/data:/app/data
 
   # Frontend Service (Next.js)
@@ -73,13 +50,8 @@ services:
     container_name: chatbot_frontend
     restart: always
     environment:
-      # URL for the browser to access the backend
-      # Change localhost to your domain/IP when deploying to cloud
-      NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
     ports:
       - "3000:3000"
     depends_on:
       - backend
-
-volumes:
-  postgres_data:

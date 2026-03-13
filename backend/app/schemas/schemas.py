@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, validator
 from typing import Optional, List
 from datetime import datetime
 
@@ -94,7 +94,13 @@ class LLMConfiguration(LLMConfigurationBase):
     id: str
     user_id: str
     created_at: datetime
-    
+
+    @validator("api_key", pre=True)
+    def mask_api_key(cls, v):
+        """Never return the full key to the client — show only the last 4 chars."""
+        from app.core.encryption import mask_secret
+        return mask_secret(v) if v else ""
+
     class Config:
         from_attributes = True
 
@@ -265,6 +271,7 @@ class ChatRequest(BaseModel):
     search_enabled: bool = True
     kb_enabled: bool = True
     db_enabled: bool = True
+    client_timezone: Optional[str] = None
 
 class LLMConfigCheck(BaseModel):
     llm_base_url: str

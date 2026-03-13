@@ -28,11 +28,11 @@ async def lifespan(app: FastAPI):
     from app.core.database import engine, Base
     # Import models to ensure they are registered with Base
     from app.models import models
-    
+
     # Database schema is managed by Alembic migrations.
     # Automatic table creation is disabled to prevent conflicts.
     # See backend/alembic for migration scripts.
-    
+
     yield
     # Shutdown logic (if any)
 
@@ -78,7 +78,7 @@ async def root():
 async def health_check():
     return {"status": "ok"}
 
-# Import and include routers here later
+# Import and include routers
 from app.routers import auth, agents, chat, resources, knowledgebase, llm, analytics, admin, tenant, shares
 
 app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["auth"])

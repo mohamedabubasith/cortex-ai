@@ -4,7 +4,7 @@ from sqlalchemy import select, desc, func
 from app.models import models
 from typing import List, Optional, Dict, Any
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 class AnalyticsRepository:
     def __init__(self, db: AsyncSession):
@@ -61,7 +61,7 @@ class AnalyticsRepository:
     
     async def get_recent_events(self, tenant_id: Optional[str] = None, hours: int = 24, limit: int = 100) -> List[models.Analytics]:
         """Get recent events"""
-        since = datetime.utcnow() - timedelta(hours=hours)
+        since = datetime.now(timezone.utc) - timedelta(hours=hours)
         
         query = select(models.Analytics).where(models.Analytics.created_at >= since)
         if tenant_id:
@@ -76,7 +76,7 @@ class AnalyticsRepository:
     
     async def get_api_hit_stats(self, tenant_id: Optional[str] = None, hours: int = 24) -> Dict[str, Any]:
         """Get API hit statistics"""
-        since = datetime.utcnow() - timedelta(hours=hours)
+        since = datetime.now(timezone.utc) - timedelta(hours=hours)
         
         filters = [
             models.Analytics.event_type.in_(['api_hit', 'chat']),
@@ -102,7 +102,7 @@ class AnalyticsRepository:
     
     async def get_token_usage_stats(self, tenant_id: Optional[str] = None, hours: int = 24, user_id: Optional[str] = None) -> Dict[str, Any]:
         """Get LLM token usage statistics"""
-        since = datetime.utcnow() - timedelta(hours=hours)
+        since = datetime.now(timezone.utc) - timedelta(hours=hours)
         
         # Get all chat events with token data
         query = select(models.Analytics).where(
@@ -142,77 +142,51 @@ class AnalyticsRepository:
 
 
     async def get_usage_histogram(self, tenant_id: Optional[str] = None, hours: int = 24) -> List[Dict[str, Any]]:
-        """Get usage histogram grouped by hour (Timestamp-based)"""
-        now = datetime.utcnow()
+        """Get usage histogram grouped by hour."""
+        now = datetime.now(timezone.utc)
         since = now - timedelta(hours=hours)
-        
-        # 1. Fetch events
+
         query = select(models.Analytics).where(
             models.Analytics.created_at >= since,
             models.Analytics.event_type.in_(['chat', 'api_hit'])
         )
-        
         if tenant_id:
             query = query.where(models.Analytics.tenant_id == tenant_id)
-            
         query = query.order_by(models.Analytics.created_at)
-        
+
         result = await self.db.execute(query)
         events = result.scalars().all()
-        
-        # 2. Setup Buckets (by hour-aligned timestamp)
-        # Align 'since' to the start of the hour
-        start_dt = since.replace(minute=0, second=0, microsecond=0)
-        start_ts = int(start_dt.timestamp())
-        
-        # Create buckets for each hour offset
-        buckets = {}
-        ordered_keys = []
-        
-        for i in range(hours + 1):
-            # Calculate timestamp for this hour slot
-            slot_dt = start_dt + timedelta(hours=i)
-            slot_ts = int(slot_dt.timestamp())
-            
-            buckets[slot_ts] = {
-                "time": slot_dt.isoformat(), # Send ISO string for frontend to format
-                "timestamp": slot_ts,
-                "chats": 0,
-                "hits": 0
-            }
-            ordered_keys.append(slot_ts)
-            
-        # 3. Fill Buckets
-        for event in events:
-            if not event.created_at: continue
-            
-            # Ensure event_dt is naive or has consistent timezone handling
-            # Assuming DB returns timezone-aware if configured, or naive UTC
-            event_dt = event.created_at
-            
-            # If naive, assume it matches the 'now' reference (UTC)
-            # If aware, normalize
-            if event_dt.tzinfo:
-                # Convert to UTC naive for consistent timestamp math
-                event_dt = event_dt.astimezone(None).replace(tzinfo=None) # Simplification depending on setup
-                # Actually, simpler: just get timestamp()
-                
-            # Floor to hour
-            event_hour_dt = event_dt.replace(minute=0, second=0, microsecond=0)
-            event_ts = int(event_hour_dt.timestamp())
-            
-            if event_ts in buckets:
-                if event.event_type == 'chat':
-                    buckets[event_ts]['chats'] += 1
-                elif event.event_type == 'api_hit':
-                    buckets[event_ts]['hits'] += 1
-            else:
-                # Event might be slightly out of bound due to second rounding, try finding closest?
-                # Or just ignore (it's outside < since)
-                pass
 
-        # 4. Return sorted list
-        final_data = [buckets[k] for k in ordered_keys]
-        
-        # Return only the requested number of buckets (sometimes +1 generated)
-        return final_data[-hours:]
+        # Build hour-aligned buckets keyed by "YYYY-MM-DDTHH" (UTC)
+        start_dt = since.replace(minute=0, second=0, microsecond=0, tzinfo=timezone.utc)
+        buckets: dict = {}
+        ordered_keys: list = []
+
+        for i in range(hours + 1):
+            slot_dt = start_dt + timedelta(hours=i)
+            key = slot_dt.strftime("%Y-%m-%dT%H")
+            buckets[key] = {
+                "time": slot_dt.strftime("%H:%M"),
+                "chats": 0,
+                "hits": 0,
+            }
+            ordered_keys.append(key)
+
+        for event in events:
+            if not event.created_at:
+                continue
+            event_dt = event.created_at
+            # Normalise to UTC-aware
+            if event_dt.tzinfo is None:
+                event_dt = event_dt.replace(tzinfo=timezone.utc)
+            else:
+                event_dt = event_dt.astimezone(timezone.utc)
+
+            key = event_dt.strftime("%Y-%m-%dT%H")
+            if key in buckets:
+                if event.event_type == 'chat':
+                    buckets[key]['chats'] += 1
+                elif event.event_type == 'api_hit':
+                    buckets[key]['hits'] += 1
+
+        return [buckets[k] for k in ordered_keys[-hours:]]

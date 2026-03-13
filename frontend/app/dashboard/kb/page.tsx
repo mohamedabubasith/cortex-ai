@@ -4,7 +4,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState } from "react";
-import { Database, FileText, Trash2, Loader2, Plus, Upload, Search, X, Edit, Check, AlertTriangle, Server, RefreshCw, Link, Share, Users } from "lucide-react";
+import { Database, FileText, Trash2, Loader2, Upload, Search, Edit, Check, AlertTriangle, Server, Share } from "lucide-react";
 import api from "@/lib/api";
 import { Can } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/Toast";
@@ -13,10 +13,8 @@ import SidePanel from "@/components/ui/SidePanel";
 import ShareDialog from "@/components/ShareDialog";
 import { useTheme } from "@/contexts/ThemeContext";
 import { cn } from "@/lib/utils";
-import CustomDropdown from "@/components/ui/CustomDropdown";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
-import { Textarea } from "@/components/ui/Textarea";
 import { Label } from "@/components/ui/Label";
 
 interface KnowledgeBase {
@@ -39,13 +37,6 @@ interface DatabaseConnection {
     ssl_mode?: string;
 }
 
-interface MCPConnection {
-    id: string;
-    name: string;
-    server_url: string;
-    summary: string;
-    status?: string;
-}
 
 export default function KnowledgeBasePage() {
     const { toast } = useToast();
@@ -59,7 +50,7 @@ export default function KnowledgeBasePage() {
 
     // Upload State
     const [isUploadOpen, setIsUploadOpen] = useState(false);
-    const [uploading, setUploading] = useState(false);
+
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [enableGraph, setEnableGraph] = useState(false);
 
@@ -82,6 +73,7 @@ export default function KnowledgeBasePage() {
     // Delete State
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [itemToDelete, setItemToDelete] = useState<{ id: string, type: 'kb' | 'db' } | null>(null);
+    const [deleting, setDeleting] = useState(false);
 
     // Query State
     const [queryDialogOpen, setQueryDialogOpen] = useState(false);
@@ -164,29 +156,33 @@ export default function KnowledgeBasePage() {
         }
     };
 
-    const handleUpload = async (e: React.FormEvent) => {
+    const handleUpload = (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedFile) return;
 
-        setUploading(true);
-        const formData = new FormData();
-        formData.append("file", selectedFile);
-        formData.append("enable_graph", enableGraph.toString());
+        const file = selectedFile;
+        const graphEnabled = enableGraph;
 
-        try {
-            await api.post("/kb/upload", formData);
-            toast("File uploaded successfully. Processing started.", "success");
-            setIsUploadOpen(false);
-            setSelectedFile(null);
-            setEnableGraph(false);
-            fetchResources(); // This triggers the polling effect
-        } catch (error: any) {
-            console.error("Upload failed", error);
-            const errorMessage = error.response?.data?.detail || error.message || "Upload failed. Please try again.";
-            toast(errorMessage, "error");
-        } finally {
-            setUploading(false);
-        }
+        // Close modal immediately — don't block the UI
+        setIsUploadOpen(false);
+        setSelectedFile(null);
+        setEnableGraph(false);
+
+        toast("Uploading file… processing will start automatically.", "info");
+
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("enable_graph", graphEnabled.toString());
+
+        api.post("/kb/upload", formData)
+            .then(() => {
+                toast("File uploaded successfully.", "success");
+                fetchResources();
+            })
+            .catch((error: any) => {
+                const errorMessage = error.response?.data?.detail || error.message || "Upload failed. Please try again.";
+                toast(errorMessage, "error");
+            });
     };
 
     const handleOpenDbDialog = (db: any = null) => {
@@ -279,6 +275,7 @@ export default function KnowledgeBasePage() {
 
     const handleDelete = async () => {
         if (!itemToDelete) return;
+        setDeleting(true);
         try {
             if (itemToDelete.type === 'kb') {
                 await api.delete(`/kb/${itemToDelete.id}`);
@@ -292,6 +289,7 @@ export default function KnowledgeBasePage() {
             console.error("Delete failed", error);
             toast("Delete failed. Please try again.", "error");
         } finally {
+            setDeleting(false);
             setDeleteDialogOpen(false);
             setItemToDelete(null);
         }
@@ -508,7 +506,7 @@ export default function KnowledgeBasePage() {
                             {dbConnections.length === 0 && (
                                 <div className={cn("col-span-full flex flex-col items-center justify-center py-20 border rounded-2xl border-dashed", isDark ? "bg-nvidia-dark/30 border-white/10" : "bg-gray-50 border-gray-300")}>
                                     <Database className="w-16 h-16 text-gray-600 mb-4" />
-                                    <h3 className="text-xl font-bold text-white mb-2">No Database Connections</h3>
+                                    <h3 className="text-xl font-bold text-gray-600 mb-2">No Database Connections</h3>
                                     <p className="text-gray-400">Connect to external databases like PostgreSQL or MySQL.</p>
                                     <button
                                         onClick={() => handleOpenDbDialog()}
@@ -532,12 +530,12 @@ export default function KnowledgeBasePage() {
                 maxWidth="max-w-2xl"
                 buttons={[
                     { label: "Cancel", onClick: () => setIsUploadOpen(false), variant: "outline" },
-                    { label: uploading ? "Uploading..." : "Upload", onClick: () => document.getElementById('upload-form')?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true })), variant: "primary", isLoading: uploading }
+                    { label: "Upload", onClick: () => document.getElementById('upload-form')?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true })), variant: "primary" }
                 ]}
             >
                 <form id="upload-form" onSubmit={handleUpload} className="space-y-4">
                     {/* ... upload form (unchanged) ... */}
-                    <div className="border-2 border-dashed border-gray-700 rounded-xl p-8 text-center hover:border-nvidia-green/50 transition-colors">
+                    <div className={cn("border-2 border-dashed rounded-xl p-8 text-center hover:border-nvidia-green/50 transition-colors", isDark ? "border-gray-700" : "border-gray-300")}>
                         <input
                             type="file"
                             id="file-upload"
@@ -563,10 +561,10 @@ export default function KnowledgeBasePage() {
                         />
                         <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center">
                             <Upload className="w-12 h-12 text-gray-500 mb-4" />
-                            <span className="text-white font-bold mb-1">
+                            <span className={cn("font-bold mb-1 truncate max-w-full px-2", selectedFile ? "text-nvidia-green" : isDark ? "text-white" : "text-gray-900")}>
                                 {selectedFile ? selectedFile.name : "Click to select file"}
                             </span>
-                            <span className="text-gray-500 text-sm">PDF, Office, Images, HTML supported (Max 100MB)</span>
+                            <span className={cn("text-sm mt-0.5", isDark ? "text-gray-500" : "text-gray-400")}>PDF, Office, Images, HTML supported (Max 100MB)</span>
                         </label>
                     </div>
 
@@ -725,7 +723,7 @@ export default function KnowledgeBasePage() {
                 description={`Are you sure you want to delete this ${itemToDelete?.type === 'kb' ? "document" : "database connection"}? This action cannot be undone.`}
                 buttons={[
                     { label: "Cancel", onClick: () => setDeleteDialogOpen(false), variant: "outline" },
-                    { label: "Delete", onClick: handleDelete, variant: "danger" }
+                    { label: deleting ? "Deleting..." : "Delete", onClick: handleDelete, variant: "danger", isLoading: deleting }
                 ]}
             />
 

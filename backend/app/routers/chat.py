@@ -59,22 +59,31 @@ async def public_chat(
         # No session ID provided - create new
         session_id = await service.create_new_session(agent.id, user_id=current_user.id, tenant_id=tenant.id if tenant else None)
     
+    # Extract real client IP (behind proxies/load balancers)
+    client_ip = (
+        request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+        or request.headers.get("x-real-ip")
+        or (request.client.host if request.client else None)
+    )
+
     # Extract metadata for analytics
     request_metadata = {
-        "ip": request.client.host if request.client else None,
+        "ip": client_ip,
         "user_agent": request.headers.get("user-agent"),
-        "country": "Unknown" 
+        "country": "Unknown"
     }
-        
+
     return StreamingResponse(
         service.process_chat(
-            agent, 
-            chat_request.message, 
-            session_id, 
+            agent,
+            chat_request.message,
+            session_id,
             search_enabled=chat_request.search_enabled,
             kb_enabled=chat_request.kb_enabled,
             db_enabled=chat_request.db_enabled,
-            request_metadata=request_metadata
+            request_metadata=request_metadata,
+            client_ip=client_ip,
+            client_timezone=chat_request.client_timezone,
         ),
         media_type="text/event-stream",
         headers={"x-session-id": session_id}

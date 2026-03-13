@@ -156,26 +156,26 @@ export default function RolesPage() {
                     <div className="space-y-4 shrink-0 mb-4 px-1">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <label className={cn("text-sm font-medium", isDark ? "text-gray-300" : "text-gray-700")}>Role Name</label>
+                                <label className={cn("block text-xs font-bold uppercase tracking-wider mb-1.5 ml-1", isDark ? "text-gray-400" : "text-gray-500")}>Role Name</label>
                                 <input
                                     type="text"
                                     value={roleName}
                                     onChange={(e) => setRoleName(e.target.value)}
                                     placeholder="e.g. Content Manager"
-                                    className={cn("w-full px-3 py-2 rounded-lg border bg-transparent outline-none focus:ring-1 focus:ring-nvidia-green transition-all",
-                                        isDark ? "border-white/10 placeholder:text-gray-600 text-white" : "border-gray-200 text-gray-900"
+                                    className={cn("w-full px-3.5 py-3 text-base sm:py-2.5 sm:text-sm rounded-xl border outline-none focus:ring-2 focus:ring-nvidia-green/20 transition-all",
+                                        isDark ? "bg-black/40 border-white/10 placeholder:text-gray-600 text-white focus:bg-black/60 focus:border-nvidia-green/50" : "bg-white border-gray-200 text-gray-900 focus:border-nvidia-green"
                                     )}
                                 />
                             </div>
                             <div className="space-y-2">
-                                <label className={cn("text-sm font-medium", isDark ? "text-gray-300" : "text-gray-700")}>Description</label>
+                                <label className={cn("block text-xs font-bold uppercase tracking-wider mb-1.5 ml-1", isDark ? "text-gray-400" : "text-gray-500")}>Description</label>
                                 <input
                                     type="text"
                                     value={roleDesc}
                                     onChange={(e) => setRoleDesc(e.target.value)}
                                     placeholder="Brief description of responsibilities"
-                                    className={cn("w-full px-3 py-2 rounded-lg border bg-transparent outline-none focus:ring-1 focus:ring-nvidia-green transition-all",
-                                        isDark ? "border-white/10 placeholder:text-gray-600 text-white" : "border-gray-200 text-gray-900"
+                                    className={cn("w-full px-3.5 py-3 text-base sm:py-2.5 sm:text-sm rounded-xl border outline-none focus:ring-2 focus:ring-nvidia-green/20 transition-all",
+                                        isDark ? "bg-black/40 border-white/10 placeholder:text-gray-600 text-white focus:bg-black/60 focus:border-nvidia-green/50" : "bg-white border-gray-200 text-gray-900 focus:border-nvidia-green"
                                     )}
                                 />
                             </div>

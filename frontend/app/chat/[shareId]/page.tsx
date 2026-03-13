@@ -43,7 +43,7 @@ export default function PublicChatPage() {
     const [loading, setLoading] = useState(true);
     const [isValidAgent, setIsValidAgent] = useState(true);
     const [isSearchEnabled, setIsSearchEnabled] = useState(false);
-    const [isKBEnabled, setIsKBEnabled] = useState(false);
+    const [isKBEnabled, setIsKBEnabled] = useState(true);
     const [isDBEnabled, setIsDBEnabled] = useState(true);
 
     useEffect(() => {
@@ -276,7 +276,8 @@ export default function PublicChatPage() {
                     session_id: sessionId,
                     search_enabled: isSearchEnabled,
                     kb_enabled: isKBEnabled,
-                    db_enabled: isDBEnabled
+                    db_enabled: isDBEnabled,
+                    client_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                 }),
                 signal: controller.signal
             });
@@ -345,12 +346,14 @@ export default function PublicChatPage() {
                             const searchStart = streamBuffer.indexOf("<SEARCHING>");
                             const readStart = streamBuffer.indexOf("<READING>");
                             const kbStart = streamBuffer.indexOf("<KB_QUERY>");
+                            const genStart = streamBuffer.indexOf("<GENERATING>");
 
                             const markers = [
                                 { type: 'THINK', start: thinkStart, open: '<THINK>', close: '</THINK>' },
                                 { type: 'SEARCHING', start: searchStart, open: '<SEARCHING>', close: '</SEARCHING>' },
                                 { type: 'READING', start: readStart, open: '<READING>', close: '</READING>' },
-                                { type: 'KB_QUERY', start: kbStart, open: '<KB_QUERY>', close: '</KB_QUERY>' }
+                                { type: 'KB_QUERY', start: kbStart, open: '<KB_QUERY>', close: '</KB_QUERY>' },
+                                { type: 'GENERATING', start: genStart, open: '<GENERATING>', close: '</GENERATING>' },
                             ].filter(m => m.start !== -1).sort((a, b) => a.start - b.start);
 
                             if (markers.length > 0) {
@@ -374,6 +377,7 @@ export default function PublicChatPage() {
                                         if (marker.type === 'SEARCHING') assistantStatus = `Searching web for "${content}"...`;
                                         else if (marker.type === 'READING') assistantStatus = `Reading ${content}...`;
                                         else if (marker.type === 'KB_QUERY') assistantStatus = `Querying knowledge base...`;
+                                        else if (marker.type === 'GENERATING') assistantStatus = `Generating image: ${content}...`;
                                         streamBuffer = streamBuffer.substring(closeIdx + marker.close.length);
                                     } else {
                                         // Wait for closing tag
@@ -386,7 +390,7 @@ export default function PublicChatPage() {
                                 const lastOpen = streamBuffer.lastIndexOf("<");
                                 if (lastOpen !== -1) {
                                     const potential = streamBuffer.substring(lastOpen);
-                                    const possibleTags = ["<THINK>", "<SEARCHING>", "<READING>", "<KB_QUERY>"];
+                                    const possibleTags = ["<THINK>", "<SEARCHING>", "<READING>", "<KB_QUERY>", "<GENERATING>"];
                                     if (possibleTags.some(tag => tag.startsWith(potential))) {
                                         assistantMessage += streamBuffer.substring(0, lastOpen);
                                         streamBuffer = potential;

@@ -22,7 +22,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
                 <input
                     ref={ref}
                     className={cn(
-                        "w-full border rounded-xl px-4 py-2.5 transition-all duration-200 outline-none",
+                        "w-full border rounded-xl px-3.5 py-3 text-base sm:py-2.5 sm:text-sm transition-all duration-200 outline-none",
                         isDark
                             ? "bg-black/40 border-white/10 text-white placeholder-gray-600 focus:bg-black/60 focus:border-nvidia-green/50 focus:ring-2 focus:ring-nvidia-green/20"
                             : "bg-white border-gray-200 text-gray-900 placeholder-gray-400 focus:border-nvidia-green focus:ring-2 focus:ring-nvidia-green/20",

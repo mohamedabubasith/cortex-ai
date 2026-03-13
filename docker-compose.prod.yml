@@ -2,8 +2,6 @@ version: '3.8'
 
 services:
   # Database Service (PostgreSQL + pgvector)
-  # Using pgvector image as it is required for Cognee vector search.
-  # If you specifically need TimescaleDB features, you would need a custom image combining both.
   db:
     image: pgvector/pgvector:pg16
     container_name: chatbot_db
@@ -11,20 +9,17 @@ services:
     networks:
       default:
         aliases:
-          - cognee-postgres
           - db
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin
-      POSTGRES_DB: cognee_db
-      POSTGRES_MULTIPLE_DATABASES: chat_db
+      POSTGRES_DB: chat_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./backend/scripts/init-multiple-dbs.sh:/docker-entrypoint-initdb.d/init-multiple-dbs.sh
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin -d cognee_db"]
+      test: ["CMD-SHELL", "pg_isready -U admin -d chat_db"]
       interval: 10s
       timeout: 10s
       retries: 10
@@ -32,7 +27,7 @@ services:
 
   # Backend Service
   backend:
-    build: 
+    build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: chatbot_backend
@@ -41,57 +36,40 @@ services:
       db:
         condition: service_healthy
     environment:
-      # Core
-      SECRET_KEY: production_secret_key_change_me
-      ACCESS_TOKEN_EXPIRE_MINUTES: 60
-      LOG_LEVEL: INFO
-      
-      # Admin Credentials (Internal)
-      ADMIN_EMAIL: admin@gmail.com
-      ADMIN_PASSWORD: Apple@123
-      
-      # Database Connection
-      DB_PROVIDER: postgres
-      DB_HOST: db
-      DB_PORT: 5432
-      DB_NAME: cognee_db
-      DB_USERNAME: admin
-      DB_PASSWORD: admin
-      
-      # Cognee Vector DB (Required for persistence)
-      VECTOR_DB_PROVIDER: pgvector
-      VECTOR_DB_URL: postgresql://admin:admin@db:5432/cognee_db
-      
-      # App Database Connection
-      APP_DB_HOST: db
-      APP_DB_PORT: 5432
-      APP_DB_NAME: chat_db
-      APP_DB_USERNAME: admin
-      APP_DB_PASSWORD: admin
-      
-      # Constructed URLs (Force internal hostnames)
+      # Database — full URL takes precedence
       DATABASE_URL: postgresql+asyncpg://admin:admin@db:5432/chat_db
-      
-      # Vector DB & Embeddings
+
+      # Security — override these in production!
+      SECRET_KEY: ${SECRET_KEY:-production_secret_key_change_me}
+      ADMIN_SECRET_KEY: ${ADMIN_SECRET_KEY:-ec49d476-0757-46c5-a4de-9c0b5a87a20a}
+      ACCESS_TOKEN_EXPIRE_MINUTES: 10080
+
+      # Admin Credentials
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@gmail.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Apple@123}
+
+      # Vector Store
+      VECTOR_DB_PROVIDER: pgvector
+      VECTOR_DB_URL: postgresql+asyncpg://admin:admin@db:5432/chat_db
+
+      # Embeddings
       EMBEDDING_PROVIDER: fastembed
       EMBEDDING_MODEL: sentence-transformers/all-MiniLM-L6-v2
-      EMBEDDING_DIMENSIONS: 384
-      
-      # Security & Access Control
-      ENABLE_BACKEND_ACCESS_CONTROL: "true"
-      REQUIRE_AUTHENTICATION: "true"
-      
-      # Email Configuration
-      SMTP_HOST: ${SMTP_HOST}
-      SMTP_PORT: ${SMTP_PORT}
-      SMTP_USER: ${SMTP_USER}
-      SMTP_PASSWORD: ${SMTP_PASSWORD}
-      EMAILS_FROM_EMAIL: ${EMAILS_FROM_EMAIL}
-      
-      # Google Sign-In
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
-      
+
+      # Email (set via .env on the server)
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-console}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      EMAILS_FROM_EMAIL: ${EMAILS_FROM_EMAIL:-no-reply@basivo.in}
+
+      # Google Sign-In (optional)
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+
+      LOG_LEVEL: INFO
+      TOKENIZERS_PARALLELISM: "true"
     volumes:
       - ./backend/uploads:/app/uploads
       - ./backend/data:/app/data
@@ -113,31 +91,8 @@ services:
     environment:
       NEXT_PUBLIC_API_URL: https://chat.basivo.in
       BACKEND_URL: http://chatbot_backend:8000
-      NEXT_PUBLIC_ENABLE_GRAPH: "false"
-
-  # Neo4j Graph Database
-  # Only used if ENABLE_GRAPH=true in backend
-  # neo4j:
-  #   image: neo4j:5.16.0
-  #   container_name: chatbot_neo4j
-  #   restart: always
-  #   environment:
-  #     NEO4J_AUTH: neo4j/password
-  #     # Enable APOC if needed
-  #     NEO4J_PLUGINS: '["apoc"]'
-  #     NEO4J_apoc_export_file_enabled: "true"
-  #     NEO4J_apoc_import_file_enabled: "true"
-  #     NEO4J_dbms_security_procedures_unrestricted: "apoc.*"
-  #   ports:
-  #     - "7474:7474"
-  #     - "7687:7687"
-  #   volumes:
-  #     - neo4j_data:/data
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider localhost:7474 || exit 1"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
+    depends_on:
+      - backend
 
   # Nginx Reverse Proxy
   nginx:
@@ -158,6 +113,11 @@ services:
     depends_on:
       - frontend
       - backend
+
+  # Neo4j (optional — only needed if ENABLE_GRAPH=true)
+  # neo4j:
+  #   image: neo4j:5.16.0
+  #   ...
 
 volumes:
   postgres_data:

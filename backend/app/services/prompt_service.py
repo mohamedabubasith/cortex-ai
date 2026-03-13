@@ -2,7 +2,7 @@ from typing import List, Optional
 from app.models import models
 
 class PromptService:
-    def build_system_prompt(self, agent: models.Agent, db_connections: Optional[List[models.DatabaseConnection]] = None, search_enabled: bool = True, kb_enabled: bool = True, db_enabled: bool = True) -> str:
+    def build_system_prompt(self, agent: models.Agent, db_connections: Optional[List[models.DatabaseConnection]] = None, search_enabled: bool = True, kb_enabled: bool = True, db_enabled: bool = True, image_enabled: bool = False) -> str:
         """
         Constructs a comprehensive system prompt that clearly distinguishes between
         general instructions, database capabilities, and document context.
@@ -73,7 +73,19 @@ class PromptService:
                 f"Rely only on your internal knowledge and provided document context.\n"
             )
 
-        # 5. Source Integration (if both enabled)
+        # 5. Image Generation
+        image_section = ""
+        if image_enabled:
+            image_section = (
+                f"\n\n### IMAGE GENERATION\n"
+                f"You have a 'generate_image' tool powered by DALL·E 3.\n"
+                f"- Use it when the user explicitly asks you to create, draw, generate, or visualize an image.\n"
+                f"- Choose a sensible size: 'square' (1:1), 'landscape' (16:9), or 'portrait' (9:16).\n"
+                f"- After the image is generated, the URL will be embedded in the conversation automatically — do NOT repeat the URL as plain text.\n"
+                f"- If the request is ambiguous, generate it rather than asking for clarification.\n"
+            )
+
+        # 6. Source Integration (if both enabled)
         integration_section = ""
         if kb_enabled and search_enabled:
             integration_section = (
@@ -83,7 +95,7 @@ class PromptService:
                 f"- **CONFLICTS**: If document context conflicts with web search, prioritize the uploaded documents (internal truth) but mention the web finding.\n"
             )
         
-        # 6. General Guidelines
+        # 7. General Guidelines
         guidelines = (
             f"\n\n### GUIDELINES\n"
             f"- Be concise and direct.\n"
@@ -91,6 +103,6 @@ class PromptService:
             f"- If the user asks for a list, provide a clean list.\n"
         )
         
-        return f"{base_prompt}{db_section}{context_section}{search_section}{integration_section}{guidelines}"
+        return f"{base_prompt}{db_section}{context_section}{search_section}{image_section}{integration_section}{guidelines}"
 
 prompt_service = PromptService()

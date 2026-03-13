@@ -63,7 +63,7 @@ class ChatService:
         """Get a chat session by ID"""
         return await self.chat_repo.get_session(session_id)
 
-    async def process_chat(self, agent: models.Agent, message: str, session_id: str, search_enabled: bool = True, kb_enabled: bool = True, db_enabled: bool = True, request_metadata: dict = None) -> AsyncGenerator[str, None]:
+    async def process_chat(self, agent: models.Agent, message: str, session_id: str, search_enabled: bool = True, kb_enabled: bool = True, db_enabled: bool = True, request_metadata: dict = None, client_ip: str = None, client_timezone: str = None) -> AsyncGenerator[str, None]:
         try:
             # 0. Validate Agent Config
             if not agent.llm_config:
@@ -150,7 +150,7 @@ class ChatService:
                         "price", "rate", "stock", "weather", "who is", "what is", "how is",
                         "status", "live", "real-time", "now", "recent"
                     ]
-                    needs_search = any(word in message.lower() for word in search_keywords) or len(message.split()) > 3
+                    needs_search = any(word in message.lower() for word in search_keywords)
                     
                     if needs_search:
                         yield f"<SEARCHING>{message[:30]}...</SEARCHING>"
@@ -249,11 +249,13 @@ class ChatService:
             try:
                 # Stream from LLM
                 async for chunk in llm_service.stream_chat(
-                    agent, 
-                    messages, 
+                    agent,
+                    messages,
                     search_enabled=search_enabled,
                     kb_enabled=kb_enabled,
-                    db_enabled=db_enabled
+                    db_enabled=db_enabled,
+                    client_ip=client_ip,
+                    client_timezone=client_timezone,
                 ):
                     if chunk == "<THINK>":
                         is_thinking = True
