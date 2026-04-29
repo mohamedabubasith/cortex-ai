@@ -6,20 +6,14 @@ services:
     image: pgvector/pgvector:pg16
     container_name: chatbot_db
     restart: always
-    networks:
-      default:
-        aliases:
-          - db
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: admin
-      POSTGRES_DB: chat_db
+      POSTGRES_USER: ${DB_USER:-admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-admin}
+      POSTGRES_DB: ${DB_NAME:-chat_db}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin -d chat_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-admin} -d ${DB_NAME:-chat_db}"]
       interval: 10s
       timeout: 10s
       retries: 10
@@ -36,27 +30,21 @@ services:
       db:
         condition: service_healthy
     environment:
-      # Database — full URL takes precedence
-      DATABASE_URL: postgresql+asyncpg://admin:admin@db:5432/chat_db
+      DATABASE_URL: postgresql+asyncpg://${DB_USER:-admin}:${DB_PASSWORD:-admin}@db:5432/${DB_NAME:-chat_db}
 
-      # Security — override these in production!
-      SECRET_KEY: ${SECRET_KEY:-production_secret_key_change_me}
-      ADMIN_SECRET_KEY: ${ADMIN_SECRET_KEY:-ec49d476-0757-46c5-a4de-9c0b5a87a20a}
-      ACCESS_TOKEN_EXPIRE_MINUTES: 10080
+      SECRET_KEY: ${SECRET_KEY}
+      ADMIN_SECRET_KEY: ${ADMIN_SECRET_KEY}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-10080}
 
-      # Admin Credentials
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@gmail.com}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Apple@123}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
 
-      # Vector Store
       VECTOR_DB_PROVIDER: pgvector
-      VECTOR_DB_URL: postgresql+asyncpg://admin:admin@db:5432/chat_db
+      VECTOR_DB_URL: postgresql+asyncpg://${DB_USER:-admin}:${DB_PASSWORD:-admin}@db:5432/${DB_NAME:-chat_db}
 
-      # Embeddings
-      EMBEDDING_PROVIDER: fastembed
-      EMBEDDING_MODEL: sentence-transformers/all-MiniLM-L6-v2
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-fastembed}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
 
-      # Email (set via .env on the server)
       EMAIL_PROVIDER: ${EMAIL_PROVIDER:-console}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
@@ -64,17 +52,16 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       EMAILS_FROM_EMAIL: ${EMAILS_FROM_EMAIL:-no-reply@basivo.in}
 
-      # Google Sign-In (optional)
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
 
-      LOG_LEVEL: INFO
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
       TOKENIZERS_PARALLELISM: "true"
     volumes:
-      - ./backend/uploads:/app/uploads
-      - ./backend/data:/app/data
+      - backend_uploads:/app/uploads
+      - backend_data:/app/data
     ports:
-      - "8000:8000"
+      - "${BACKEND_PORT:-8000}:8000"
 
   # Frontend Service
   frontend:
@@ -82,43 +69,19 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: https://chat.basivo.in
-        BACKEND_URL: http://chatbot_backend:8000
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        BACKEND_URL: ${BACKEND_URL:-http://chatbot_backend:8000}
     container_name: chatbot_frontend
     restart: always
-    ports:
-      - "3000:3000"
     environment:
-      NEXT_PUBLIC_API_URL: https://chat.basivo.in
-      BACKEND_URL: http://chatbot_backend:8000
-    depends_on:
-      - backend
-
-  # Nginx Reverse Proxy
-  nginx:
-    image: nginx:alpine
-    container_name: chatbot_nginx
-    restart: always
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      BACKEND_URL: ${BACKEND_URL:-http://chatbot_backend:8000}
     ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - /etc/letsencrypt/live/chat.basivo.in/fullchain.pem:/etc/letsencrypt/live/chat.basivo.in/fullchain.pem:ro
-      - /etc/letsencrypt/live/chat.basivo.in/privkey.pem:/etc/letsencrypt/live/chat.basivo.in/privkey.pem:ro
-      - /etc/letsencrypt/live/n8n.basivo.in/fullchain.pem:/etc/letsencrypt/live/n8n.basivo.in/fullchain.pem:ro
-      - /etc/letsencrypt/live/n8n.basivo.in/privkey.pem:/etc/letsencrypt/live/n8n.basivo.in/privkey.pem:ro
-      - /etc/letsencrypt/live/basivo.in/fullchain.pem:/etc/letsencrypt/live/basivo.in/fullchain.pem:ro
-      - /etc/letsencrypt/live/basivo.in/privkey.pem:/etc/letsencrypt/live/basivo.in/privkey.pem:ro
+      - "${FRONTEND_PORT:-3000}:3000"
     depends_on:
-      - frontend
       - backend
-
-  # Neo4j (optional — only needed if ENABLE_GRAPH=true)
-  # neo4j:
-  #   image: neo4j:5.16.0
-  #   ...
 
 volumes:
   postgres_data:
-  neo4j_data:
+  backend_uploads:
+  backend_data:
