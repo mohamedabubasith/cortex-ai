@@ -25,6 +25,8 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
+ENV HOSTNAME=0.0.0.0
+ENV PORT=3000
 
 # Install curl for healthcheck
 RUN apk add --no-cache curl
@@ -36,6 +38,9 @@ COPY --from=builder /app/public ./public
 
 # Expose port
 EXPOSE 3000
+
+HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:3000/ || exit 1
 
 # Run the application
 CMD ["node", "server.js"]
