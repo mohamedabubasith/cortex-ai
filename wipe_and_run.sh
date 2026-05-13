@@ -58,4 +58,4 @@ docker exec chatbot_backend python -m app.core.startup
 
 echo "🚀 Deployment Complete! Services are running."
 echo "   - App DB: chat_db (Managed by Alembic)"
-echo "   - Cognee DB: cognee_db (Managed by Cognee)"
+echo "   - Vector search: Qdrant (Haystack pipeline; configure QDRANT_URL / QDRANT_COLLECTION)"

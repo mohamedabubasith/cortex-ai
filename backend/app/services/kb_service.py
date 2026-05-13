@@ -1,20 +1,100 @@
-"""Knowledge Base Service (LangChain Implementation)"""
+"""Knowledge Base Service (Haystack + Unstructured + Ollama + Qdrant)."""
 import logging
 import os
-import asyncio
-import datetime
-from typing import Dict, Any, List
+import traceback
+from typing import Any, Dict, List, Optional
+
+from sqlalchemy import select
+
 from app.repositories.kb_repository import KBRepository
 from app.services.rag_service import rag_service
 from app.services.neo4j_service import neo4j_service
 from app.core.config import settings
+from app.core.database import AsyncSessionLocal
+from app.models import models
 
 logger = logging.getLogger(__name__)
+
+
+async def run_kb_ingestion_background(
+    kb_id: str,
+    file_path: str,
+    user_id: str,
+    tenant_id: str,
+    chunk_size: int,
+    chunk_overlap: int,
+    embedding_model: str,
+    user_email: Optional[str],
+    enable_graph: bool,
+    llm_config_id: Optional[str],
+) -> None:
+    """
+    Entry point for FastAPI ``BackgroundTasks``.
+
+    Opens a **new** async SQLAlchemy session. The request-scoped session used during
+    ``/upload`` is closed after the response; ingestion runs later and must not use it.
+    """
+    exists = os.path.isfile(file_path) if file_path else False
+    logger.info(
+        "[kb-ingest] background task started kb_id=%s file=%s exists=%s chunk=%s/%s model=%s",
+        kb_id,
+        file_path,
+        exists,
+        chunk_size,
+        chunk_overlap,
+        embedding_model,
+    )
+    try:
+        async with AsyncSessionLocal() as session:
+            llm_config = None
+            if llm_config_id:
+                res = await session.execute(
+                    select(models.LLMConfiguration).where(
+                        models.LLMConfiguration.id == llm_config_id,
+                        models.LLMConfiguration.tenant_id == tenant_id,
+                    )
+                )
+                llm_config = res.scalars().first()
+            else:
+                res = await session.execute(
+                    select(models.LLMConfiguration).where(
+                        models.LLMConfiguration.tenant_id == tenant_id
+                    )
+                )
+                llm_config = res.scalars().first()
+
+            if not llm_config and enable_graph:
+                enable_graph = False
+
+            logger.info(
+                "[kb-ingest] DB session ready kb_id=%s llm_config_id=%s",
+                kb_id,
+                llm_config_id or "(tenant default or none)",
+            )
+
+            svc = KBService(KBRepository(session))
+            await svc.process_kb(
+                kb_id,
+                file_path,
+                user_id,
+                tenant_id,
+                chunk_size,
+                chunk_overlap,
+                llm_config,
+                embedding_model,
+                user_email,
+                enable_graph,
+            )
+        logger.info("[kb-ingest] background task finished kb_id=%s", kb_id)
+    except Exception:
+        logger.exception("[kb-ingest] background task crashed kb_id=%s", kb_id)
+        raise
+
 
 class KBService:
     def __init__(self, kb_repo: KBRepository):
         self.kb_repo = kb_repo
-    
+
     async def create_kb_record(
         self,
         user_id: str,
@@ -24,42 +104,64 @@ class KBService:
         file_size: int,
         chunk_size: int = 1000,
         chunk_overlap: int = 200,
-        embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2",
-        tenant_id: str = None,
-        enable_graph: bool = False
+        embedding_model: str | None = None,
+        tenant_id: str | None = None,
+        enable_graph: bool = False,
+        parsing_strategy: str = "fast",
     ):
-        """Create initial KB record"""
-        # Note: We don't store enable_graph in DB schema yet to avoid migrations, 
-        # but we use it for immediate processing triggering.
+        """Create initial KB record (queued for background ingestion)."""
+        model = embedding_model or settings.OLLAMA_MODEL
         return await self.kb_repo.create(
             user_id=user_id,
             filename=filename,
             file_path=file_path,
             file_type=file_type,
-            file_size=file_size, 
+            file_size=file_size,
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
-            embedding_model=embedding_model,
-            status="pending",
-            tenant_id=tenant_id
+            embedding_model=model,
+            status="queued",
+            tenant_id=tenant_id,
+            parsing_strategy=parsing_strategy,
         )
-            
-    async def process_kb(self, kb_id: str, file_path: str, user_id: str, tenant_id: str, chunk_size: int, chunk_overlap: int, llm_config, embedding_model: str, user_email: str = None, enable_graph: bool = False):
-        """
-        Process KB (Load -> Split -> Embed -> Index) via RAGService.
-        If enable_graph is True, also extracts and builds Knowledge Graph in Neo4j.
-        """
-        try:
-            print(f"DEBUG: Starting processing for KB {kb_id}")
-            await self.kb_repo.update_status(kb_id, "processing")
-            
-            # Process via LangChain RAG Service
-            try:
-                async def update_status_callback(status: str):
-                    await self.kb_repo.update_status(kb_id, status)
 
-                # 1. Vector Processing
-                await rag_service.process_document(
+    async def process_kb(
+        self,
+        kb_id: str,
+        file_path: str,
+        user_id: str,
+        tenant_id: str,
+        chunk_size: int,
+        chunk_overlap: int,
+        llm_config,
+        embedding_model: str,
+        user_email: str | None = None,
+        enable_graph: bool = False,
+    ):
+        """Background: Unstructured → Haystack chunking → Ollama → Qdrant; optional Neo4j graph."""
+        try:
+            kb_row = await self.kb_repo.get_by_id(kb_id, user_id, tenant_id)
+            if not kb_row:
+                logger.error("[kb-ingest] process_kb: KB %s not found for user", kb_id)
+                return
+
+            parsing_strategy = kb_row.parsing_strategy or "fast"
+            on_disk = os.path.isfile(file_path) if file_path else False
+            logger.info(
+                "[kb-ingest] process_kb begin kb_id=%s filename=%s path=%s on_disk=%s strategy=%s",
+                kb_id,
+                getattr(kb_row, "filename", ""),
+                file_path,
+                on_disk,
+                parsing_strategy,
+            )
+
+            async def update_status_callback(status: str) -> None:
+                logger.info("[kb-ingest] kb_id=%s DB status -> %s", kb_id, status)
+                await self.kb_repo.update_status(kb_id, status)
+
+            try:
+                result = await rag_service.process_document(
                     file_path=file_path,
                     kb_id=kb_id,
                     user_id=user_id,
@@ -68,154 +170,158 @@ class KBService:
                     chunk_overlap=chunk_overlap,
                     llm_config=llm_config,
                     embedding_model=embedding_model,
-                    on_progress=update_status_callback
+                    on_progress=update_status_callback,
+                    parsing_strategy=parsing_strategy,
                 )
-                
-                # 2. Graph Processing (Optional)
+
+                chunk_texts = result.get("chunk_texts") or []
+
                 if enable_graph and settings.ENABLE_GRAPH:
-                    logger.info(f"Graph Integration Enabled for KB {kb_id}")
-                    # We need to re-read/chunk here since rag_service doesn't return them currently
-                    # Using langchain text splitters directly would be best, but manual works for broad chunks.
-                    from langchain.text_splitter import RecursiveCharacterTextSplitter
-                    from langchain_community.document_loaders import TextLoader, UnstructuredFileLoader
-                    
-                    # Quick loading logic (replicating simple part of RAG service for graph)
-                    # For complex files, using the same loader instance would be better refactoring for later.
+                    logger.info("Graph integration enabled for KB %s", kb_id)
                     try:
-                        loader = UnstructuredFileLoader(file_path)
-                        documents = await asyncio.to_thread(loader.load)
-                        text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
-                        split_docs = text_splitter.split_documents(documents)
-                        chunks = [doc.page_content for doc in split_docs]
-                        
-                        await neo4j_service.process_graph(kb_id, tenant_id, chunks, llm_config)
+                        await neo4j_service.process_graph(kb_id, tenant_id, chunk_texts, llm_config)
                     except Exception as graph_err:
-                        logger.error(f"Graph processing failed (non-blocking for Vector): {graph_err}")
-                        # We don't fail the whole index if graph fails, but logs will show it.
+                        logger.error("Graph processing failed (non-blocking): %s", graph_err)
 
-                # Success
-                await self.kb_repo.update_status(kb_id, "indexed")
-                print(f"DEBUG: Processing complete for KB {kb_id} -> Indexed")
-                
+                await self.kb_repo.update_status(kb_id, "completed")
+                logger.info(
+                    "[kb-ingest] kb_id=%s ingestion completed chunks=%s",
+                    kb_id,
+                    result.get("chunks"),
+                )
+
             except Exception as e:
-                import traceback
-                error_msg = f"RAG processing failed: {e}\n{traceback.format_exc()}"
-                logger.error(error_msg)
+                logger.error(
+                    "[kb-ingest] kb_id=%s RAG pipeline failed: %s\n%s",
+                    kb_id,
+                    e,
+                    traceback.format_exc(),
+                )
                 await self.kb_repo.update_status(kb_id, "failed")
-                
-        except Exception as e:
-            import traceback
-            error_msg = f"Background task failed: {e}\n{traceback.format_exc()}"
-            logger.error(error_msg)
-            
-            await self.kb_repo.update_status(kb_id, "failed")
 
-    async def get_status(self, kb_id: str, user_id: str, tenant_id: str, user_email: str = None) -> Dict[str, Any]:
-        """Get status directly from DB (no external sync needed)"""
-        # We assume regular user logic here, but status checks should be scoped to tenant too
-        # Passing is_admin=False by default for status checks unless we want admins to see status of others' files?
-        # Let's assume user checking status knows about the file.
-        # Ideally, we should pass is_admin here too, but for now let's use default (Owner/Member)
-        # But we MUST pass tenant_id.
+        except Exception as e:
+            logger.error(
+                "[kb-ingest] kb_id=%s process_kb outer failure: %s\n%s",
+                kb_id,
+                e,
+                traceback.format_exc(),
+            )
+            try:
+                await self.kb_repo.update_status(kb_id, "failed")
+            except Exception as inner:
+                logger.error("[kb-ingest] kb_id=%s could not set failed status: %s", kb_id, inner)
+
+    async def get_status(self, kb_id: str, user_id: str, tenant_id: str, user_email: str | None = None) -> Dict[str, Any] | None:
         kb = await self.kb_repo.get_by_id(kb_id, user_id, tenant_id=tenant_id)
         if not kb:
             return None
         return {"status": kb.status}
-    
-    async def get_all(self, user_id: str, tenant_id: str, user_email: str = None, is_admin: bool = False):
-        """Get all KB files"""
+
+    async def get_all(self, user_id: str, tenant_id: str, user_email: str | None = None, is_admin: bool = False):
         return await self.kb_repo.get_all(user_id, tenant_id, is_admin=is_admin)
-    
-    async def query(self, kb_id: str, user_id: str, tenant_id: str, query_text: str, llm_config, user_email: str = None, is_admin: bool = False):
-        """Query single KB"""
+
+    async def query(
+        self,
+        kb_id: str,
+        user_id: str,
+        tenant_id: str,
+        query_text: str,
+        llm_config,
+        user_email: str | None = None,
+        is_admin: bool = False,
+    ):
         kb = await self.kb_repo.get_by_id(kb_id, user_id, tenant_id, is_admin=is_admin)
         if not kb:
             return {"success": False, "message": "KB not found"}
-        
-        if kb.status != "indexed":
-            return {"success": False, "message": f"KB not indexed (status: {kb.status})"}
-        
-        # Search via RAG Service
-        # Filter by KB ID for security and reliability
+
+        if kb.status != "completed":
+            return {"success": False, "message": f"KB not ready (status: {kb.status})"}
+
         filters = {"kb_id": kb_id}
-        
-        results = await rag_service.search(query_text, filters, llm_config, embedding_model=kb.embedding_model)
-        
+        results = await rag_service.search(
+            query_text,
+            filters,
+            llm_config,
+            embedding_model=kb.embedding_model,
+        )
         return {"success": True, "data": results}
 
-    async def query_multiple(self, kb_ids: List[str], query_text: str, llm_config, embedding_model: str, user_email: str = None):
-        """Query multiple KBs (must share same embedding model)"""
+    async def query_multiple(
+        self,
+        kb_ids: List[str],
+        query_text: str,
+        llm_config,
+        embedding_model: str,
+        user_email: str | None = None,
+    ):
         if not kb_ids:
-             return {"success": True, "data": []}
-        
-        # Search via RAG Service
-        # Filter by KB IDs using $in operator
+            return {"success": True, "data": []}
+
         filters = {"kb_id": {"$in": kb_ids}}
-        
         results = await rag_service.search(query_text, filters, llm_config, embedding_model=embedding_model)
-        
         return {"success": True, "data": results}
 
-    async def delete(self, kb_id: str, user_id: str, tenant_id: str, user_email: str = None) -> Dict[str, Any]:
-        """Delete KB and vectors"""
-        # Delete only possible by Owner (implied by default is_admin=False and user_id check)
+    async def delete(self, kb_id: str, user_id: str, tenant_id: str, user_email: str | None = None) -> Dict[str, Any]:
         kb = await self.kb_repo.get_by_id(kb_id, user_id, tenant_id=tenant_id)
-        
+
         if not kb:
             return {"success": False, "message": "Not found"}
-        
-        # 1. Delete Vectors
-        await rag_service.delete_kb(kb_id)
-        
-        # 2. Delete Graph Data (Neo4j)
+
+        # Completed KBs have vectors in Qdrant; do not remove the DB row if Qdrant is unreachable
+        # (avoids false "deleted" while points remain). Non-completed: best-effort vector cleanup.
+        vector_deleted = await rag_service.delete_kb(kb_id)
+        if kb.status == "completed" and not vector_deleted:
+            return {
+                "success": False,
+                "message": (
+                    "Could not reach the vector database (Qdrant), so vectors were not removed. "
+                    "Fix QDRANT_URL (e.g. add :6333 for native Qdrant or :80 if behind HTTP), ensure "
+                    "the service is running, then try again."
+                ),
+            }
+        if not vector_deleted:
+            logger.warning(
+                "delete_kb: Qdrant cleanup failed for non-completed kb_id=%s status=%s; continuing with file/DB delete",
+                kb_id,
+                kb.status,
+            )
+
         if settings.ENABLE_GRAPH:
             await neo4j_service.delete_graph_for_kb(kb_id, tenant_id)
-        
-        # 3. Delete file
+
         if os.path.exists(kb.file_path):
             try:
                 os.remove(kb.file_path)
-            except:
+            except OSError:
                 pass
-        
-        # 4. Delete from DB
+
         await self.kb_repo.delete(kb_id, user_id)
-        
+
         return {"success": True, "message": f"Deleted {kb.filename}"}
 
     async def share_kb(self, kb_id: str, owner_id: str, target_user_id: str, tenant_id: str, role: str = "viewer") -> Dict[str, Any]:
-        """Share KB with another user"""
-        # 1. Verify Ownership
-        # We fetch via repo.get_by_id but we must ensure CURRENT user is OWNER in CURRENT TENANT
         kb = await self.kb_repo.get_by_id(kb_id, owner_id, tenant_id=tenant_id)
         if not kb:
-             return {"success": False, "message": "KB not found or access denied"}
-        
+            return {"success": False, "message": "KB not found or access denied"}
+
         if kb.user_id != owner_id:
             return {"success": False, "message": "Only the owner can share the KB"}
 
-        # 2. Add Member
         try:
             await self.kb_repo.add_member(kb_id, target_user_id, role)
             return {"success": True, "message": "KB shared successfully"}
         except Exception as e:
-            # Likely unique constraint if already exists or logic error
             return {"success": False, "message": f"Failed to share: {str(e)}"}
 
     async def unshare_kb(self, kb_id: str, owner_id: str, target_user_id: str, tenant_id: str) -> Dict[str, Any]:
-        """Unshare KB"""
-        # 1. Verify Ownership
         kb = await self.kb_repo.get_by_id(kb_id, owner_id, tenant_id=tenant_id)
         if not kb:
-             return {"success": False, "message": "KB not found or access denied"}
-        
+            return {"success": False, "message": "KB not found or access denied"}
+
         if kb.user_id != owner_id:
             return {"success": False, "message": "Only the owner can manage sharing"}
 
-        # 2. Remove Member
         success = await self.kb_repo.remove_member(kb_id, target_user_id)
         if success:
-             return {"success": True, "message": "KB unshared successfully"}
-        else:
-             return {"success": False, "message": "User was not a member"}
-
+            return {"success": True, "message": "KB unshared successfully"}
+        return {"success": False, "message": "User was not a member"}

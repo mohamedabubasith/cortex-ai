@@ -1,5 +1,11 @@
-from pydantic_settings import BaseSettings
+from pathlib import Path
 from typing import Optional
+from urllib.parse import quote_plus
+
+from pydantic_settings import BaseSettings
+
+_BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
+_REPO_ROOT = _BACKEND_DIR.parent
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Basivo"
@@ -62,21 +68,60 @@ class Settings(BaseSettings):
     EMAILS_FROM_NAME: Optional[str] = "Basivo"
     RESET_PASSWORD_TOKEN_EXPIRE_MINUTES: int = 15
 
-    # Embeddings
-    EMBEDDING_PROVIDER: str = "fastembed"
-    EMBEDDING_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"
+    # Embeddings (legacy app-wide defaults; knowledge base uses Ollama below)
+    EMBEDDING_PROVIDER: str = "ollama"
+    EMBEDDING_MODEL: str = "paraphrase-multilingual:latest"
 
-    # Vector DB
+    # Vector DB (application DB / legacy)
     VECTOR_DB_PROVIDER: str = "pgvector"
     VECTOR_DB_URL: Optional[str] = None
-    CHROMA_PERSIST_DIRECTORY: str = "data/chroma_db"
+
+    # Knowledge base — Haystack + Unstructured + Ollama + Qdrant
+    UNSTRUCTURED_API_URL: str = "http://127.0.0.1:8000"
+    UNSTRUCTURED_GENERAL_PATH: str = "general/v0/general"
+    # Optional API key for hosted / secured Unstructured deployments (sent as `unstructured-api-key` header).
+    UNSTRUCTURED_API_KEY: Optional[str] = None
+    OLLAMA_BASE_URL: str = "http://127.0.0.1:11434"
+    OLLAMA_MODEL: str = "paraphrase-multilingual:latest"
+    # Prefer POST /api/embed (current Ollama); legacy /api/embeddings can 500 on some proxies/old builds.
+    OLLAMA_PREFER_API_EMBED: bool = True
+    # Pass through to Ollama embed API; avoids hard failures when a chunk is slightly over context.
+    OLLAMA_EMBED_TRUNCATE: bool = True
+    # Include an explicit port if Qdrant is not on 6333 (e.g. :80 behind a reverse proxy).
+    QDRANT_URL: str = "http://127.0.0.1:6333"
+    QDRANT_COLLECTION: str = "cortex_kb"
+    # Optional; required when Qdrant is secured (Bearer / api-key header).
+    QDRANT_API_KEY: Optional[str] = None
+    # KB ingest: how many chunks to send per Ollama embed HTTP call (and per Qdrant upsert batch).
+    # Higher = fewer HTTP round-trips (faster on remote Ollama); lower if you hit timeouts or OOM on the embed server.
+    RAG_EMBEDDING_BATCH_SIZE: int = 64
+    # Haystack → Qdrant client internal batch size for writes (see QdrantDocumentStore).
+    RAG_QDRANT_WRITE_BATCH_SIZE: int = 128
+    # KB chunk upper bound (characters) ≈ embedding max tokens × factor (Haystack splitter uses chars).
+    # Set to the model's **context length in tokens** (same idea as GGUF ``bert.context_length``). Check with:
+    #   ``ollama show paraphrase-multilingual:latest`` → use that context (e.g. 512 for your BERT embedder).
+    # Only use a smaller value (e.g. 128) if your GGUF explicitly reports a 128-token context.
+    KB_EMBEDDING_MAX_INPUT_TOKENS: int = 512
+    KB_CHUNK_CHARS_PER_TOKEN: float = 4.0
+    KB_MIN_CHUNK_CHARS: int = 256
+
+    @property
+    def kb_max_chunk_chars(self) -> int:
+        est = int(self.KB_EMBEDDING_MAX_INPUT_TOKENS * self.KB_CHUNK_CHARS_PER_TOKEN)
+        return max(self.KB_MIN_CHUNK_CHARS, est)
 
     @property
     def constructed_database_url(self) -> str:
         """Constructs the application database URL."""
         if self.DATABASE_URL:
             return self.DATABASE_URL
-        return f"postgresql+asyncpg://{self.DB_USERNAME}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+        # URL-encode user/password so @, #, :, /, etc. in passwords do not break the URL.
+        user = quote_plus(self.DB_USERNAME)
+        password = quote_plus(self.DB_PASSWORD or "")
+        return (
+            f"postgresql+asyncpg://{user}:{password}"
+            f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+        )
 
     def validate_providers(self):
         if self.VECTOR_DB_PROVIDER != "pgvector":
@@ -92,7 +137,7 @@ class Settings(BaseSettings):
     NEO4J_PASSWORD: Optional[str] = "password"
     
     class Config:
-        env_file = ".env"
+        env_file = (str(_REPO_ROOT / ".env"),)
         case_sensitive = True
         extra = "ignore"
 

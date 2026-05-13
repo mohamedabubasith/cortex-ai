@@ -3,7 +3,7 @@
 // Disable static generation for authenticated pages
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Database, FileText, Trash2, Loader2, Upload, Search, Edit, Check, AlertTriangle, Server, Share } from "lucide-react";
 import api from "@/lib/api";
 import { Can } from "@/contexts/AuthContext";
@@ -23,6 +23,7 @@ interface KnowledgeBase {
     file_type: string;
     status: string;
     created_at: string;
+    parsing_strategy?: string;
 }
 
 interface DatabaseConnection {
@@ -52,6 +53,7 @@ export default function KnowledgeBasePage() {
     const [isUploadOpen, setIsUploadOpen] = useState(false);
 
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [parsingStrategy, setParsingStrategy] = useState<"fast" | "hi_res">("fast");
     const [enableGraph, setEnableGraph] = useState(false);
 
     // DB Connection State
@@ -95,9 +97,14 @@ export default function KnowledgeBasePage() {
         fetchResources();
     }, []);
 
-    // Helper to check if file is processing
+    const pollFailuresRef = useRef<Record<string, number>>({});
+
+    const isTerminalStatus = (status?: string) => {
+        return status === "completed" || status === "failed";
+    };
+
     const isProcessing = (status?: string) => {
-        return !['indexed', 'failed'].includes(status || 'pending'); // Treat undefined/null as pending
+        return !isTerminalStatus(status);
     };
 
     // Polling for status updates
@@ -113,9 +120,10 @@ export default function KnowledgeBasePage() {
             await Promise.all(filesToPoll.map(async (file) => {
                 try {
                     const res = await api.get(`/kb/${file.id}/status`);
-                    const newStatus = res.data?.status || 'processing';
+                    const newStatus = res.data?.status || "queued";
 
                     if (newStatus !== file.status) {
+                        pollFailuresRef.current[file.id] = 0;
                         const index = newFiles.findIndex(f => f.id === file.id);
                         if (index !== -1) {
                             newFiles[index] = { ...newFiles[index], status: newStatus };
@@ -123,7 +131,11 @@ export default function KnowledgeBasePage() {
                         }
                     }
                 } catch (error) {
+                    pollFailuresRef.current[file.id] = (pollFailuresRef.current[file.id] || 0) + 1;
                     console.error(`Failed to poll status for ${file.id}`, error);
+                    if (pollFailuresRef.current[file.id] === 12) {
+                        toast("Lost connection while checking document status. Retrying…", "error");
+                    }
                 }
             }));
 
@@ -143,7 +155,7 @@ export default function KnowledgeBasePage() {
             const [kbRes, dbRes, llmRes] = await Promise.all([
                 api.get("/kb"),
                 api.get("/resources/databases"),
-                api.get("/llm")
+                api.get("/llm"),
             ]);
             setKbFiles(kbRes.data);
             setDbConnections(dbRes.data);
@@ -163,16 +175,17 @@ export default function KnowledgeBasePage() {
         const file = selectedFile;
         const graphEnabled = enableGraph;
 
-        // Close modal immediately — don't block the UI
         setIsUploadOpen(false);
         setSelectedFile(null);
         setEnableGraph(false);
+        setParsingStrategy("fast");
 
-        toast("Uploading file… processing will start automatically.", "info");
+        toast("Upload started — ingestion runs in the background.", "info");
 
         const formData = new FormData();
         formData.append("file", file);
         formData.append("enable_graph", graphEnabled.toString());
+        formData.append("parsing_strategy", parsingStrategy);
 
         api.post("/kb/upload", formData)
             .then(() => {
@@ -285,9 +298,11 @@ export default function KnowledgeBasePage() {
                 toast("Database connection deleted successfully", "success");
             }
             fetchResources();
-        } catch (error) {
+        } catch (error: unknown) {
             console.error("Delete failed", error);
-            toast("Delete failed. Please try again.", "error");
+            const err = error as { response?: { data?: { detail?: string } }; message?: string };
+            const errorMessage = err.response?.data?.detail || err.message || "Delete failed.";
+            toast(errorMessage, "error");
         } finally {
             setDeleting(false);
             setDeleteDialogOpen(false);
@@ -344,7 +359,11 @@ export default function KnowledgeBasePage() {
                 <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3 w-full md:w-auto">
                     <Can permission="kb.create">
                         <button
-                            onClick={() => setIsUploadOpen(true)}
+                            onClick={() => {
+                                setSelectedFile(null);
+                                setParsingStrategy("fast");
+                                setIsUploadOpen(true);
+                            }}
                             className="flex items-center justify-center px-4 py-2 bg-nvidia-green text-black font-bold rounded-lg hover:bg-[#8CD600] transition-all"
                         >
                             <Upload className="w-5 h-5 mr-2" />
@@ -433,11 +452,14 @@ export default function KnowledgeBasePage() {
                                     <h3 className={cn("text-base md:text-lg font-bold mb-1 truncate", isDark ? "text-white" : "text-gray-900")} title={file.name}>{file.name}</h3>
                                     <div className="flex justify-between items-center mt-4">
                                         <span className="text-xs text-gray-400 uppercase">{file.file_type}</span>
-                                        <span className={`text-xs font-bold px-2 py-1 rounded uppercase ${file.status === 'indexed' ? 'text-nvidia-green bg-nvidia-green/10' :
-                                            file.status === 'failed' ? 'text-red-500 bg-red-500/10' :
-                                                file.status === 'processing' ? 'text-blue-500 bg-blue-500/10' :
-                                                    file.status === 'indexing' ? 'text-yellow-500 bg-yellow-500/10' :
-                                                        'text-gray-500 bg-gray-500/10'
+                                        <span className={`text-xs font-bold px-2 py-1 rounded uppercase ${
+                                            file.status === "completed"
+                                                ? "text-nvidia-green bg-nvidia-green/10"
+                                                : file.status === "failed"
+                                                    ? "text-red-500 bg-red-500/10"
+                                                    : ["parsing", "chunking", "embedding", "indexing"].includes(file.status)
+                                                        ? "text-yellow-500 bg-yellow-500/10"
+                                                        : "text-blue-500 bg-blue-500/10"
                                             }`}>
                                             {file.status}
                                         </span>
@@ -525,33 +547,49 @@ export default function KnowledgeBasePage() {
 
             <Dialog
                 isOpen={isUploadOpen}
-                onClose={() => setIsUploadOpen(false)}
-                title="Upload Document"
+                onClose={() => {
+                    setIsUploadOpen(false);
+                }}
+                title="Upload document"
                 maxWidth="max-w-2xl"
                 buttons={[
-                    { label: "Cancel", onClick: () => setIsUploadOpen(false), variant: "outline" },
-                    { label: "Upload", onClick: () => document.getElementById('upload-form')?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true })), variant: "primary" }
+                    {
+                        label: "Cancel",
+                        onClick: () => {
+                            setIsUploadOpen(false);
+                        },
+                        variant: "outline",
+                    },
+                    {
+                        label: "Upload",
+                        onClick: () => {
+                            if (!selectedFile) {
+                                toast("Choose a file first", "error");
+                                return;
+                            }
+                            document.getElementById("upload-form")?.dispatchEvent(
+                                new Event("submit", { cancelable: true, bubbles: true }),
+                            );
+                        },
+                        variant: "primary",
+                    },
                 ]}
             >
                 <form id="upload-form" onSubmit={handleUpload} className="space-y-4">
-                    {/* ... upload form (unchanged) ... */}
                     <div className={cn("border-2 border-dashed rounded-xl p-8 text-center hover:border-nvidia-green/50 transition-colors", isDark ? "border-gray-700" : "border-gray-300")}>
                         <input
                             type="file"
                             id="file-upload"
                             className="hidden"
-                            accept=".pdf,.docx,.pptx,.ppt,.xlsx,.xls,.html,.htm,.md,.csv,.txt,.doc,.json,.png,.jpg,.jpeg,.tiff,.bmp,.webp"
+                            accept=".pdf,.docx,.pptx,.txt,.md"
                             onChange={(e) => {
                                 const file = e.target.files?.[0] || null;
                                 if (file) {
-                                    const allowedExtensions = [
-                                        'pdf', 'docx', 'pptx', 'ppt', 'xlsx', 'xls', 'html', 'htm', 'md',
-                                        'csv', 'txt', 'doc', 'json', 'png', 'jpg', 'jpeg', 'tiff', 'bmp', 'webp'
-                                    ];
-                                    const fileExt = file.name.split('.').pop()?.toLowerCase();
+                                    const allowedExtensions = ["pdf", "docx", "pptx", "txt", "md"];
+                                    const fileExt = file.name.split(".").pop()?.toLowerCase();
                                     if (!fileExt || !allowedExtensions.includes(fileExt)) {
                                         toast("Unsupported file format", "error");
-                                        e.target.value = ''; // Reset input
+                                        e.target.value = "";
                                         setSelectedFile(null);
                                         return;
                                     }
@@ -561,14 +599,56 @@ export default function KnowledgeBasePage() {
                         />
                         <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center">
                             <Upload className="w-12 h-12 text-gray-500 mb-4" />
-                            <span className={cn("font-bold mb-1 truncate max-w-full px-2", selectedFile ? "text-nvidia-green" : isDark ? "text-white" : "text-gray-900")}>
+                            <span
+                                className={cn(
+                                    "font-bold mb-1 truncate max-w-full px-2",
+                                    selectedFile ? "text-nvidia-green" : isDark ? "text-white" : "text-gray-900",
+                                )}
+                            >
                                 {selectedFile ? selectedFile.name : "Click to select file"}
                             </span>
-                            <span className={cn("text-sm mt-0.5", isDark ? "text-gray-500" : "text-gray-400")}>PDF, Office, Images, HTML supported (Max 100MB)</span>
+                            <span className={cn("text-sm mt-0.5", isDark ? "text-gray-500" : "text-gray-400")}>
+                                PDF, DOCX, PPTX, TXT, Markdown (max 100MB)
+                            </span>
                         </label>
                     </div>
 
-                    {process.env.NEXT_PUBLIC_ENABLE_GRAPH === 'true' && (
+                    <div className={cn("p-4 rounded-lg border space-y-3", isDark ? "bg-white/5 border-white/10" : "bg-gray-50 border-gray-200")}>
+                        <Label>Parsing strategy</Label>
+                        <p className={cn("text-xs -mt-1 mb-2", isDark ? "text-gray-400" : "text-gray-600")}>
+                            Default is <span className="font-semibold">Fast</span>. Change only if you need layout-aware parsing.
+                        </p>
+                        <div className="flex flex-col sm:flex-row gap-3">
+                            <label className={cn("flex-1 flex items-start gap-2 p-3 rounded-lg border cursor-pointer", parsingStrategy === "fast" ? "border-nvidia-green bg-nvidia-green/5" : isDark ? "border-white/10" : "border-gray-200")}>
+                                <input
+                                    type="radio"
+                                    name="parse"
+                                    checked={parsingStrategy === "fast"}
+                                    onChange={() => setParsingStrategy("fast")}
+                                    className="mt-1"
+                                />
+                                <div>
+                                    <div className={cn("font-semibold", isDark ? "text-white" : "text-gray-900")}>Fast</div>
+                                    <p className={cn("text-xs mt-0.5", isDark ? "text-gray-400" : "text-gray-600")}>Lower latency; best for most text documents.</p>
+                                </div>
+                            </label>
+                            <label className={cn("flex-1 flex items-start gap-2 p-3 rounded-lg border cursor-pointer", parsingStrategy === "hi_res" ? "border-nvidia-green bg-nvidia-green/5" : isDark ? "border-white/10" : "border-gray-200")}>
+                                <input
+                                    type="radio"
+                                    name="parse"
+                                    checked={parsingStrategy === "hi_res"}
+                                    onChange={() => setParsingStrategy("hi_res")}
+                                    className="mt-1"
+                                />
+                                <div>
+                                    <div className={cn("font-semibold", isDark ? "text-white" : "text-gray-900")}>High resolution</div>
+                                    <p className={cn("text-xs mt-0.5", isDark ? "text-gray-400" : "text-gray-600")}>Layout-aware parsing (slower, richer metadata).</p>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    {process.env.NEXT_PUBLIC_ENABLE_GRAPH === "true" && (
                         <div className={cn("p-4 rounded-lg border flex items-start space-x-3 transition-colors", isDark ? "bg-white/5 border-white/10" : "bg-gray-50 border-gray-200")}>
                             <div className="flex items-center h-5">
                                 <input
@@ -582,13 +662,14 @@ export default function KnowledgeBasePage() {
                             </div>
                             <div className="flex-1">
                                 <label htmlFor="enable_graph" className={cn("font-medium block", isDark ? "text-white" : "text-gray-900", llmConfigs.length === 0 && "opacity-50")}>
-                                    Enable Knowledge Graph
+                                    Enable knowledge graph
                                 </label>
                                 <p className={cn("text-xs mt-1", isDark ? "text-gray-400" : "text-gray-500")}>
-                                    {llmConfigs.length > 0
-                                        ? "Extracts entities and relationships using your default LLM. Best for structured understanding."
-                                        : <span className="text-yellow-500">Please add an LLM configuration to enable Knowledge Graph extraction.</span>
-                                    }
+                                    {llmConfigs.length > 0 ? (
+                                        "Uses your tenant default LLM on chunked text (optional)."
+                                    ) : (
+                                        <span className="text-yellow-500">Add an LLM configuration to enable graph extraction.</span>
+                                    )}
                                 </p>
                             </div>
                         </div>
@@ -801,57 +882,52 @@ export default function KnowledgeBasePage() {
                                     </div>
                                 ) : (
                                     queryResults
-                                        // Explicitly sort by score (Assumes Distance metric where lower is better)
-                                        .sort((a, b) => (a.score || 0) - (b.score || 0))
-                                        .map((chunk, i) => (
+                                        .slice()
+                                        .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+                                        .map((chunk, i) => {
+                                            const meta = chunk.metadata || {};
+                                            const cite = meta.source_reference || meta.filename || "Source";
+                                            const page = meta.page_number != null ? `Page ${meta.page_number}` : null;
+                                            const preview = meta.chunk_preview || chunk.content || chunk.text || "";
+                                            return (
                                             <div key={i} className={cn("rounded-xl border overflow-hidden group transition-all shadow-sm", isDark ? "bg-white/5 border-white/10 hover:border-nvidia-green/30" : "bg-white border-gray-200 hover:border-nvidia-green/50 hover:shadow-md")}>
-                                                {/* Header with Score */}
                                                 <div className={cn("px-4 py-2 flex justify-between items-center border-b", isDark ? "bg-white/5 border-white/5" : "bg-gray-50 border-gray-100")}>
                                                     <span className="text-xs font-bold text-nvidia-green uppercase tracking-wider">
                                                         Match #{i + 1}
                                                     </span>
-                                                    {chunk.score !== undefined && (
-                                                        <div className="flex items-center space-x-1" title="Distance Score (Lower is better)">
-                                                            <div className="w-16 h-1.5 bg-gray-700/50 rounded-full overflow-hidden">
-                                                                {/* Visual representation of score. For distance, smaller bar = better? Or inverse?
-                                                                    Let's show "closeness". 0 distance = full bar?
-                                                                    Max distance ~2?
-                                                                    Let's map 0->100%, 2->0% approx for visual.
-                                                                */}
-                                                                <div
-                                                                    className="h-full bg-nvidia-green"
-                                                                    style={{ width: `${Math.max(0, 100 - ((chunk.score || 0) * 50))}%` }} // Rough heuristic for visual bar
-                                                                />
-                                                            </div>
+                                                    {chunk.score !== undefined && chunk.score !== null && (
+                                                        <div className="flex items-center space-x-1" title="Retrieval score from Qdrant (higher is better for cosine)">
                                                             <span className={cn("text-xs font-mono", isDark ? "text-gray-400" : "text-gray-500")}>
-                                                                {typeof chunk.score === 'number' ? chunk.score.toFixed(4) : chunk.score} (Dist)
+                                                                {typeof chunk.score === "number" ? chunk.score.toFixed(4) : String(chunk.score)}
                                                             </span>
                                                         </div>
                                                     )}
                                                 </div>
 
+                                                <details className="border-b border-white/5">
+                                                    <summary className={cn("cursor-pointer px-4 py-2 text-xs font-semibold list-none flex items-center justify-between", isDark ? "bg-black/20 text-gray-300 hover:bg-white/5" : "bg-gray-50 text-gray-700 hover:bg-gray-100")}>
+                                                        <span className="truncate pr-2">Citation: {cite}{page ? ` · ${page}` : ""}</span>
+                                                        <span className="text-nvidia-green shrink-0 text-[10px] uppercase tracking-wide">Expand</span>
+                                                    </summary>
+                                                    <div className={cn("px-4 py-2 text-xs space-y-1", isDark ? "bg-black/10 text-gray-400" : "bg-white text-gray-600")}>
+                                                        {meta.section_title && (
+                                                            <div><span className="font-semibold text-gray-500">Section:</span> {String(meta.section_title)}</div>
+                                                        )}
+                                                        {meta.chunk_index != null && (
+                                                            <div><span className="font-semibold text-gray-500">Chunk index:</span> {String(meta.chunk_index)}</div>
+                                                        )}
+                                                        <div className="text-gray-500 line-clamp-3">{preview}</div>
+                                                    </div>
+                                                </details>
+
                                                 <div className="p-5">
-                                                    {/* Content */}
                                                     <p className={cn("text-sm md:text-base leading-relaxed whitespace-pre-wrap font-sans", isDark ? "text-gray-200" : "text-gray-800")}>
                                                         {chunk.content || chunk.text || "No text content available."}
                                                     </p>
                                                 </div>
-
-                                                {/* Metadata Footer */}
-                                                {chunk.metadata && Object.keys(chunk.metadata).length > 0 && (
-                                                    <div className={cn("px-4 py-3 border-t", isDark ? "bg-black/20 border-white/5" : "bg-gray-50 border-gray-100")}>
-                                                        <div className="flex flex-wrap gap-2">
-                                                            {Object.entries(chunk.metadata).map(([k, v]) => (
-                                                                <div key={k} className={cn("flex items-center text-[10px] md:text-xs px-2 py-1.5 rounded border transition-colors", isDark ? "text-gray-400 bg-white/5 border-white/5 hover:bg-white/10" : "text-gray-600 bg-white border-gray-200 hover:bg-gray-50")}>
-                                                                    <span className={cn("font-semibold uppercase mr-1.5", isDark ? "text-gray-500" : "text-gray-400")}>{k.replace(/_/g, ' ')}:</span>
-                                                                    <span className={cn("truncate max-w-[200px] font-mono", isDark ? "text-gray-300" : "text-gray-900")}>{String(v)}</span>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                )}
                                             </div>
-                                        ))
+                                            );
+                                        })
                                 )}
                             </div>
                         </div>

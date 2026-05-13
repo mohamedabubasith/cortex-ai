@@ -6,9 +6,8 @@ This project uses a Dockerized setup with a split-database architecture to ensur
 
 -   **Frontend**: Next.js application.
 -   **Backend**: FastAPI application.
--   **Database**: PostgreSQL with `pgvector` extension.
-    -   `chat_db`: Stores application data (Users, Chats, etc.). Managed by **Alembic**.
-    -   `cognee_db`: Stores Cognee internal data and vector embeddings. Managed by **Cognee**.
+-   **Database**: PostgreSQL (application data: users, chats, KB metadata, etc.). Managed by **Alembic**.
+-   **Knowledge base vectors**: **Qdrant** (document chunks and embeddings from the Haystack ingestion pipeline). Configure `QDRANT_URL` (include `:80` if REST is behind a proxy on port 80), `QDRANT_COLLECTION`, and `QDRANT_API_KEY` when the instance is secured.
 
 ## 1. Wipe and Recreate (Fresh Start)
 

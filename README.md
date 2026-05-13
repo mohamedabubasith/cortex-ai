@@ -4,13 +4,13 @@ An intelligent, agentic chat platform for your data.
 
 Basivo is a powerful, open-source AI platform that combines **RAG (Retrieval-Augmented Generation)** with **SQL Agent** capabilities. It allows users to chat with their documents (PDFs, text) AND their live databases (PostgreSQL, MySQL) in a single, unified interface.
 
-Built with **FastAPI**, **Next.js**, **Cognee**, and **pgvector**.
+Built with **FastAPI**, **Next.js**, **Haystack**, **Unstructured**, **Ollama**, **Qdrant**, and **PostgreSQL**.
 
 ---
 
 ## ✨ Key Features
 
-- **📚 Knowledge Base (RAG)**: Upload and chat with PDF, DOCX, and TXT files. Powered by Cognee for advanced graph-based retrieval.
+- **📚 Knowledge Base (RAG)**: Upload PDF, DOCX, PPTX, TXT, and Markdown. Ingestion uses Unstructured (fast or high-resolution), Haystack chunking, Ollama embeddings, and Qdrant vector search with citation-friendly metadata.
 - **🗄️ SQL Agent**: Connect to live databases (PostgreSQL, MySQL, etc.) and ask questions about your data ("Show me the latest users", "Count orders by month").
 - **🤖 Multi-LLM Support**: Compatible with OpenAI (GPT-4o, GPT-3.5) and any OpenAI-compatible API (LocalLLM, vLLM).
 - **⚡ Real-time Streaming**: Smooth, typewriter-style chat responses.
@@ -23,8 +23,8 @@ Built with **FastAPI**, **Next.js**, **Cognee**, and **pgvector**.
 
 - **Backend**: Python 3.10+, FastAPI, SQLAlchemy, AsyncPG
 - **Frontend**: Next.js 14 (App Router), TypeScript, TailwindCSS, Framer Motion
-- **AI/ML**: Cognee (Knowledge Graph + Vector Search), OpenAI API
-- **Database**: PostgreSQL 16 + pgvector (Vector Embeddings + Relational Data)
+- **AI/ML**: Haystack pipelines, Unstructured parsing, Ollama embeddings, Qdrant, OpenAI API
+- **Database**: PostgreSQL 16 (application data); knowledge-base vectors stored in **Qdrant**
 - **Infrastructure**: Docker, Docker Compose, Nginx (Optional)
 
 ---
@@ -53,7 +53,7 @@ cp .env.example .env
 # --- Database ---
 POSTGRES_USER=admin
 POSTGRES_PASSWORD=admin
-POSTGRES_DB=cognee_db
+POSTGRES_DB=chat_db
 
 # --- AI / LLM ---
 OPENAI_API_KEY=sk-your-key-here
@@ -61,8 +61,14 @@ OPENAI_API_KEY=sk-your-key-here
 # --- Security ---
 SECRET_KEY=change_this_to_a_secure_random_string
 
-# --- Cognee & Vector DB ---
-DB_PROVIDER=postgres
+# --- Knowledge base (Haystack + Unstructured + Ollama + Qdrant) ---
+UNSTRUCTURED_API_URL=https://your-unstructured-host/
+OLLAMA_BASE_URL=https://your-ollama-host/
+OLLAMA_MODEL=paraphrase-multilingual:latest
+QDRANT_URL=https://your-qdrant-host/
+QDRANT_COLLECTION=cortex_kb
+QDRANT_API_KEY=   # if Qdrant requires API key / Bearer
+
 VECTOR_DB_PROVIDER=pgvector
 ENABLE_BACKEND_ACCESS_CONTROL=true
 REQUIRE_AUTHENTICATION=true

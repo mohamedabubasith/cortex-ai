@@ -560,7 +560,7 @@ export default function AgentConfiguration({ params: paramsPromise }: { params: 
                                                     <td className="px-6 py-4">
                                                         <span className={cn(
                                                             "px-2 py-1 rounded-full text-xs font-medium",
-                                                            kb.status === "indexed" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+                                                            kb.status === "completed" || kb.status === "indexed" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
                                                         )}>
                                                             {kb.status}
                                                         </span>

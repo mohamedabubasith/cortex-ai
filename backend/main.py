@@ -1,5 +1,11 @@
+from pathlib import Path
+
 from dotenv import load_dotenv
-load_dotenv()
+
+_backend_dir = Path(__file__).resolve().parent
+_repo_root = _backend_dir.parent
+# Repository root `.env` only (no `backend/.env`).
+load_dotenv(_repo_root / ".env")
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,13 +31,15 @@ async def lifespan(app: FastAPI):
     # Validate critical configuration
     settings.validate_providers()
 
-    from app.core.database import engine, Base
+    from app.core.database import AsyncSessionLocal
     # Import models to ensure they are registered with Base
-    from app.models import models
+    from app.models import models  # noqa: F401
+    from app.core.startup import create_default_admin
 
-    # Database schema is managed by Alembic migrations.
-    # Automatic table creation is disabled to prevent conflicts.
-    # See backend/alembic for migration scripts.
+    # Database schema is managed by Alembic (see Dockerfile CMD: alembic upgrade head).
+    # Create first superuser from ADMIN_EMAIL / ADMIN_PASSWORD when none exists.
+    async with AsyncSessionLocal() as db:
+        await create_default_admin(db)
 
     yield
     # Shutdown logic (if any)
@@ -96,3 +104,9 @@ from app.routers import groups
 app.include_router(groups.router, prefix=f"{settings.API_V1_STR}/tenant/groups", tags=["tenant-groups"])
 from app.routers import roles
 app.include_router(roles.router, prefix=f"{settings.API_V1_STR}/tenant/roles", tags=["tenant-roles"])
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

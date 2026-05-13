@@ -1,152 +1,70 @@
-# Knowledge Base API - Automated Testing Guide
+# Backend tests
 
-## 🧪 Running the Tests
+## Knowledge base (Haystack / Qdrant)
 
-### Quick Start
+`tests/test_kb_automated.py` contains **unit tests** for Haystack-style metadata filters (`meta.kb_id` mapping from legacy `{ "kb_id": "..." }` and `{ "kb_id": { "$in": [...] } }` shapes).
+
 ```bash
-# Install test dependencies
-uv sync
-
-# Run all tests
 cd backend
 uv run pytest tests/test_kb_automated.py -v
-
-# Run with coverage
-uv run pytest tests/test_kb_automated.py --cov=app --cov-report=html
-
-# Run specific test class
-uv run pytest tests/test_kb_automated.py::TestCogneeService -v
-
-# Run specific test
-uv run pytest tests/test_kb_automated.py::TestCogneeService::test_upload_and_index_success -v
 ```
 
-## 📋 Test Suite Overview
+### Integration (optional)
 
-### Test Classes
+**Full KB E2E** (Postgres row + `process_kb` + status poll + search + cleanup):
 
-#### 1. **TestCogneeService** (5 tests)
-Tests the Cognee service layer:
-- ✅ Upload and index success
-- ✅ Upload with non-existent file
-- ✅ Get processing status
-- ✅ Query unindexed dataset
-- ✅ Delete dataset
-
-#### 2. **TestKnowledgeBaseAPI** (7 tests)
-Tests API endpoints:
-- ✅ Upload invalid file type
-- ✅ Upload success
-- ✅ List KB files
-- ✅ Get status (not found)
-- ✅ Query not indexed document
-- ✅ Delete success
-- ✅ Delete not found
-
-#### 3. **TestEndToEndWorkflow** (1 test)
-Complete workflow:
-- ✅ Upload → Status → List → Delete
-
-**Total: 13 comprehensive tests**
-
-## 🎯 Test Features
-
-### Fixtures
-- `test_db_engine` - In-memory test database
-- `db_session` - Database session per test
-- `test_user` - Mock user
-- `test_llm_config` - Mock LLM configuration
-- `test_file` - Temporary test document
-- `auth_headers` - Mock authentication
-
-### Coverage
-- ✅ Happy path scenarios
-- ✅ Error handling
-- ✅ Edge cases
-- ✅ Validation
-- ✅ Cleanup
-
-## 📊 Expected Output
-
-```
-================================ test session starts =================================
-collected 13 items
-
-tests/test_kb_automated.py::TestCogneeService::test_upload_and_index_success PASSED
-tests/test_kb_automated.py::TestCogneeService::test_upload_nonexistent_file PASSED
-tests/test_kb_automated.py::TestCogneeService::test_get_processing_status PASSED
-tests/test_kb_automated.py::TestCogneeService::test_query_unindexed_dataset PASSED
-tests/test_kb_automated.py::TestCogneeService::test_delete_dataset PASSED
-tests/test_kb_automated.py::TestKnowledgeBaseAPI::test_upload_kb_file_invalid_type PASSED
-tests/test_kb_automated.py::TestKnowledgeBaseAPI::test_upload_kb_file_success PASSED
-tests/test_kb_automated.py::TestKnowledgeBaseAPI::test_get_kb_files PASSED
-tests/test_kb_automated.py::TestKnowledgeBaseAPI::test_get_kb_status_not_found PASSED
-tests/test_kb_automated.py::TestKnowledgeBaseAPI::test_query_kb_not_indexed PASSED
-tests/test_kb_automated.py::TestKnowledgeBaseAPI::test_delete_kb_success PASSED
-tests/test_kb_automated.py::TestKnowledgeBaseAPI::test_delete_kb_not_found PASSED
-tests/test_kb_automated.py::TestEndToEndWorkflow::test_full_workflow PASSED
-
-================================ 13 passed in 2.34s ==================================
-```
-
-## 🔧 CI/CD Integration
-
-### GitHub Actions
-```yaml
-name: KB API Tests
-
-on: [push, pull_request]
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: '3.10'
-      - run: uv sync
-      - run: uv run pytest tests/test_kb_automated.py -v
-```
-
-## 🐛 Debugging Failed Tests
-
-### Verbose Output
 ```bash
-pytest tests/test_kb_automated.py -vv -s
+cd backend
+export RUN_RAG_E2E=1
+export DATABASE_URL='postgresql+asyncpg://USER:PASS@HOST:5432/chat_db'
+export UNSTRUCTURED_API_URL='https://your-unstructured-host/'
+export UNSTRUCTURED_API_KEY='...'   # if your Unstructured instance requires it
+export OLLAMA_BASE_URL='https://your-ollama-host/'
+export OLLAMA_MODEL='paraphrase-multilingual:latest'
+export QDRANT_URL='https://your-qdrant-host/'
+export QDRANT_COLLECTION='Rag'
+export QDRANT_API_KEY='...'   # if your Qdrant instance requires it
+export INTEGRATION_USER_EMAIL='existing-user@your-app'
+export INTEGRATION_USER_PASSWORD='...'
+
+uv run pytest tests/test_rag_e2e_integration.py::test_rag_kb_ingest_status_and_search_db_path -v -s
 ```
 
-### Run Single Test
+**HTTP E2E** against a running API (upload → `/status` → `/query`):
+
 ```bash
-pytest tests/test_kb_automated.py::TestCogneeService::test_upload_and_index_success -vv -s
+export RUN_RAG_HTTP_E2E=1
+export LIVE_API_BASE_URL='http://127.0.0.1:8000'
+# same INTEGRATION_USER_* (and optional INTEGRATION_TENANT_ID)
+uv run pytest tests/test_rag_e2e_integration.py::test_rag_http_upload_status_query_live_api -v -s
 ```
 
-### Print Debug Info
+**RAG full pipeline** (file on disk → parse → chunk → embed → Qdrant index → search → cleanup; **no Postgres**, same `rag_service.process_document` as worker core):
+
 ```bash
-pytest tests/test_kb_automated.py --log-cli-level=DEBUG
+cd backend
+export RUN_RAG_FULL_PIPELINE=1
+export QDRANT_URL='http://your-qdrant-host:80'
+export QDRANT_API_KEY='...'            # if required
+export QDRANT_COLLECTION='haystack_kb' # must be Haystack-owned (not a legacy Qdrant-only collection)
+export UNSTRUCTURED_API_KEY='...'      # if required
+uv run pytest tests/test_rag_pipeline_integration.py -v -s
 ```
 
-## ✅ Test Checklist
+**RAG quick script** (shorter path; same services):
 
-Before deploying:
-- [ ] All 13 tests pass
-- [ ] No warnings
-- [ ] Coverage > 80%
-- [ ] Integration tests pass
-- [ ] End-to-end workflow works
-
-## 🚀 Continuous Testing
-
-Set up pre-commit hooks:
 ```bash
-# .git/hooks/pre-commit
-#!/bin/bash
-pytest tests/test_kb_automated.py --tb=short
+cd backend
+uv run python tests/verify_rag.py
 ```
 
-Make it executable:
+## Other suites
+
+Run the full backend test tree:
+
 ```bash
-chmod +x .git/hooks/pre-commit
+cd backend
+uv run pytest tests/ -v
 ```
 
-Now tests run automatically before every commit! 🎉
+Some tests may require database or network access depending on your configuration.

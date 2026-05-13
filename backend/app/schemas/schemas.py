@@ -114,7 +114,9 @@ class KnowledgeBase(KnowledgeBaseBase):
     id: str
     user_id: str
     created_at: datetime
-    
+    file_type: Optional[str] = None
+    parsing_strategy: Optional[str] = None
+
     class Config:
         from_attributes = True
 
@@ -126,6 +128,21 @@ class KBQueryRequest(BaseModel):
 class KBShareRequest(BaseModel):
     email: EmailStr
     role: str = "viewer"
+
+
+class KBIngestSettings(BaseModel):
+    """Bounds for chunk size (characters) derived from embedding max-input tokens."""
+
+    min_chunk_size: int
+    max_chunk_size: int
+    max_chunk_overlap: int
+    default_chunk_size: int
+    default_chunk_overlap: int
+    embedding_model: str
+    embedding_max_input_tokens: int
+    chars_per_token_estimate: float
+    rag_embedding_batch_size: int
+
 
 # Database Schemas
 class DatabaseConnectionBase(BaseModel):

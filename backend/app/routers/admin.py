@@ -43,7 +43,7 @@ async def create_admin_user(
                 detail="Admin user with this email already exists."
             )
 
-    # Create new user (handles password hashing and Cognee creation)
+    # Create new user (handles password hashing and default tenant provisioning)
     user = await auth_service.create_user(user_in)
     
     # Promote to superuser

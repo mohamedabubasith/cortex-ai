@@ -16,6 +16,7 @@ import logging
 import tiktoken
 import time
 from app.core.utils import count_tokens
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -179,7 +180,7 @@ class ChatService:
                 # Group KBs by embedding model
                 kbs_by_model = {}
                 for kb in agent.knowledge_bases:
-                    model = kb.embedding_model or "sentence-transformers/all-MiniLM-L6-v2" # Default fallback
+                    model = kb.embedding_model or settings.OLLAMA_MODEL
                     if model not in kbs_by_model:
                         kbs_by_model[model] = []
                     kbs_by_model[model].append(kb)
@@ -207,12 +208,7 @@ class ChatService:
 
                 # Process all gathered results
                 if all_results:
-                    # Sort by score if available (descending for cosine/similarity? or ascending for distance?)
-                    # Chroma returns distance usually? Or similarity? 
-                    # LangChain similarity_search_with_score documentation says: "score: float, similarity score"
-                    # But often it is distance (lower is better).
-                    # Let's assume lower is better for L2, but we print them directly.
-                    # We'll just take top K overall if we wanted, but context window logic handles token limit.
+                    # Sort by score when available (Qdrant cosine: higher is typically more similar)
                     
                     kb_filename_map = {kb.id: kb.filename for kb in agent.knowledge_bases}
 

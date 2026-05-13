@@ -1,7 +1,7 @@
 [project]
 name = "cortex-ai-backend"
 version = "0.1.0"
-description = "FastAPI backend for Basivo with LangChain RAG"
+description = "FastAPI backend for Basivo with Haystack RAG"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -18,13 +18,6 @@ dependencies = [
     "python-multipart",
     "alembic",
     "openai",
-    "langchain",
-    "langchain-community",
-    "fastembed",
-    "langchain-chroma",
-    "langchain-text-splitters",
-    "langchain-openai",
-    "chromadb",
     "qdrant-client",
     "pypdf",
     "python-docx",
@@ -34,16 +27,15 @@ dependencies = [
     "openpyxl",
     "pandas",
     "python-pptx",
-    "unstructured[all-docs]",
     "fastmcp",
     "beautifulsoup4",
     "duckduckgo-search",
     "tiktoken",
     "instructor",
-    "docling",
-    "cognee",
     "neo4j",
     "anthropic",
+    "haystack-ai>=2.8",
+    "qdrant-haystack>=10.3.0",
 ]
 
 [tool.uv]
@@ -59,4 +51,10 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["app"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+markers = [
+    "integration: live external services (Unstructured, Ollama, Qdrant, Postgres)",
+]
 

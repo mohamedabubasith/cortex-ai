@@ -2,21 +2,46 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, B
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List, Optional
+import logging
 import os
 import uuid
 
 from app.core.database import get_db
+from app.core.config import settings
 from app.models import models
 from app.schemas import schemas
 from app.repositories.kb_repository import KBRepository
-from app.services.kb_service import KBService
+from app.services.kb_service import KBService, run_kb_ingestion_background
+from app.services.kb_chunk_limits import clamp_chunk_size_overlap
 from app.services.auth_service import get_current_active_user, get_current_tenant
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 def get_kb_service(db: AsyncSession = Depends(get_db)) -> KBService:
     """Dependency injection for KB service"""
     return KBService(KBRepository(db))
+
+
+@router.get("/ingest-settings", response_model=schemas.KBIngestSettings)
+async def kb_ingest_settings(_user: models.User = Depends(get_current_active_user)):
+    """Chunk size bounds for the UI (characters), derived from embedding model token budget."""
+    mx = settings.kb_max_chunk_chars
+    mn = settings.KB_MIN_CHUNK_CHARS
+    dcs = min(1024, mx)
+    dco = min(200, max(0, dcs - 1))
+    return schemas.KBIngestSettings(
+        min_chunk_size=mn,
+        max_chunk_size=mx,
+        max_chunk_overlap=max(0, mx - 1),
+        default_chunk_size=dcs,
+        default_chunk_overlap=dco,
+        embedding_model=settings.OLLAMA_MODEL,
+        embedding_max_input_tokens=settings.KB_EMBEDDING_MAX_INPUT_TOKENS,
+        chars_per_token_estimate=settings.KB_CHUNK_CHARS_PER_TOKEN,
+        rag_embedding_batch_size=settings.RAG_EMBEDDING_BATCH_SIZE,
+    )
+
 
 @router.post("/upload", response_model=schemas.KnowledgeBase)
 async def upload_kb_file(
@@ -25,19 +50,16 @@ async def upload_kb_file(
     llm_config_id: Optional[str] = Form(None),
     chunk_size: int = Form(1000),
     chunk_overlap: int = Form(200),
-    embedding_model: str = Form("sentence-transformers/all-MiniLM-L6-v2"),
+    embedding_model: Optional[str] = Form(None),
+    parsing_strategy: str = Form("fast"),
     enable_graph: bool = Form(False),
     db: AsyncSession = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user),
     current_tenant: models.Tenant = Depends(get_current_tenant),
     kb_service: KBService = Depends(get_kb_service)
 ):
-    """Upload knowledge base file"""
-    allowed_extensions = [
-        '.pdf', '.docx', '.txt', '.md', '.doc', '.json', '.xlsx', '.xls', 
-        '.csv', '.pptx', '.ppt', '.html', '.htm', '.png', '.jpg', '.jpeg', 
-        '.tiff', '.bmp', '.webp'
-    ]
+    """Upload knowledge base file for Haystack ingestion (Unstructured + Ollama + Qdrant)."""
+    allowed_extensions = [".pdf", ".docx", ".pptx", ".txt", ".md"]
     file_ext = os.path.splitext(file.filename)[1].lower()
     
     if file_ext not in allowed_extensions:
@@ -90,10 +112,26 @@ async def upload_kb_file(
             print("INFO: Graph enabled but no LLM config found. Disabling graph integration.")
             
         if not llm_config:
-            # We allow upload and proceed with local embeddings
-            print("INFO: No LLM Config found. Using default/local embeddings for indexing.")
-        
-        # Create KB record immediately
+            print("INFO: No LLM Config found. Ingestion will use Ollama embeddings from server configuration.")
+
+        strat = (parsing_strategy or "fast").lower()
+        if strat not in ("fast", "hi_res"):
+            raise HTTPException(status_code=400, detail="parsing_strategy must be 'fast' or 'hi_res'")
+
+        emb_model = (embedding_model or "").strip() or settings.OLLAMA_MODEL
+
+        raw_cs, raw_co = chunk_size, chunk_overlap
+        chunk_size, chunk_overlap = clamp_chunk_size_overlap(chunk_size, chunk_overlap)
+        if (chunk_size, chunk_overlap) != (raw_cs, raw_co):
+            logger.info(
+                "[kb-ingest] upload clamped chunk_size/overlap from %s/%s to %s/%s (max_chunk_chars=%s)",
+                raw_cs,
+                raw_co,
+                chunk_size,
+                chunk_overlap,
+                settings.kb_max_chunk_chars,
+            )
+
         kb = await kb_service.create_kb_record(
             user_id=current_user.id,
             filename=file.filename,
@@ -102,26 +140,40 @@ async def upload_kb_file(
             file_size=file_size,
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
-            embedding_model=embedding_model,
-            tenant_id=current_tenant.id, # Pass Tenant ID
-            enable_graph=enable_graph
+            embedding_model=emb_model,
+            tenant_id=current_tenant.id,
+            enable_graph=enable_graph,
+            parsing_strategy=strat,
         )
         
-        # Process in background (always)
+        # Process in background (always). Use a dedicated coroutine with a fresh DB session —
+        # the request-scoped session is closed after the response while this task still runs.
+        llm_id = llm_config.id if llm_config else None
         background_tasks.add_task(
-            kb_service.process_kb,
+            run_kb_ingestion_background,
             kb.id,
             file_path,
             current_user.id,
-            current_tenant.id, # Pass Tenant ID
+            current_tenant.id,
             chunk_size,
             chunk_overlap,
-            llm_config,
-            embedding_model,
+            emb_model,
             current_user.email,
-            enable_graph
+            enable_graph,
+            llm_id,
         )
-        
+        logger.info(
+            "[kb-ingest] upload accepted; background ingestion scheduled kb_id=%s path=%s size=%s "
+            "chunk=%s/%s model=%s strategy=%s (watch server logs for [kb-ingest])",
+            kb.id,
+            file_path,
+            file_size,
+            chunk_size,
+            chunk_overlap,
+            emb_model,
+            strat,
+        )
+
         return kb
         
     except HTTPException:
@@ -148,7 +200,7 @@ async def get_kb_status(
     current_tenant: models.Tenant = Depends(get_current_tenant),
     kb_service: KBService = Depends(get_kb_service)
 ):
-    """Get Cognee processing status"""
+    """Get ingestion pipeline status for a knowledge base document."""
     status = await kb_service.get_status(kb_id, current_user.id, current_tenant.id, user_email = current_user.email)
     
     if not status:
@@ -267,12 +319,7 @@ async def query_kb(
     
     if not result["success"]:
         raise HTTPException(status_code=400, detail=result["message"])
-    
-    return result
 
-    if not result["success"]:
-        raise HTTPException(status_code=404, detail=result["message"])
-    
     return result
 
 @router.post("/{kb_id}/share")

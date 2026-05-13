@@ -18,9 +18,10 @@ class KBRepository:
         file_size: int,
         chunk_size: int,
         chunk_overlap: int,
-        embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2",
-        status: str = "pending",
-        tenant_id: str = None
+        embedding_model: str = "paraphrase-multilingual:latest",
+        status: str = "queued",
+        tenant_id: str = None,
+        parsing_strategy: str = "fast",
     ) -> models.KnowledgeBase:
         """Create KB record"""
         kb = models.KnowledgeBase(
@@ -35,6 +36,7 @@ class KBRepository:
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
             embedding_model=embedding_model,
+            parsing_strategy=parsing_strategy,
             status=status
         )
         self.db.add(kb)

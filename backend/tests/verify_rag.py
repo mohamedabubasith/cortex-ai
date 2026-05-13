@@ -5,6 +5,9 @@ import sys
 # Add backend to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# Manual smoke script. For pytest with explicit stage assertions (parse → chunk → index → search), see:
+#   tests/test_rag_pipeline_integration.py  (set RUN_RAG_FULL_PIPELINE=1)
+
 from app.services.rag_service import rag_service
 
 async def verify():
@@ -28,7 +31,8 @@ async def verify():
             tenant_id="verify-tenant",
             chunk_size=100,
             chunk_overlap=20,
-            llm_config=None
+            llm_config=None,
+            parsing_strategy="fast",
         )
         print("✅ Indexing successful.")
         

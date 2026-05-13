@@ -1,13 +1,20 @@
 import asyncio
 from logging.config import fileConfig
+from pathlib import Path
 
+from dotenv import load_dotenv
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 
-# Import your models and settings
+_backend_dir = Path(__file__).resolve().parent.parent
+_repo_root = _backend_dir.parent
+# Repository root `.env` only (same as main.py).
+load_dotenv(_repo_root / ".env")
+
+# Import your models and settings (after env is on the process)
 from app.core.config import settings
 from app.models.models import Base
 
