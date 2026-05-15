@@ -121,13 +121,31 @@ class AuthService:
             )
             self.db.add(membership)
             await self.db.commit()
-            
+
+            # 3. Provision KB tenant (non-blocking — failure does not abort registration)
+            try:
+                from app.services.cortex_kb_client import is_configured, provision_kb_tenant
+                if is_configured():
+                    kb_key = await provision_kb_tenant(tenant_name)
+                    if kb_key:
+                        await self.db.execute(
+                            __import__("sqlalchemy", fromlist=["update"]).update(models.Tenant)
+                            .where(models.Tenant.id == new_tenant.id)
+                            .values(kb_api_key=kb_key)
+                        )
+                        await self.db.commit()
+                        print(f"INFO: KB tenant provisioned for '{tenant_name}'")
+                    else:
+                        print(f"WARNING: KB tenant provisioning failed for '{tenant_name}' — using global key")
+            except Exception as kb_err:
+                print(f"WARNING: KB provisioning error: {kb_err}")
+
             # Re-fetch user to ensure relationships (tenants) are loaded for the response
             # We use get_by_email which now includes eager loading
             refreshed_user = await self.repo.get_by_email(user_in.email)
             if refreshed_user:
                 return refreshed_user
-                
+
         except Exception as e:
             print(f"Failed to provision default tenant: {e}")
             # Non-critical? Actually critical for multi-tenancy.

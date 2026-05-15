@@ -135,6 +135,11 @@ class Settings(BaseSettings):
     NEO4J_URI: Optional[str] = "bolt://neo4j:7687"
     NEO4J_USER: Optional[str] = "neo4j"
     NEO4J_PASSWORD: Optional[str] = "password"
+
+    # ── External Cortex KB service ────────────────────────────────
+    # Set both to enable external KB; leave blank to use local Haystack pipeline.
+    CORTEX_KB_URL: str = ""       # e.g. https://knowledge.basivo.in
+    CORTEX_KB_API_KEY: str = ""   # e.g. cortex_xxx
     
     class Config:
         env_file = (str(_REPO_ROOT / ".env"),)

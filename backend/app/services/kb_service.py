@@ -1,10 +1,20 @@
-"""Knowledge Base Service (Haystack + Unstructured + Ollama + Qdrant)."""
+"""
+Knowledge Base Service.
+
+Routes all KB operations through the external Cortex KB service when
+CORTEX_KB_URL + CORTEX_KB_API_KEY are configured.  Falls back to the
+local Haystack → Unstructured → Ollama → Qdrant pipeline otherwise.
+
+New records get external_doc_id populated; legacy records without it
+continue to work via local RAG.
+"""
+import asyncio
 import logging
 import os
 import traceback
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.repositories.kb_repository import KBRepository
 from app.services.rag_service import rag_service
@@ -12,8 +22,68 @@ from app.services.neo4j_service import neo4j_service
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
 from app.models import models
+from app.services import cortex_kb_client as kb_client
 
 logger = logging.getLogger(__name__)
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+async def _get_kb_api_key(tenant_id: Optional[str]) -> Optional[str]:
+    """
+    Return the per-tenant kb_api_key (stored on Tenant row).
+    Falls back to None — callers that pass None to kb_client use global key.
+    """
+    if not tenant_id:
+        return None
+    try:
+        async with AsyncSessionLocal() as session:
+            row = (await session.execute(
+                select(models.Tenant.kb_api_key).where(models.Tenant.id == tenant_id)
+            )).scalar_one_or_none()
+            return row
+    except Exception:
+        return None
+
+
+# ── Background helpers ────────────────────────────────────────────────────────
+
+async def _sync_kb_status_loop(kb_id: str, external_doc_id: str, tenant_id: Optional[str] = None) -> None:
+    """
+    Poll the Cortex KB service every 5 s until the document reaches a
+    terminal state (completed / failed), then update the local DB record.
+    Times out after 10 min (120 × 5 s).
+    """
+    api_key = await _get_kb_api_key(tenant_id)
+    for _ in range(120):
+        await asyncio.sleep(5)
+        try:
+            data = await kb_client.kb_get_status(external_doc_id, api_key=api_key)
+            if not data:
+                logger.warning("[kb-sync] %s not found in KB service", external_doc_id)
+                break
+
+            overall = data.get("overall_status", "")
+            stages = data.get("stages", {})
+            mapped = kb_client.map_kb_status(overall, stages)
+
+            async with AsyncSessionLocal() as session:
+                await session.execute(
+                    update(models.KnowledgeBase)
+                    .where(models.KnowledgeBase.id == kb_id)
+                    .values(status=mapped)
+                )
+                await session.commit()
+
+            logger.info("[kb-sync] kb_id=%s external=%s overall=%s → local=%s",
+                        kb_id, external_doc_id, overall, mapped)
+
+            if mapped in ("completed", "failed"):
+                break
+        except Exception as exc:
+            logger.warning("[kb-sync] kb_id=%s poll error: %s", kb_id, exc)
+
+    logger.info("[kb-sync] polling finished for kb_id=%s", kb_id)
 
 
 async def run_kb_ingestion_background(
@@ -29,20 +99,13 @@ async def run_kb_ingestion_background(
     llm_config_id: Optional[str],
 ) -> None:
     """
-    Entry point for FastAPI ``BackgroundTasks``.
-
-    Opens a **new** async SQLAlchemy session. The request-scoped session used during
-    ``/upload`` is closed after the response; ingestion runs later and must not use it.
+    Entry point for FastAPI BackgroundTasks (local Haystack pipeline path).
+    Only called when CORTEX_KB_URL is not configured.
     """
     exists = os.path.isfile(file_path) if file_path else False
     logger.info(
         "[kb-ingest] background task started kb_id=%s file=%s exists=%s chunk=%s/%s model=%s",
-        kb_id,
-        file_path,
-        exists,
-        chunk_size,
-        chunk_overlap,
-        embedding_model,
+        kb_id, file_path, exists, chunk_size, chunk_overlap, embedding_model,
     )
     try:
         async with AsyncSessionLocal() as session:
@@ -66,30 +129,19 @@ async def run_kb_ingestion_background(
             if not llm_config and enable_graph:
                 enable_graph = False
 
-            logger.info(
-                "[kb-ingest] DB session ready kb_id=%s llm_config_id=%s",
-                kb_id,
-                llm_config_id or "(tenant default or none)",
-            )
-
             svc = KBService(KBRepository(session))
             await svc.process_kb(
-                kb_id,
-                file_path,
-                user_id,
-                tenant_id,
-                chunk_size,
-                chunk_overlap,
-                llm_config,
-                embedding_model,
-                user_email,
-                enable_graph,
+                kb_id, file_path, user_id, tenant_id,
+                chunk_size, chunk_overlap, llm_config,
+                embedding_model, user_email, enable_graph,
             )
         logger.info("[kb-ingest] background task finished kb_id=%s", kb_id)
     except Exception:
         logger.exception("[kb-ingest] background task crashed kb_id=%s", kb_id)
         raise
 
+
+# ── KBService ─────────────────────────────────────────────────────────────────
 
 class KBService:
     def __init__(self, kb_repo: KBRepository):
@@ -109,7 +161,7 @@ class KBService:
         enable_graph: bool = False,
         parsing_strategy: str = "fast",
     ):
-        """Create initial KB record (queued for background ingestion)."""
+        """Create initial KB record (status: queued)."""
         model = embedding_model or settings.OLLAMA_MODEL
         return await self.kb_repo.create(
             user_id=user_id,
@@ -125,6 +177,54 @@ class KBService:
             parsing_strategy=parsing_strategy,
         )
 
+    # ── Upload via Cortex KB service ──────────────────────────────────────────
+
+    async def ingest_via_kb_service(
+        self,
+        kb_id: str,
+        file_bytes: bytes,
+        filename: str,
+        mime_type: str,
+        tenant_id: Optional[str] = None,
+    ) -> bool:
+        """
+        Upload file to external Cortex KB service, store document_id in
+        knowledge_bases.external_doc_id, then spawn a background polling
+        loop to keep kb.status in sync.
+
+        Returns True on success, False on error.
+        """
+        try:
+            api_key = await _get_kb_api_key(tenant_id)
+            resp = await kb_client.kb_upload(file_bytes, filename, mime_type, api_key=api_key)
+            external_doc_id = resp.get("document_id")
+            if not external_doc_id:
+                logger.error("[kb-ext] upload returned no document_id for kb_id=%s", kb_id)
+                await self.kb_repo.update_status(kb_id, "failed")
+                return False
+
+            # Persist the external document_id
+            async with AsyncSessionLocal() as session:
+                await session.execute(
+                    update(models.KnowledgeBase)
+                    .where(models.KnowledgeBase.id == kb_id)
+                    .values(external_doc_id=external_doc_id, status="queued")
+                )
+                await session.commit()
+
+            logger.info("[kb-ext] kb_id=%s uploaded → external_doc_id=%s", kb_id, external_doc_id)
+
+            # Fire-and-forget status sync loop
+            asyncio.create_task(_sync_kb_status_loop(kb_id, external_doc_id, tenant_id=tenant_id))
+            return True
+
+        except Exception as exc:
+            logger.error("[kb-ext] ingest_via_kb_service failed kb_id=%s: %s", kb_id, exc)
+            await self.kb_repo.update_status(kb_id, "failed")
+            return False
+
+    # ── Local Haystack pipeline (fallback) ────────────────────────────────────
+
     async def process_kb(
         self,
         kb_id: str,
@@ -138,26 +238,20 @@ class KBService:
         user_email: str | None = None,
         enable_graph: bool = False,
     ):
-        """Background: Unstructured → Haystack chunking → Ollama → Qdrant; optional Neo4j graph."""
+        """Local pipeline: Unstructured → Haystack → Ollama → Qdrant."""
         try:
             kb_row = await self.kb_repo.get_by_id(kb_id, user_id, tenant_id)
             if not kb_row:
-                logger.error("[kb-ingest] process_kb: KB %s not found for user", kb_id)
+                logger.error("[kb-ingest] process_kb: KB %s not found", kb_id)
                 return
 
             parsing_strategy = kb_row.parsing_strategy or "fast"
-            on_disk = os.path.isfile(file_path) if file_path else False
             logger.info(
-                "[kb-ingest] process_kb begin kb_id=%s filename=%s path=%s on_disk=%s strategy=%s",
-                kb_id,
-                getattr(kb_row, "filename", ""),
-                file_path,
-                on_disk,
-                parsing_strategy,
+                "[kb-ingest] process_kb begin kb_id=%s filename=%s strategy=%s",
+                kb_id, getattr(kb_row, "filename", ""), parsing_strategy,
             )
 
             async def update_status_callback(status: str) -> None:
-                logger.info("[kb-ingest] kb_id=%s DB status -> %s", kb_id, status)
                 await self.kb_repo.update_status(kb_id, status)
 
             try:
@@ -174,51 +268,76 @@ class KBService:
                     parsing_strategy=parsing_strategy,
                 )
 
-                chunk_texts = result.get("chunk_texts") or []
-
                 if enable_graph and settings.ENABLE_GRAPH:
-                    logger.info("Graph integration enabled for KB %s", kb_id)
+                    chunk_texts = result.get("chunk_texts") or []
                     try:
                         await neo4j_service.process_graph(kb_id, tenant_id, chunk_texts, llm_config)
                     except Exception as graph_err:
                         logger.error("Graph processing failed (non-blocking): %s", graph_err)
 
                 await self.kb_repo.update_status(kb_id, "completed")
-                logger.info(
-                    "[kb-ingest] kb_id=%s ingestion completed chunks=%s",
-                    kb_id,
-                    result.get("chunks"),
-                )
+                logger.info("[kb-ingest] kb_id=%s completed chunks=%s", kb_id, result.get("chunks"))
 
             except Exception as e:
-                logger.error(
-                    "[kb-ingest] kb_id=%s RAG pipeline failed: %s\n%s",
-                    kb_id,
-                    e,
-                    traceback.format_exc(),
-                )
+                logger.error("[kb-ingest] kb_id=%s RAG pipeline failed: %s\n%s",
+                             kb_id, e, traceback.format_exc())
                 await self.kb_repo.update_status(kb_id, "failed")
 
         except Exception as e:
-            logger.error(
-                "[kb-ingest] kb_id=%s process_kb outer failure: %s\n%s",
-                kb_id,
-                e,
-                traceback.format_exc(),
-            )
+            logger.error("[kb-ingest] kb_id=%s outer failure: %s\n%s",
+                         kb_id, e, traceback.format_exc())
             try:
                 await self.kb_repo.update_status(kb_id, "failed")
             except Exception as inner:
-                logger.error("[kb-ingest] kb_id=%s could not set failed status: %s", kb_id, inner)
+                logger.error("[kb-ingest] kb_id=%s could not set failed: %s", kb_id, inner)
 
-    async def get_status(self, kb_id: str, user_id: str, tenant_id: str, user_email: str | None = None) -> Dict[str, Any] | None:
+    # ── Status ────────────────────────────────────────────────────────────────
+
+    async def get_status(
+        self,
+        kb_id: str,
+        user_id: str,
+        tenant_id: str,
+        user_email: str | None = None,
+    ) -> Dict[str, Any] | None:
         kb = await self.kb_repo.get_by_id(kb_id, user_id, tenant_id=tenant_id)
         if not kb:
             return None
+
+        if kb.external_doc_id and kb_client.is_configured():
+            try:
+                api_key = await _get_kb_api_key(tenant_id)
+                data = await kb_client.kb_get_status(kb.external_doc_id, api_key=api_key)
+                if data:
+                    overall = data.get("overall_status", "")
+                    stages = data.get("stages", {})
+                    mapped = kb_client.map_kb_status(overall, stages)
+                    # Keep local DB in sync when we check status
+                    if mapped != kb.status:
+                        await self.kb_repo.update_status(kb_id, mapped)
+                    return {
+                        "status": mapped,
+                        "progress_pct": data.get("progress_pct", 0),
+                        "stages": stages,
+                        "external_doc_id": kb.external_doc_id,
+                    }
+            except Exception as exc:
+                logger.warning("[kb-status] live check failed for %s: %s", kb.external_doc_id, exc)
+
         return {"status": kb.status}
 
-    async def get_all(self, user_id: str, tenant_id: str, user_email: str | None = None, is_admin: bool = False):
+    # ── List ──────────────────────────────────────────────────────────────────
+
+    async def get_all(
+        self,
+        user_id: str,
+        tenant_id: str,
+        user_email: str | None = None,
+        is_admin: bool = False,
+    ):
         return await self.kb_repo.get_all(user_id, tenant_id, is_admin=is_admin)
+
+    # ── Query (single KB) ─────────────────────────────────────────────────────
 
     async def query(
         self,
@@ -237,14 +356,40 @@ class KBService:
         if kb.status != "completed":
             return {"success": False, "message": f"KB not ready (status: {kb.status})"}
 
+        # ── External KB service path ──────────────────────────────
+        if kb.external_doc_id and kb_client.is_configured():
+            api_key = await _get_kb_api_key(tenant_id)
+            results = await kb_client.kb_search(
+                query=query_text,
+                document_id=kb.external_doc_id,
+                top_k=10,
+                mode="hybrid",
+                api_key=api_key,
+            )
+            # Normalise to cortex-ai result shape
+            normalised = [
+                {
+                    "content": r.get("text", ""),
+                    "score": r.get("score", 0.0),
+                    "metadata": {
+                        "kb_id": kb_id,
+                        "source": r.get("filename", kb.filename),
+                        "document_id": r.get("document_id", ""),
+                        "chunk_index": r.get("chunk_index"),
+                    },
+                }
+                for r in results
+            ]
+            return {"success": True, "data": normalised}
+
+        # ── Local Haystack path ───────────────────────────────────
         filters = {"kb_id": kb_id}
         results = await rag_service.search(
-            query_text,
-            filters,
-            llm_config,
-            embedding_model=kb.embedding_model,
+            query_text, filters, llm_config, embedding_model=kb.embedding_model,
         )
         return {"success": True, "data": results}
+
+    # ── Query (multiple KBs — used by agent chat) ─────────────────────────────
 
     async def query_multiple(
         self,
@@ -257,70 +402,143 @@ class KBService:
         if not kb_ids:
             return {"success": True, "data": []}
 
-        filters = {"kb_id": {"$in": kb_ids}}
-        results = await rag_service.search(query_text, filters, llm_config, embedding_model=embedding_model)
-        return {"success": True, "data": results}
+        # Fetch all KB records to see which have external_doc_id
+        async with AsyncSessionLocal() as session:
+            rows = (await session.execute(
+                select(models.KnowledgeBase).where(
+                    models.KnowledgeBase.id.in_(kb_ids)
+                )
+            )).scalars().all()
 
-    async def delete(self, kb_id: str, user_id: str, tenant_id: str, user_email: str | None = None) -> Dict[str, Any]:
+        external_ids = [r.external_doc_id for r in rows if r.external_doc_id]
+        local_kb_ids = [r.id for r in rows if not r.external_doc_id]
+
+        all_results: List[Dict[str, Any]] = []
+
+        # ── External KB service path ──────────────────────────────
+        if external_ids and kb_client.is_configured():
+            # Get tenant's KB API key from any KB row (all share same tenant)
+            first_tenant_id = next((r.tenant_id for r in rows if r.external_doc_id), None)
+            api_key = await _get_kb_api_key(first_tenant_id)
+            ext_results = await kb_client.kb_search_multi(
+                query=query_text,
+                document_ids=external_ids,
+                top_k=10,
+                mode="hybrid",
+                api_key=api_key,
+            )
+            # Build kb_id lookup by external_doc_id
+            ext_id_to_kb_id = {r.external_doc_id: r.id for r in rows if r.external_doc_id}
+            for r in ext_results:
+                kb_id = ext_id_to_kb_id.get(r.get("document_id", ""), "")
+                all_results.append({
+                    "content": r.get("text", ""),
+                    "score": r.get("score", 0.0),
+                    "metadata": {
+                        "kb_id": kb_id,
+                        "source": r.get("filename", ""),
+                        "document_id": r.get("document_id", ""),
+                        "chunk_index": r.get("chunk_index"),
+                    },
+                })
+
+        # ── Local Haystack path (legacy records) ──────────────────
+        if local_kb_ids:
+            filters = {"kb_id": {"$in": local_kb_ids}}
+            local_results = await rag_service.search(
+                query_text, filters, llm_config, embedding_model=embedding_model
+            )
+            all_results.extend(local_results)
+
+        # Sort by score, return top 10
+        all_results.sort(key=lambda x: x.get("score", 0.0), reverse=True)
+        return {"success": True, "data": all_results[:10]}
+
+    # ── Delete ────────────────────────────────────────────────────────────────
+
+    async def delete(
+        self,
+        kb_id: str,
+        user_id: str,
+        tenant_id: str,
+        user_email: str | None = None,
+    ) -> Dict[str, Any]:
         kb = await self.kb_repo.get_by_id(kb_id, user_id, tenant_id=tenant_id)
-
         if not kb:
             return {"success": False, "message": "Not found"}
 
-        # Completed KBs have vectors in Qdrant; do not remove the DB row if Qdrant is unreachable
-        # (avoids false "deleted" while points remain). Non-completed: best-effort vector cleanup.
-        vector_deleted = await rag_service.delete_kb(kb_id)
-        if kb.status == "completed" and not vector_deleted:
-            return {
-                "success": False,
-                "message": (
-                    "Could not reach the vector database (Qdrant), so vectors were not removed. "
-                    "Fix QDRANT_URL (e.g. add :6333 for native Qdrant or :80 if behind HTTP), ensure "
-                    "the service is running, then try again."
-                ),
-            }
-        if not vector_deleted:
-            logger.warning(
-                "delete_kb: Qdrant cleanup failed for non-completed kb_id=%s status=%s; continuing with file/DB delete",
-                kb_id,
-                kb.status,
-            )
+        # ── External KB service path ──────────────────────────────
+        if kb.external_doc_id and kb_client.is_configured():
+            api_key = await _get_kb_api_key(tenant_id)
+            deleted = await kb_client.kb_delete(kb.external_doc_id, api_key=api_key)
+            if not deleted:
+                logger.warning(
+                    "[kb-delete] KB service delete failed for %s; continuing local cleanup",
+                    kb.external_doc_id,
+                )
+        else:
+            # ── Local Haystack path ───────────────────────────────
+            vector_deleted = await rag_service.delete_kb(kb_id)
+            if kb.status == "completed" and not vector_deleted:
+                return {
+                    "success": False,
+                    "message": (
+                        "Could not reach the vector database (Qdrant). "
+                        "Fix QDRANT_URL and retry."
+                    ),
+                }
+            if not vector_deleted:
+                logger.warning(
+                    "delete_kb: Qdrant cleanup failed for kb_id=%s status=%s; proceeding",
+                    kb_id, kb.status,
+                )
 
         if settings.ENABLE_GRAPH:
             await neo4j_service.delete_graph_for_kb(kb_id, tenant_id)
 
-        if os.path.exists(kb.file_path):
+        # Clean up local file (may not exist for external-only uploads)
+        if kb.file_path and os.path.exists(kb.file_path):
             try:
                 os.remove(kb.file_path)
             except OSError:
                 pass
 
         await self.kb_repo.delete(kb_id, user_id)
-
         return {"success": True, "message": f"Deleted {kb.filename}"}
 
-    async def share_kb(self, kb_id: str, owner_id: str, target_user_id: str, tenant_id: str, role: str = "viewer") -> Dict[str, Any]:
+    # ── Share ─────────────────────────────────────────────────────────────────
+
+    async def share_kb(
+        self,
+        kb_id: str,
+        owner_id: str,
+        target_user_id: str,
+        tenant_id: str,
+        role: str = "viewer",
+    ) -> Dict[str, Any]:
         kb = await self.kb_repo.get_by_id(kb_id, owner_id, tenant_id=tenant_id)
         if not kb:
             return {"success": False, "message": "KB not found or access denied"}
-
         if kb.user_id != owner_id:
             return {"success": False, "message": "Only the owner can share the KB"}
-
         try:
             await self.kb_repo.add_member(kb_id, target_user_id, role)
             return {"success": True, "message": "KB shared successfully"}
         except Exception as e:
             return {"success": False, "message": f"Failed to share: {str(e)}"}
 
-    async def unshare_kb(self, kb_id: str, owner_id: str, target_user_id: str, tenant_id: str) -> Dict[str, Any]:
+    async def unshare_kb(
+        self,
+        kb_id: str,
+        owner_id: str,
+        target_user_id: str,
+        tenant_id: str,
+    ) -> Dict[str, Any]:
         kb = await self.kb_repo.get_by_id(kb_id, owner_id, tenant_id=tenant_id)
         if not kb:
             return {"success": False, "message": "KB not found or access denied"}
-
         if kb.user_id != owner_id:
             return {"success": False, "message": "Only the owner can manage sharing"}
-
         success = await self.kb_repo.remove_member(kb_id, target_user_id)
         if success:
             return {"success": True, "message": "KB unshared successfully"}

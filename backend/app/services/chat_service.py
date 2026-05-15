@@ -173,43 +173,57 @@ class ChatService:
                             web_search_context = f"\n\n### WEB SEARCH STATUS\nSearch failed due to an error: {str(e)}"
 
             # --- KNOWLEDGE BASE RAG ---
-            if kb_enabled and agent.knowledge_bases and agent.llm_config:
+            # Works with both external Cortex KB service (when CORTEX_KB_URL is set)
+            # and local Haystack pipeline. LLM config not required for external KB.
+            if kb_enabled and agent.knowledge_bases:
+                from app.services import cortex_kb_client as kb_client_mod
                 kb_repo = KBRepository(self.db)
                 kb_service = KBService(kb_repo)
-                
-                # Group KBs by embedding model
-                kbs_by_model = {}
-                for kb in agent.knowledge_bases:
-                    model = kb.embedding_model or settings.OLLAMA_MODEL
-                    if model not in kbs_by_model:
-                        kbs_by_model[model] = []
-                    kbs_by_model[model].append(kb)
-                
-                if kbs_by_model:
-                     yield f"<KB_QUERY>{message[:30]}...</KB_QUERY>"
-                
+
+                all_kb_ids = [kb.id for kb in agent.knowledge_bases]
+                if all_kb_ids:
+                    yield f"<KB_QUERY>{message[:30]}...</KB_QUERY>"
+
                 all_results = []
-                for model, kbs in kbs_by_model.items():
-                    kb_ids = [kb.id for kb in kbs]
+
+                if kb_client_mod.is_configured():
+                    # External KB service: single query_multiple call handles all KBs
                     try:
                         search_result = await kb_service.query_multiple(
-                            kb_ids, 
-                            message, 
+                            all_kb_ids,
+                            message,
                             agent.llm_config,
-                            embedding_model=model,
-                            user_email=agent.owner.email if agent.owner else None
+                            embedding_model=settings.OLLAMA_MODEL,
+                            user_email=agent.owner.email if agent.owner else None,
                         )
-                        
                         if search_result and search_result.get("success") and search_result.get("data"):
                             all_results.extend(search_result["data"])
-                            
                     except Exception as e:
-                        logger.error(f"RAG Error for model {model}: {e}")
+                        logger.error(f"KB service RAG error: {e}")
+                elif agent.llm_config:
+                    # Local Haystack pipeline: group by embedding model
+                    kbs_by_model: dict = {}
+                    for kb in agent.knowledge_bases:
+                        model = kb.embedding_model or settings.OLLAMA_MODEL
+                        kbs_by_model.setdefault(model, []).append(kb)
+
+                    for model, kbs in kbs_by_model.items():
+                        kb_ids = [kb.id for kb in kbs]
+                        try:
+                            search_result = await kb_service.query_multiple(
+                                kb_ids,
+                                message,
+                                agent.llm_config,
+                                embedding_model=model,
+                                user_email=agent.owner.email if agent.owner else None,
+                            )
+                            if search_result and search_result.get("success") and search_result.get("data"):
+                                all_results.extend(search_result["data"])
+                        except Exception as e:
+                            logger.error(f"RAG Error for model {model}: {e}")
 
                 # Process all gathered results
                 if all_results:
-                    # Sort by score when available (Qdrant cosine: higher is typically more similar)
-                    
                     kb_filename_map = {kb.id: kb.filename for kb in agent.knowledge_bases}
 
                     for result in all_results:
@@ -217,7 +231,7 @@ class ChatService:
                         metadata = result.get("metadata", {})
                         kb_id = metadata.get("kb_id")
                         filename = kb_filename_map.get(kb_id, metadata.get("source", "Unknown File"))
-                        
+
                         context_parts.append(f"SOURCE: [{filename}]\nCONTENT: {text}")
 
             # --- CONTEXT INJECTION ---

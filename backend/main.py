@@ -25,18 +25,45 @@ if settings.LOG_LEVEL == "DEBUG":
 
 from contextlib import asynccontextmanager
 
+async def _run_migrations() -> None:
+    """Run alembic upgrade head at startup (idempotent)."""
+    import asyncio
+    from pathlib import Path
+    try:
+        backend_dir = Path(__file__).resolve().parent
+        proc = await asyncio.create_subprocess_exec(
+            "alembic", "upgrade", "head",
+            cwd=str(backend_dir),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await proc.communicate()
+        if proc.returncode == 0:
+            logging.getLogger(__name__).info("alembic upgrade head: OK")
+        else:
+            logging.getLogger(__name__).error(
+                "alembic upgrade head failed (rc=%s): %s",
+                proc.returncode,
+                stderr.decode()[:500],
+            )
+    except Exception as exc:
+        logging.getLogger(__name__).error("alembic upgrade head error: %s", exc)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup logic
     # Validate critical configuration
     settings.validate_providers()
 
+    # Run DB migrations before anything else
+    await _run_migrations()
+
     from app.core.database import AsyncSessionLocal
     # Import models to ensure they are registered with Base
     from app.models import models  # noqa: F401
     from app.core.startup import create_default_admin
 
-    # Database schema is managed by Alembic (see Dockerfile CMD: alembic upgrade head).
     # Create first superuser from ADMIN_EMAIL / ADMIN_PASSWORD when none exists.
     async with AsyncSessionLocal() as db:
         await create_default_admin(db)

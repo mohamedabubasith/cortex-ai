@@ -116,6 +116,7 @@ class KnowledgeBase(KnowledgeBaseBase):
     created_at: datetime
     file_type: Optional[str] = None
     parsing_strategy: Optional[str] = None
+    external_doc_id: Optional[str] = None  # set when processed by Cortex KB service
 
     class Config:
         from_attributes = True

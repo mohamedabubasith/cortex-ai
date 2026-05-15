@@ -38,6 +38,11 @@ class Tenant(Base):
     slug = Column(String, unique=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Per-tenant API key for the external Cortex KB service.
+    # Provisioned automatically on tenant creation (when CORTEX_KB_URL is configured).
+    # Falls back to global CORTEX_KB_API_KEY if null.
+    kb_api_key = Column(String, nullable=True)
     
     members = relationship("TenantMember", back_populates="tenant", cascade="all, delete-orphan")
     
@@ -221,6 +226,10 @@ class KnowledgeBase(Base):
     file_type = Column(String)
     file_size = Column(Integer)
     status = Column(String, default="queued")  # queued, parsing, chunking, embedding, indexing, completed, failed
+
+    # External Cortex KB service — document_id returned by /ingest/upload
+    # Null for legacy records processed by local Haystack pipeline.
+    external_doc_id = Column(String, nullable=True)
 
     # RAG Config
     chunk_size = Column(Integer, default=1000)
