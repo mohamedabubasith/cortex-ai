@@ -1,6 +1,6 @@
 """add external_doc_id to knowledge_bases
 
-Revision ID: a1b2c3d4e5f6
+Revision ID: c3d4e5f6a7b8
 Revises: f8a1b2c94d01
 Create Date: 2026-05-16
 
@@ -14,7 +14,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = "a1b2c3d4e5f6"
+revision: str = "c3d4e5f6a7b8"
 down_revision: Union[str, None] = "f8a1b2c94d01"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
