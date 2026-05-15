@@ -129,6 +129,12 @@ export default function KnowledgeBasePage() {
                             newFiles[index] = { ...newFiles[index], status: newStatus };
                             updated = true;
                         }
+                        if (newStatus === "failed") {
+                            const detail = res.data?.detail || res.data?.error || "";
+                            toast(`"${file.name || file.filename}" ingestion failed.${detail ? " " + detail : " Check file format or contact support."}`, "error");
+                        } else if (newStatus === "completed") {
+                            toast(`"${file.name || file.filename}" is ready.`, "success");
+                        }
                     }
                 } catch (error) {
                     pollFailuresRef.current[file.id] = (pollFailuresRef.current[file.id] || 0) + 1;
