@@ -123,7 +123,9 @@ class VisitorMiddleware(BaseHTTPMiddleware):
                         },
                         metadata=meta
                     )
-                    await session.commit()
+                    await asyncio.shield(session.commit())
+                except asyncio.CancelledError:
+                    pass
                 except Exception as db_exc:
                     logger.error(f"Database error in visitor logging: {db_exc}")
                     await session.rollback()

@@ -207,7 +207,15 @@ class AuditMiddleware(BaseHTTPMiddleware):
                     except Exception as e:
                         logger.error(f"Failed to log analytics: {e}")
 
-                    await session.commit()
+                    # Shield commit from request-level CancelledError.
+                    # Starlette's BaseHTTPMiddleware cancels the request task after
+                    # response streaming ends; without shield this raises CancelledError
+                    # mid-commit and SQLAlchemy logs a noisy pool error.
+                    await asyncio.shield(session.commit())
+                except asyncio.CancelledError:
+                    # Request was cancelled after we started — swallow quietly,
+                    # audit record will be missing but that's acceptable.
+                    pass
                 except Exception as db_exc:
                     logger.error(f"Database error in audit logging: {db_exc}")
                     await session.rollback()

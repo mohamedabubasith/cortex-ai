@@ -221,7 +221,10 @@ class LLMService:
                                 yield "<GENERATING>image...</GENERATING>\n"
 
                         # Add timeout to prevent hanging
-                        tool_result = await asyncio.wait_for(tools_service.execute_tool(func_name, func_args), timeout=30.0)
+                        # 25s outer guard — MCP_TOOL_TIMEOUT inside mcp_service is 20s,
+                        # so MCP always fails-fast before this fires. Keeps room for
+                        # the LLM to reply before the HTTP request timeout kills the stream.
+                        tool_result = await asyncio.wait_for(tools_service.execute_tool(func_name, func_args), timeout=25.0)
                         logger.info(f"Tool {func_name} execution completed. Result length: {len(tool_result)}")
 
                         # Mark as called if it returned an empty or "no results" message
