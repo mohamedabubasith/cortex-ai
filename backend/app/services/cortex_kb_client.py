@@ -103,6 +103,14 @@ async def kb_upload(
             data={"parsing_strategy": parsing_strategy},
             headers=_headers(api_key),
         )
+        # 409 = duplicate file — cortex-kb returns the existing document_id
+        if resp.status_code == 409:
+            detail = resp.json().get("detail", "")
+            # detail format: "Document already exists: <uuid>"
+            existing_id = detail.split(":")[-1].strip() if ":" in detail else None
+            if existing_id:
+                logger.info("kb_upload 409 — reusing existing doc_id=%s", existing_id)
+                return {"document_id": existing_id, "status": "existing", "message": detail}
         resp.raise_for_status()
         return resp.json()
 
