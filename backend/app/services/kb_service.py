@@ -55,8 +55,8 @@ async def _sync_kb_status_loop(kb_id: str, external_doc_id: str, tenant_id: Opti
     Times out after 10 min (120 × 5 s).
     """
     api_key = await _get_kb_api_key(tenant_id)
-    for _ in range(120):
-        await asyncio.sleep(5)
+    for _ in range(300):
+        await asyncio.sleep(2)
         try:
             data = await kb_client.kb_get_status(external_doc_id, api_key=api_key)
             if not data:
