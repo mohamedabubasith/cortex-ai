@@ -119,6 +119,7 @@ async def upload_kb_file(
                 file.filename,
                 mime_type,
                 current_tenant.id,
+                strat,
             )
 
             logger.info(

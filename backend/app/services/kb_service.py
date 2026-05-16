@@ -186,6 +186,7 @@ class KBService:
         filename: str,
         mime_type: str,
         tenant_id: Optional[str] = None,
+        parsing_strategy: str = "fast",
     ) -> bool:
         """
         Upload file to external Cortex KB service, store document_id in
@@ -196,7 +197,8 @@ class KBService:
         """
         try:
             api_key = await _get_kb_api_key(tenant_id)
-            resp = await kb_client.kb_upload(file_bytes, filename, mime_type, api_key=api_key)
+            resp = await kb_client.kb_upload(file_bytes, filename, mime_type, api_key=api_key,
+                                              parsing_strategy=parsing_strategy)
             external_doc_id = resp.get("document_id")
             if not external_doc_id:
                 logger.error("[kb-ext] upload returned no document_id for kb_id=%s", kb_id)

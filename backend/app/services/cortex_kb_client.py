@@ -90,6 +90,7 @@ async def kb_upload(
     filename: str,
     mime_type: str,
     api_key: Optional[str] = None,
+    parsing_strategy: str = "fast",
 ) -> Dict[str, Any]:
     """
     POST /ingest/upload
@@ -99,6 +100,7 @@ async def kb_upload(
         resp = await client.post(
             f"{_base()}/ingest/upload",
             files={"file": (filename, file_bytes, mime_type)},
+            data={"parsing_strategy": parsing_strategy},
             headers=_headers(api_key),
         )
         resp.raise_for_status()
