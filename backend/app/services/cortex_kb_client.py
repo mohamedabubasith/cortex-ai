@@ -130,16 +130,32 @@ def map_kb_status(overall_status: str, stages: Optional[Dict] = None) -> str:
     """
     Map Cortex KB overall_status to cortex-ai KnowledgeBase.status values.
 
-    KB statuses  →  cortex-ai statuses
-    pending      →  queued / parsing / chunking / embedding / indexing
-    indexed      →  completed
-    failed/*     →  failed
+    Cortex KB sets doc.status directly to the current stage name while
+    processing (parsing, embedding) — not just "pending". Map all known
+    values explicitly so nothing falls through to "queued".
+
+    KB overall_status  →  cortex-ai status
+    pending            →  queued (or stage name if a stage is processing)
+    parsing            →  parsing
+    embedding          →  embedding
+    indexed            →  completed
+    error/*_failed     →  failed
     """
     if overall_status == "indexed":
         return "completed"
     if overall_status in ("failed", "error", "parse_failed", "chunk_failed",
                           "embed_failed", "index_failed"):
         return "failed"
+    # Direct stage-name statuses set by cortex-kb workers
+    if overall_status == "parsing":
+        return "parsing"
+    if overall_status in ("chunked", "chunking"):
+        return "chunking"
+    if overall_status == "embedding":
+        return "embedding"
+    if overall_status == "indexing":
+        return "indexing"
+    # "pending" — inspect individual stage statuses for finer granularity
     if overall_status == "pending":
         if stages:
             for stage_name, cortex_name in [
