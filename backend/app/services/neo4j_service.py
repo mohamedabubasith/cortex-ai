@@ -1,7 +1,13 @@
 import logging
 import json
-from neo4j import GraphDatabase
 from typing import List, Dict, Any
+
+try:
+    from neo4j import GraphDatabase
+    _NEO4J_AVAILABLE = True
+except ImportError:
+    GraphDatabase = None
+    _NEO4J_AVAILABLE = False
 from app.core.config import settings
 from app.services.llm_service import llm_service
 
@@ -10,7 +16,7 @@ logger = logging.getLogger(__name__)
 class Neo4jService:
     def __init__(self):
         self.driver = None
-        if settings.ENABLE_GRAPH:
+        if _NEO4J_AVAILABLE and settings.ENABLE_GRAPH:
             try:
                 self.driver = GraphDatabase.driver(
                     settings.NEO4J_URI, 

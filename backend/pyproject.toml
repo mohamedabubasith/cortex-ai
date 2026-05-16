@@ -18,7 +18,6 @@ dependencies = [
     "python-multipart",
     "alembic",
     "openai",
-    "qdrant-client",
     "pypdf",
     "python-docx",
     "protego",
@@ -31,11 +30,7 @@ dependencies = [
     "beautifulsoup4",
     "duckduckgo-search",
     "tiktoken",
-    "instructor",
-    "neo4j",
     "anthropic",
-    "haystack-ai>=2.8",
-    "qdrant-haystack>=10.3.0",
 ]
 
 [tool.uv]

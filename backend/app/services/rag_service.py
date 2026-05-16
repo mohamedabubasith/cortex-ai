@@ -9,12 +9,18 @@ from dataclasses import replace
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional
 
-from haystack import Document
-from haystack.components.preprocessors import RecursiveDocumentSplitter
-from haystack.document_stores.types import DuplicatePolicy
-from haystack.utils.auth import Secret
-from haystack_integrations.components.retrievers.qdrant import QdrantEmbeddingRetriever
-from haystack_integrations.document_stores.qdrant import QdrantDocumentStore
+try:
+    from haystack import Document
+    from haystack.components.preprocessors import RecursiveDocumentSplitter
+    from haystack.document_stores.types import DuplicatePolicy
+    from haystack.utils.auth import Secret
+    from haystack_integrations.components.retrievers.qdrant import QdrantEmbeddingRetriever
+    from haystack_integrations.document_stores.qdrant import QdrantDocumentStore
+    _HAYSTACK_AVAILABLE = True
+except ImportError:
+    _HAYSTACK_AVAILABLE = False
+    Document = None
+    QdrantDocumentStore = None
 
 from app.core.config import settings
 from app.services.kb_chunk_limits import clamp_chunk_size_overlap
@@ -23,7 +29,7 @@ from app.services.unstructured_client import ParsingStrategy, partition_file_loc
 
 logger = logging.getLogger(__name__)
 
-_document_store: Optional[QdrantDocumentStore] = None
+_document_store = None
 _store_init_lock = threading.Lock()
 
 
