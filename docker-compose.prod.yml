@@ -62,7 +62,6 @@ services:
       - "${BACKEND_PORT:-8000}:8000"
     networks:
       - default
-      - coolify
 
   # Frontend Service
   frontend:
@@ -83,7 +82,6 @@ services:
       - backend
     networks:
       - default
-      - coolify
 
 volumes:
   backend_uploads:
@@ -91,5 +89,3 @@ volumes:
 
 networks:
   default:
-  coolify:
-    external: true
