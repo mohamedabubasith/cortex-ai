@@ -172,6 +172,27 @@ def map_kb_status(overall_status: str, stages: Optional[Dict] = None) -> str:
     return "queued"
 
 
+# ── Reprocess ────────────────────────────────────────────────────────────────
+
+async def kb_reprocess(
+    document_id: str,
+    api_key: Optional[str] = None,
+    parsing_strategy: str = "fast",
+) -> bool:
+    """POST /ingest/reprocess/{document_id}. Returns True on 202."""
+    try:
+        async with httpx.AsyncClient(timeout=_TIMEOUT, verify=False) as client:
+            resp = await client.post(
+                f"{_base()}/ingest/reprocess/{document_id}",
+                data={"parsing_strategy": parsing_strategy},
+                headers=_headers(api_key),
+            )
+            return resp.status_code in (200, 202)
+    except Exception as exc:
+        logger.warning("kb_reprocess failed for %s: %s", document_id, exc)
+        return False
+
+
 # ── Delete ────────────────────────────────────────────────────────────────────
 
 async def kb_delete(

@@ -4,7 +4,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState, useRef } from "react";
-import { Database, FileText, Trash2, Loader2, Upload, Search, Edit, Check, AlertTriangle, Server, Share } from "lucide-react";
+import { Database, FileText, Trash2, Loader2, Upload, Search, Edit, Check, AlertTriangle, Server, Share, RotateCcw } from "lucide-react";
 import api from "@/lib/api";
 import { Can } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/Toast";
@@ -317,6 +317,16 @@ export default function KnowledgeBasePage() {
         }
     };
 
+    const handleReprocess = async (kb_id: string) => {
+        try {
+            await api.post(`/kb/${kb_id}/reprocess`);
+            toast("Reprocessing started", "success");
+            setKbFiles(prev => prev.map(f => f.id === kb_id ? { ...f, status: "queued" } : f));
+        } catch (e: any) {
+            toast(e?.response?.data?.detail || "Retry failed", "error");
+        }
+    };
+
     const openQueryDialog = (docId: string) => {
         setQueryDocId(docId);
         setQueryText("");
@@ -447,6 +457,15 @@ export default function KnowledgeBasePage() {
                                             >
                                                 <Share className="w-4 h-4" />
                                             </button>
+                                            {file.status === "failed" && (
+                                                <button
+                                                    onClick={() => handleReprocess(file.id)}
+                                                    className="text-gray-500 hover:text-yellow-400 transition-colors p-1 rounded-md hover:bg-yellow-400/10"
+                                                    title="Retry ingestion"
+                                                >
+                                                    <RotateCcw className="w-4 h-4" />
+                                                </button>
+                                            )}
                                             <button
                                                 onClick={() => confirmDelete(file.id, 'kb')}
                                                 className="text-gray-500 hover:text-red-500 transition-colors p-1 rounded-md hover:bg-red-500/10"

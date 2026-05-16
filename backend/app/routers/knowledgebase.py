@@ -385,6 +385,21 @@ async def share_kb(
         
     return result
 
+@router.post("/{kb_id}/reprocess")
+async def reprocess_kb(
+    kb_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user),
+    current_tenant: models.Tenant = Depends(get_current_tenant),
+    kb_service: KBService = Depends(get_kb_service),
+):
+    """Re-trigger ingestion for a failed or stuck document."""
+    result = await kb_service.reprocess_kb(kb_id, current_tenant.id)
+    if not result["success"]:
+        raise HTTPException(status_code=400, detail=result["message"])
+    return result
+
+
 @router.delete("/{kb_id}/share/{user_id}")
 async def unshare_kb(
     kb_id: str,

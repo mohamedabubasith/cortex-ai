@@ -293,6 +293,37 @@ class KBService:
             except Exception as inner:
                 logger.error("[kb-ingest] kb_id=%s could not set failed: %s", kb_id, inner)
 
+    # ── Reprocess ─────────────────────────────────────────────────────────────
+
+    async def reprocess_kb(self, kb_id: str, tenant_id: str) -> dict:
+        """Re-trigger ingestion for a failed or stuck KB document."""
+        async with AsyncSessionLocal() as session:
+            kb = (await session.execute(
+                select(models.KnowledgeBase).where(
+                    models.KnowledgeBase.id == kb_id,
+                    models.KnowledgeBase.tenant_id == tenant_id,
+                )
+            )).scalars().first()
+
+            if not kb:
+                return {"success": False, "message": "Document not found"}
+
+        # Route through cortex-kb if configured and external_doc_id exists
+        if kb_client.is_configured() and kb.external_doc_id:
+            api_key = await _get_kb_api_key(tenant_id)
+            strategy = kb.parsing_strategy or "fast"
+            ok = await kb_client.kb_reprocess(kb.external_doc_id, api_key=api_key,
+                                               parsing_strategy=strategy)
+            if ok:
+                await self.kb_repo.update_status(kb_id, "queued")
+                # Restart status polling loop
+                asyncio.create_task(_sync_kb_status_loop(kb_id, kb.external_doc_id, tenant_id=tenant_id))
+                logger.info("[kb-reprocess] queued kb_id=%s external=%s", kb_id, kb.external_doc_id)
+                return {"success": True, "message": "Reprocessing queued"}
+            return {"success": False, "message": "Failed to trigger reprocess on KB service"}
+
+        return {"success": False, "message": "No external document ID — re-upload the file"}
+
     # ── Status ────────────────────────────────────────────────────────────────
 
     async def get_status(
