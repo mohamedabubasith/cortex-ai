@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/Label";
 interface KnowledgeBase {
     id: string;
     name: string;
+    filename: string;
     file_type: string;
     status: string;
     created_at: string;
