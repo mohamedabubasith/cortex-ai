@@ -60,6 +60,9 @@ services:
       - backend_data:/app/data
     ports:
       - "${BACKEND_PORT:-8000}:8000"
+    networks:
+      - default
+      - coolify
 
   # Frontend Service
   frontend:
@@ -78,7 +81,15 @@ services:
       - "${FRONTEND_PORT:-3000}:3000"
     depends_on:
       - backend
+    networks:
+      - default
+      - coolify
 
 volumes:
   backend_uploads:
   backend_data:
+
+networks:
+  default:
+  coolify:
+    external: true
