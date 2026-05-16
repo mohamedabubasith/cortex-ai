@@ -205,7 +205,21 @@ class KBService:
                 await self.kb_repo.update_status(kb_id, "failed")
                 return False
 
-            # Persist the external document_id
+            kb_status = resp.get("status", "queued")
+
+            # Already indexed — mark completed immediately, no polling needed.
+            if kb_status == "indexed":
+                async with AsyncSessionLocal() as session:
+                    await session.execute(
+                        update(models.KnowledgeBase)
+                        .where(models.KnowledgeBase.id == kb_id)
+                        .values(external_doc_id=external_doc_id, status="completed")
+                    )
+                    await session.commit()
+                logger.info("[kb-ext] kb_id=%s already indexed — marked completed", kb_id)
+                return True
+
+            # Pending or reprocessing — persist and start polling.
             async with AsyncSessionLocal() as session:
                 await session.execute(
                     update(models.KnowledgeBase)
@@ -214,7 +228,8 @@ class KBService:
                 )
                 await session.commit()
 
-            logger.info("[kb-ext] kb_id=%s uploaded → external_doc_id=%s", kb_id, external_doc_id)
+            logger.info("[kb-ext] kb_id=%s uploaded → external_doc_id=%s status=%s",
+                        kb_id, external_doc_id, kb_status)
 
             # Fire-and-forget status sync loop
             asyncio.create_task(_sync_kb_status_loop(kb_id, external_doc_id, tenant_id=tenant_id))
