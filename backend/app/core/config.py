@@ -114,7 +114,13 @@ class Settings(BaseSettings):
     def constructed_database_url(self) -> str:
         """Constructs the application database URL."""
         if self.DATABASE_URL:
-            return self.DATABASE_URL
+            url = self.DATABASE_URL
+            # Normalize scheme — standard postgres:// / postgresql:// → postgresql+asyncpg://
+            if url.startswith("postgres://"):
+                url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+            elif url.startswith("postgresql://"):
+                url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+            return url
         # URL-encode user/password so @, #, :, /, etc. in passwords do not break the URL.
         user = quote_plus(self.DB_USERNAME)
         password = quote_plus(self.DB_PASSWORD or "")
