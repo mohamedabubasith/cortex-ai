@@ -1,24 +1,6 @@
 version: '3.8'
 
 services:
-  # Database Service (PostgreSQL + pgvector)
-  db:
-    image: pgvector/pgvector:pg16
-    container_name: chatbot_db
-    restart: always
-    environment:
-      POSTGRES_USER: ${DB_USER:-admin}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-admin}
-      POSTGRES_DB: ${DB_NAME:-chat_db}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-admin} -d ${DB_NAME:-chat_db}"]
-      interval: 10s
-      timeout: 10s
-      retries: 10
-      start_period: 30s
-
   # Backend Service
   backend:
     build:
@@ -26,11 +8,8 @@ services:
       dockerfile: Dockerfile
     container_name: chatbot_backend
     restart: always
-    depends_on:
-      db:
-        condition: service_healthy
     environment:
-      DATABASE_URL: postgresql+asyncpg://${DB_USER:-admin}:${DB_PASSWORD:-admin}@db:5432/${DB_NAME:-chat_db}
+      DATABASE_URL: ${DATABASE_URL}
 
       SECRET_KEY: ${SECRET_KEY}
       ADMIN_SECRET_KEY: ${ADMIN_SECRET_KEY}
@@ -40,7 +19,7 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
 
       VECTOR_DB_PROVIDER: pgvector
-      VECTOR_DB_URL: postgresql+asyncpg://${DB_USER:-admin}:${DB_PASSWORD:-admin}@db:5432/${DB_NAME:-chat_db}
+      VECTOR_DB_URL: ${DATABASE_URL}
 
       EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-fastembed}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
@@ -55,7 +34,6 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
 
-      # Knowledge base (Haystack + Unstructured + Ollama + Qdrant) — set in Coolify / .env
       UNSTRUCTURED_API_URL: ${UNSTRUCTURED_API_URL:-http://127.0.0.1:8000}
       UNSTRUCTURED_GENERAL_PATH: ${UNSTRUCTURED_GENERAL_PATH:-general/v0/general}
       UNSTRUCTURED_API_KEY: ${UNSTRUCTURED_API_KEY:-}
@@ -75,11 +53,16 @@ services:
 
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       TOKENIZERS_PARALLELISM: "true"
+      CORTEX_KB_URL: ${CORTEX_KB_URL:-}
+      CORTEX_KB_API_KEY: ${CORTEX_KB_API_KEY:-}
     volumes:
       - backend_uploads:/app/uploads
       - backend_data:/app/data
     ports:
       - "${BACKEND_PORT:-8000}:8000"
+    networks:
+      - default
+      - coolify
 
   # Frontend Service
   frontend:
@@ -98,8 +81,15 @@ services:
       - "${FRONTEND_PORT:-3000}:3000"
     depends_on:
       - backend
+    networks:
+      - default
+      - coolify
 
 volumes:
-  postgres_data:
   backend_uploads:
   backend_data:
+
+networks:
+  default:
+  coolify:
+    external: true
