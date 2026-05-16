@@ -21,13 +21,27 @@ async def create_default_admin(db: AsyncSession, override_email: str = None, ove
     # Check if any superuser exists
     result = await db.execute(select(User).where(User.is_superuser == True))
     existing_superuser = result.scalars().first()
-    
+
     if existing_superuser:
         logger.info("Superuser already exists: %s", existing_superuser.email)
         return
 
     # Get credentials from environment or use defaults
     admin_email = override_email or settings.admin_email
+
+    # Also check by email — avoids duplicate insert when is_superuser was
+    # set after create_user in a previous run that crashed mid-way
+    email_result = await db.execute(select(User).where(User.email == admin_email))
+    existing_by_email = email_result.scalars().first()
+    if existing_by_email:
+        # Promote to superuser if somehow created without the flag
+        if not existing_by_email.is_superuser:
+            existing_by_email.is_superuser = True
+            await db.commit()
+            logger.info("Promoted existing user to superuser: %s", admin_email)
+        else:
+            logger.info("Admin already exists: %s", admin_email)
+        return
     admin_password = (override_password or settings.admin_password)[:72]  # bcrypt max is 72 bytes
     admin_name = getattr(settings, "DEFAULT_ADMIN_NAME", "System Administrator")
 
@@ -70,8 +84,11 @@ async def create_default_admin(db: AsyncSession, override_email: str = None, ove
         )
 
     except Exception as e:
-        logger.exception("Failed to create default admin user: %s", e)
-        # Don't raise - let the app start anyway
+        from sqlalchemy.exc import IntegrityError
+        if isinstance(e, IntegrityError) and "ix_users_email" in str(e):
+            logger.info("Default admin already exists (created by another worker).")
+        else:
+            logger.exception("Failed to create default admin user: %s", e)
 
 
 async def run_admin_creation():
