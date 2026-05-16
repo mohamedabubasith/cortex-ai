@@ -14,6 +14,60 @@ _ANTHROPIC_MODELS = [
     {"id": "claude-3-opus-20240229",     "name": "Claude 3 Opus"},
 ]
 
+
+def _convert_messages_for_anthropic(messages: list) -> tuple[str, list]:
+    """Extract system prompt and convert OpenAI tool messages to Anthropic format."""
+    system_prompt = ""
+    converted = []
+
+    for msg in messages:
+        role = msg.get("role")
+
+        if role == "system":
+            system_prompt += msg["content"] + "\n"
+            continue
+
+        if role == "tool":
+            # OpenAI: {"role": "tool", "tool_call_id": id, "content": result}
+            # Anthropic: user message with tool_result content block
+            tool_result = {
+                "type": "tool_result",
+                "tool_use_id": msg.get("tool_call_id", ""),
+                "content": msg.get("content", ""),
+            }
+            # Merge consecutive tool results into one user message
+            if converted and converted[-1]["role"] == "user" and isinstance(converted[-1]["content"], list):
+                converted[-1]["content"].append(tool_result)
+            else:
+                converted.append({"role": "user", "content": [tool_result]})
+            continue
+
+        if role == "assistant" and msg.get("tool_calls"):
+            # OpenAI: {"role": "assistant", "content": text, "tool_calls": [...]}
+            # Anthropic: assistant message with text + tool_use content blocks
+            content = []
+            if msg.get("content"):
+                content.append({"type": "text", "text": msg["content"]})
+            for tc in msg["tool_calls"]:
+                func = tc.get("function", {})
+                try:
+                    args = json.loads(func.get("arguments", "{}"))
+                except json.JSONDecodeError:
+                    args = {}
+                content.append({
+                    "type": "tool_use",
+                    "id": tc.get("id", ""),
+                    "name": func.get("name", ""),
+                    "input": args,
+                })
+            converted.append({"role": "assistant", "content": content})
+            continue
+
+        converted.append(msg)
+
+    return system_prompt.strip(), converted
+
+
 class AnthropicProvider(BaseLLMProvider):
     """Anthropic Provider implementation."""
 
@@ -29,7 +83,6 @@ class AnthropicProvider(BaseLLMProvider):
             response = await client.models.list()
             return [{"id": m.id, "name": getattr(m, "display_name", m.id)} for m in response.data]
         except Exception:
-            # Anthropic SDK may not support list on all accounts — return known models
             return _ANTHROPIC_MODELS
 
     async def chat(
@@ -40,7 +93,7 @@ class AnthropicProvider(BaseLLMProvider):
         tools: Optional[list] = None,
         base_url: Optional[str] = None,
         timeout: float = 300.0
-    ) -> AsyncGenerator:
+    ):
         client = self._client(api_key, base_url, timeout)
 
         anthropic_tools = []
@@ -50,17 +103,11 @@ class AnthropicProvider(BaseLLMProvider):
                     func = tool.get("function", {})
                     anthropic_tools.append({
                         "name": func.get("name"),
-                        "description": func.get("description"),
-                        "input_schema": func.get("parameters")
+                        "description": func.get("description", ""),
+                        "input_schema": func.get("parameters") or {"type": "object", "properties": {}},
                     })
 
-        system_prompt = ""
-        filtered_messages = []
-        for msg in messages:
-            if msg["role"] == "system":
-                system_prompt += msg["content"] + "\n"
-            else:
-                filtered_messages.append(msg)
+        system_prompt, filtered_messages = _convert_messages_for_anthropic(messages)
 
         kwargs = {
             "model": model,
@@ -69,33 +116,73 @@ class AnthropicProvider(BaseLLMProvider):
             "stream": True,
         }
         if system_prompt:
-            kwargs["system"] = system_prompt.strip()
+            kwargs["system"] = system_prompt
         if anthropic_tools:
             kwargs["tools"] = anthropic_tools
 
         stream = await client.messages.create(**kwargs)
+        # Return async generator (not itself a generator, so llm_service can `await` this method)
+        return self._wrap_stream(stream)
 
+    async def _wrap_stream(self, stream) -> AsyncGenerator:
+        """Wrap Anthropic stream into OpenAI-compatible chunk objects."""
         async for chunk in stream:
-            if chunk.type == "content_block_delta":
-                if chunk.delta.type == "text_delta":
-                    yield self._mock_openai_chunk(content=chunk.delta.text)
+            if chunk.type == "content_block_start":
+                cb = chunk.content_block
+                if cb.type == "tool_use":
+                    yield self._tool_call_chunk(chunk.index, cb.id, cb.name, "")
 
-    def _mock_openai_chunk(self, content: str = None):
+            elif chunk.type == "content_block_delta":
+                delta = chunk.delta
+                if delta.type == "text_delta":
+                    yield self._text_chunk(delta.text)
+                elif delta.type == "input_json_delta":
+                    yield self._tool_call_chunk(chunk.index, None, None, delta.partial_json)
+
+    # ── Mock chunk builders ──────────────────────────────────────────────────
+
+    def _text_chunk(self, text: str):
         class Delta:
-            def __init__(self, content):
-                self.content = content
-                self.tool_calls = None
-                self.reasoning_content = None
+            content = text
+            tool_calls = None
+            reasoning_content = None
 
         class Choice:
-            def __init__(self, content):
-                self.delta = Delta(content)
+            delta = Delta()
 
         class Chunk:
-            def __init__(self, content):
-                self.choices = [Choice(content)]
+            choices = [Choice()]
 
-        return Chunk(content)
+        return Chunk()
+
+    def _tool_call_chunk(self, index: int, tool_id, name, arguments: str):
+        class Function:
+            pass
+
+        fn = Function()
+        fn.name = name
+        fn.arguments = arguments
+
+        class ToolCall:
+            pass
+
+        tc = ToolCall()
+        tc.index = index
+        tc.id = tool_id
+        tc.function = fn
+
+        class Delta:
+            content = None
+            reasoning_content = None
+            tool_calls = [tc]
+
+        class Choice:
+            delta = Delta()
+
+        class Chunk:
+            choices = [Choice()]
+
+        return Chunk()
 
     async def test_connection(self, api_key: str, model: str, base_url: Optional[str] = None) -> Dict[str, Any]:
         try:

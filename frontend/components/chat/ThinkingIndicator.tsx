@@ -2,8 +2,25 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bot, Database, Search, Sparkles, Brain } from "lucide-react";
+import { Database, Search, Sparkles, Brain } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+function AnimatedDots({ theme }: { theme: "dark" | "light" }) {
+    return (
+        <span className="inline-flex gap-px ml-0.5">
+            {[0, 1, 2].map((i) => (
+                <motion.span
+                    key={i}
+                    animate={{ opacity: [0.2, 1, 0.2] }}
+                    transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2, ease: "easeInOut" }}
+                    className={theme === "dark" ? "text-gray-400" : "text-gray-500"}
+                >
+                    .
+                </motion.span>
+            ))}
+        </span>
+    );
+}
 
 interface ThinkingIndicatorProps {
     theme?: "dark" | "light";
@@ -65,19 +82,14 @@ export default function ThinkingIndicator({ theme = "dark", isQuerying = false, 
         }
     };
 
-    const getText = () => {
+    const getLabel = () => {
         if (status) return status;
         switch (step) {
-            case "thinking":
-                return "Thinking...";
-            case "querying":
-                return "Searching library...";
-            case "web_search":
-                return "Searching the web...";
-            case "reading":
-                return "Reading sources...";
-            case "synthesizing":
-                return "Responding...";
+            case "thinking":     return "Thinking";
+            case "querying":     return "Searching library";
+            case "web_search":   return "Searching the web";
+            case "reading":      return "Reading sources";
+            case "synthesizing": return "Responding";
         }
     };
 
@@ -91,7 +103,7 @@ export default function ThinkingIndicator({ theme = "dark", isQuerying = false, 
                 {getIcon()}
             </div>
 
-            {/* Text */}
+            {/* Text + animated dots */}
             <motion.span
                 key={step}
                 initial={{ opacity: 0, x: -6 }}
@@ -99,11 +111,12 @@ export default function ThinkingIndicator({ theme = "dark", isQuerying = false, 
                 exit={{ opacity: 0, x: 6 }}
                 transition={{ duration: 0.2 }}
                 className={cn(
-                    "text-sm font-medium leading-none",
+                    "text-sm font-medium leading-none flex items-baseline",
                     theme === "dark" ? "text-gray-300" : "text-gray-600"
                 )}
             >
-                {getText()}
+                {getLabel()}
+                <AnimatedDots theme={theme} />
             </motion.span>
         </div>
     );

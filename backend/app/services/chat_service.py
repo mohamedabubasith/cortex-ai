@@ -20,6 +20,62 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Known context windows by model name fragment (substring match, longest wins)
+_MODEL_CONTEXT_WINDOWS: dict[str, int] = {
+    # OpenAI
+    "gpt-4.1":           1047576,
+    "gpt-4o":            128000,
+    "gpt-4-turbo":       128000,
+    "gpt-4":             8192,
+    "gpt-3.5-turbo-16k": 16385,
+    "gpt-3.5-turbo":     16385,
+    "o1":                200000,
+    "o3":                200000,
+    "o4":                200000,
+    # Anthropic
+    "claude":            200000,
+    # Google
+    "gemini-1.5":        1000000,
+    "gemini-2":          1000000,
+    "gemini":            32000,
+    # Meta Llama
+    "llama-3.3":         128000,
+    "llama-3.2":         128000,
+    "llama-3.1":         128000,
+    "llama3":            8192,
+    "llama-2":           4096,
+    # Mistral
+    "mixtral":           32768,
+    "mistral-large":     128000,
+    "mistral":           32768,
+    # Microsoft
+    "phi-4":             16384,
+    "phi-3":             128000,
+    "phi":               4096,
+    # Qwen
+    "qwen2.5":           128000,
+    "qwen2":             32768,
+    "qwen":              8192,
+    # DeepSeek
+    "deepseek":          65536,
+    # Gemma
+    "gemma2":            8192,
+    "gemma":             8192,
+    # OSS / NVIDIA
+    "gpt-oss-120b":      32768,
+    "gpt-oss":           32768,
+}
+
+
+def _resolve_context_window(model: str, configured: int) -> int:
+    """Auto-detect context window from model name; fall back to configured value."""
+    model_lower = model.lower()
+    # Match longest key first to avoid "gpt-4" swallowing "gpt-4o"
+    for key in sorted(_MODEL_CONTEXT_WINDOWS, key=len, reverse=True):
+        if key in model_lower:
+            return _MODEL_CONTEXT_WINDOWS[key]
+    return configured or 128000
+
 class ChatService:
     def __init__(self, db: AsyncSession):
         self.chat_repo = ChatRepository(models.ChatSession, db)
@@ -92,7 +148,10 @@ class ChatService:
             messages = [{"role": m.role, "content": m.content} for m in history]
 
             # 3.5 Prune History based on Context Window
-            context_window = getattr(agent.llm_config, 'context_window', 128000) or 128000
+            context_window = _resolve_context_window(
+                agent.llm_config.model,
+                getattr(agent.llm_config, 'context_window', 128000)
+            )
             # Reserve tokens for response (e.g. 4096)
             max_input_tokens = context_window - 4096
             

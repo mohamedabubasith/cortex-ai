@@ -127,6 +127,9 @@ export default function MCPHubPage() {
 
             if (editingId) {
                 await api.put(`/resources/mcp/${editingId}`, payload);
+                try {
+                    await api.post(`/resources/mcp/${editingId}/sync`);
+                } catch { /* sync failure is non-fatal */ }
                 toast("Server updated", "success");
             } else {
                 const res = await api.post("/resources/mcp", payload);

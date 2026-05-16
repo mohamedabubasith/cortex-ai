@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" fill="#111111"/>
+  <!-- Stem -->
+  <rect x="130" y="96" width="76" height="320" fill="#76B900"/>
+  <!-- Top bump outer D  (center y=174, r=78) -->
+  <path d="M206 96 A78 78 0 0 1 206 252 Z" fill="#76B900"/>
+  <!-- Top bump inner cutout (center y=174, r=47) -->
+  <path d="M206 127 A47 47 0 0 1 206 221 Z" fill="#111111"/>
+  <!-- Bottom bump outer D  (center y=335, r=81, slightly larger) -->
+  <path d="M206 254 A81 81 0 0 1 206 416 Z" fill="#76B900"/>
+  <!-- Bottom bump inner cutout (center y=335, r=50) -->
+  <path d="M206 285 A50 50 0 0 1 206 385 Z" fill="#111111"/>
+</svg>

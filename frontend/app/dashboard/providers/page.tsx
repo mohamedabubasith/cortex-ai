@@ -22,6 +22,7 @@ interface LLMConfig {
     model: string;
     api_key?: string;
     base_url?: string;
+    context_window?: number | null;
 }
 
 interface ModelOption {
@@ -55,7 +56,7 @@ export default function ProvidersPage() {
     const [creatingLlm, setCreatingLlm] = useState(false);
     const [editingLlmId, setEditingLlmId] = useState<string | null>(null);
     const [newLlmConfig, setNewLlmConfig] = useState<Partial<LLMConfig>>({
-        name: "", provider: "openai", model: "", api_key: "", base_url: ""
+        name: "", provider: "openai", model: "", api_key: "", base_url: "", context_window: null
     });
 
     const [fetchingModels, setFetchingModels] = useState(false);
@@ -80,7 +81,7 @@ export default function ProvidersPage() {
     };
 
     const resetForm = () => {
-        setNewLlmConfig({ name: "", provider: "openai", model: "", api_key: "", base_url: "" });
+        setNewLlmConfig({ name: "", provider: "openai", model: "", api_key: "", base_url: "", context_window: null });
         setEditingLlmId(null);
         setFetchedModels([]);
         setConnected(false);
@@ -145,7 +146,7 @@ export default function ProvidersPage() {
     };
 
     const handleEditLLM = (config: LLMConfig) => {
-        setNewLlmConfig({ name: config.name, provider: config.provider, model: config.model, api_key: "", base_url: config.base_url || "" });
+        setNewLlmConfig({ name: config.name, provider: config.provider, model: config.model, api_key: "", base_url: config.base_url || "", context_window: config.context_window ?? null });
         setEditingLlmId(config.id);
         setFetchedModels([]);
         setConnected(false);
@@ -323,6 +324,14 @@ export default function ProvidersPage() {
                             onChange={e => setNewLlmConfig(p => ({ ...p, model: e.target.value }))}
                         />
                     )}
+
+                    <Input
+                        label="Context Window (tokens) — optional"
+                        placeholder="Auto-detected from model name if left blank"
+                        type="number"
+                        value={newLlmConfig.context_window ?? ""}
+                        onChange={e => setNewLlmConfig(p => ({ ...p, context_window: e.target.value ? parseInt(e.target.value) : null }))}
+                    />
                 </div>
             </Dialog>
 

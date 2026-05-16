@@ -90,7 +90,7 @@ class ToolsService:
                             "function": {
                                 "name": f"mcp_{mcp.id}_{tool['name']}",
                                 "description": tool.get("description", ""),
-                                "parameters": tool.get("inputSchema", {})
+                                "parameters": tool.get("inputSchema") or {}
                             }
                         })
 

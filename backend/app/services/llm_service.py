@@ -83,7 +83,7 @@ class LLMService:
             MAX_LOOPS = 10
             tool_call_history = set() # Track unique tool calls in this session
             for loop_index in range(MAX_LOOPS):
-                logger.info(f"Sending request to {agent.llm_config.model} (Loop {loop_index})")
+                logger.info(f"Sending request to {agent.llm_config.model} (Loop {loop_index}) with {len(tools)} tools")
                 
                 # Create stream via Provider
                 stream = await provider.chat(
@@ -114,17 +114,17 @@ class LLMService:
                     # Handle Tool Calls
                     if delta.tool_calls:
                         for tc in delta.tool_calls:
-                            if tc.index is not None:
-                                if len(tool_calls) <= tc.index:
-                                    tool_calls.append({"id": "", "type": "function", "function": {"name": "", "arguments": ""}})
-                                
-                                if tc.id:
-                                    tool_calls[tc.index]["id"] += tc.id
-                                if tc.function:
-                                    if tc.function.name:
-                                        tool_calls[tc.index]["function"]["name"] += tc.function.name
-                                    if tc.function.arguments:
-                                        tool_calls[tc.index]["function"]["arguments"] += tc.function.arguments
+                            idx = tc.index if tc.index is not None else 0
+                            if len(tool_calls) <= idx:
+                                tool_calls.append({"id": "", "type": "function", "function": {"name": "", "arguments": ""}})
+
+                            if tc.id:
+                                tool_calls[idx]["id"] += tc.id
+                            if tc.function:
+                                if tc.function.name:
+                                    tool_calls[idx]["function"]["name"] += tc.function.name
+                                if tc.function.arguments:
+                                    tool_calls[idx]["function"]["arguments"] += tc.function.arguments
                     
                     # Handle Reasoning/Thinking
                     if hasattr(delta, 'reasoning_content') and delta.reasoning_content:

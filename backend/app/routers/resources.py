@@ -9,6 +9,9 @@ from app.services.auth_service import get_current_active_user, get_current_tenan
 from app.services.database_service import database_service
 from app.services.mcp_service import mcp_service
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -288,11 +291,22 @@ async def update_mcp_connection(
         mcp_conn.server_url = connection.server_url
     if connection.protocol is not None:
         mcp_conn.protocol = connection.protocol
-    
+
     if connection.auth_headers is not None:
         # Re-using database_service for encryption
         encrypted_headers = database_service.encrypt_password(json.dumps(connection.auth_headers))
         mcp_conn.auth_headers = encrypted_headers
+
+    # Re-fetch tools whenever URL or auth changes
+    if connection.server_url is not None or connection.auth_headers is not None:
+        try:
+            auth_headers = connection.auth_headers if connection.auth_headers is not None else (
+                json.loads(database_service.decrypt_password(mcp_conn.auth_headers)) if mcp_conn.auth_headers else {}
+            )
+            tools = await mcp_service.connect_and_fetch_tools(mcp_conn.server_url, auth_headers, mcp_conn.protocol)
+            mcp_conn.tools_metadata = tools
+        except Exception as e:
+            logger.warning(f"Could not refresh tools for MCP {mcp_id} after update: {e}")
 
     await db.commit()
     await db.refresh(mcp_conn)

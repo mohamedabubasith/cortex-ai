@@ -79,6 +79,7 @@ class LLMConfigurationBase(BaseModel):
     base_url: Optional[str] = None
     api_key: str
     model: str
+    context_window: Optional[int] = None
 
 class LLMConfigurationCreate(LLMConfigurationBase):
     pass
@@ -89,6 +90,7 @@ class LLMConfigurationUpdate(BaseModel):
     base_url: Optional[str] = None
     api_key: Optional[str] = None
     model: Optional[str] = None
+    context_window: Optional[int] = None
 
 class LLMConfiguration(LLMConfigurationBase):
     id: str
