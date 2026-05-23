@@ -1,8 +1,8 @@
 # Basivo 🧠
 
-An intelligent, agentic chat platform for your data.
+An intelligent, agentic AI platform for your data — built and operated by [Mohamed Abu Basith](https://chat.basivo.in).
 
-Basivo is a powerful, open-source AI platform that combines **RAG (Retrieval-Augmented Generation)** with **SQL Agent** capabilities. It allows users to chat with their documents (PDFs, text) AND their live databases (PostgreSQL, MySQL) in a single, unified interface.
+Basivo combines **RAG (Retrieval-Augmented Generation)** with **SQL Agent** capabilities, letting you chat with your documents (PDF, DOCX, PPTX) and live databases (PostgreSQL, MySQL) in a single unified interface. Live at [chat.basivo.in](https://chat.basivo.in).
 
 Built with **FastAPI**, **Next.js**, **Haystack**, **Unstructured**, **Ollama**, **Qdrant**, and **PostgreSQL**.
 
@@ -140,7 +140,7 @@ EMAILS_FROM_EMAIL=no-reply@yourdomain.com
 
 ---
 
-## 🛠️ Self-Hosting & Customization
+## 🛠️ Deployment & Customization
 
 ### 1. Docker Configuration
 The project is fully containerized. To customize the deployment for your environment:
@@ -152,9 +152,9 @@ The project is fully containerized. To customize the deployment for your environ
     - "8080:3000" # Access frontend at localhost:8080
   ```
 
-### 2. Branding & White-labeling
+### 2. Branding
 - **App Name**: Update `frontend/app/layout.tsx` and `frontend/components/chat/Sidebar.tsx`.
-- **Theme**: The primary color is defined as `--nvidia-green` in `frontend/app/globals.css`. Change this variable to match your brand identity.
+- **Theme**: The primary color is defined as `--nvidia-green` in `frontend/app/globals.css`.
 
 ### 3. Authentication & Access
 - The app includes built-in JWT authentication.
@@ -181,18 +181,6 @@ cd frontend
 npm install
 npm run dev
 ```
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
 
 ---
 
